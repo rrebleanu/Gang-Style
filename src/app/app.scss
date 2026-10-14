@@ -1,0 +1,140 @@
+// Culorile dupa design salon
+
+// $bg-color: #121212;         // Negru mat
+$bg-color: #28282B;
+$text-primary: #f4f4f4;     // Alb curat pentru text
+$led-white: #ffffff;        // Alb luminos
+$ceiling-green: #4E4E5A;
+// $ceiling-green: #44444e;
+$sage-hover: #6d7968;       // Verde mai închis pentru hover
+
+// .main-container {
+//   background-color: $bg-color;
+//   min-height: 100vh;
+//   display: flex;
+//   flex-direction: column;
+//   align-items: center;
+//   justify-content: center;
+//   font-family: 'Helvetica Neue', Arial, sans-serif;
+//   margin: 0;
+//   text-align: center;
+//   padding: 20px;
+//
+//   border: none;
+//   border: 6px solid $ceiling-green;
+// }
+
+.main-container {
+  background: linear-gradient(rgba(18, 18, 18, 0.83), rgba(18, 18, 18, 0.83)), url('/images/caramida.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  // Setări implicite
+  padding: 15px;
+  border: none;
+
+  // Adaptare pentru Tablete
+  @media (min-width: 768px) {
+    padding: 30px;
+  }
+}
+
+// h1 {
+//   font-size: 2.5rem;
+//   font-weight: bold;
+//   letter-spacing: 2px;
+//   color: $led-white;
+//   text-transform: uppercase;
+//   margin-bottom: 10px;
+//   text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+//
+//   // Adaptare pentru Desktop (ecrane mari: >= 1024px)
+//   @media (min-width: 1024px) {
+//     font-size: 4rem;
+//     letter-spacing: 5px;
+//     text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+//   }
+// }
+
+
+h1 {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  line-height: 1.3;
+
+  .highlight {
+    color: $led-white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+
+  // Adaptare pentru tablete și desktop
+  @media (min-width: 768px) {
+    font-size: 3.5rem;
+
+    .highlight {
+      text-shadow: 0 0 30px rgba(255, 255, 255, 0.2); // Lumină mai puternică pe ecrane mari
+    }
+  }
+}
+
+
+.subtitle {
+  color: $ceiling-green;
+  font-size: 0.9rem; // Subtitlu mai mic pe mobil
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  font-weight: 500;
+
+  @media (min-width: 768px) {
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+}
+
+// Designul butonului interactiv în ton cu salonul
+.cta-button {
+  background-color: transparent;
+  color: $led-white;
+  border: 2px solid $ceiling-green;
+  padding: 12px 30px;
+  font-size: 1rem;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+
+  // Efect la hover (când pui mouse-ul pe el)
+  &:hover {
+    background-color: $ceiling-green;
+    color: $bg-color;
+    box-shadow: 0 0 15px rgba(130, 143, 125, 0.4);
+  }
+}
+
+.brand-logo {
+  width: 100px; // Logo mai mic pe telefon
+  height: auto;
+  margin-bottom: 20px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+
+  @media (min-width: 768px) {
+    width: 150px; // Logo mărit pe tabletă/desktop
+  }
+}
+
+

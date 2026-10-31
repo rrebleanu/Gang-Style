@@ -3,7 +3,8 @@ import { Public } from './public';
 
 const routes: Routes = [
   {
-    path: '', component: Public
+    path: '',
+    component: Public
   }
 ];
 

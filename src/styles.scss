@@ -10,5 +10,29 @@ html, body {
   min-height: 100%;
   background-color: #121212;
   font-family: 'Helvetica Neue', Arial, sans-serif;
-  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
+  // keeps the background layer above body color
+  isolation: isolate;
+}
+
+// brick wall background (fixed layer)
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(179, 146, 104, 0.14), transparent 70%),
+    radial-gradient(ellipse at center, transparent 30%, rgba(8, 8, 8, 0.85) 100%),
+    linear-gradient(rgba(18, 18, 18, 0.82), rgba(18, 18, 18, 0.82)),
+    url('/images/caramida.jpg') center / cover no-repeat;
+
+  // blur hides low-res pixels
+  filter: blur(2px);
+  transform: scale(1.04);
 }

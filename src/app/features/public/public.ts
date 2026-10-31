@@ -1,11 +1,14 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-
+import { FooterComponent } from '../../shared/components/footer/footer.component';
 
 @Component({
   selector: 'app-public',
-  imports: [RouterOutlet],
+  imports: [FooterComponent],
   templateUrl: './public.html',
   styleUrl: './public.scss',
 })
-export class Public {}
+export class Public {
+  onBookClick() {
+    alert('Sistemul de programări se deschide curând!');
+  }
+}

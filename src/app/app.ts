@@ -11,9 +11,4 @@ import { HeaderComponent } from './shared/components/header/header';
 })
 export class App {
   title = 'gang-style-frontend';
-
-  // Funcția apelată la click pe buton
-  onBookClick() {
-    alert('Sistemul de programări se deschide curând!');
-  }
 }

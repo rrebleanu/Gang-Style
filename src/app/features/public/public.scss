@@ -102,8 +102,8 @@ h1 {
 }
 
 .salon-image {
-  width: clamp(400px, 82vw, 840px);
-  max-height: 50vh;
+  width: clamp(400px, 82vw, 700px);
+  max-height: 61vh;
   object-fit: cover;
   border-radius: $radius;
   border: 1px solid rgba($color-accent, 0.6);

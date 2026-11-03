@@ -1,0 +1,52 @@
+$color-accent: #b39268;
+
+.page-container {
+  min-height: 75vh;
+  padding: 8rem 2rem 4rem;
+  max-width: 960px;
+  margin: 0 auto;
+  color: #ffffff;
+}
+
+.section-tag {
+  color: $color-accent;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.page-title {
+  color: $color-accent;
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 0.5rem 0 1.5rem;
+  text-transform: uppercase;
+}
+
+.lead-text {
+  color: #cccccc;
+  margin-bottom: 2.5rem;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.service-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(179, 146, 104, 0.2);
+  padding: 1.5rem;
+  border-radius: 6px;
+
+  h3 {
+    color: $color-accent;
+    margin-bottom: 0.75rem;
+  }
+
+  p {
+    color: #bbbbbb;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+}

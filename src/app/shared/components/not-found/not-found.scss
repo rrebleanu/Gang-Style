@@ -1,0 +1,51 @@
+$color-accent: #b39268;
+
+.error-container {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8rem 2rem 4rem;
+  color: #ffffff;
+}
+
+.error-badge {
+  color: $color-accent;
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+
+.error-title {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  text-transform: uppercase;
+  margin: 1rem 0;
+  letter-spacing: 0.08em;
+}
+
+.error-description {
+  color: #cccccc;
+  max-width: 450px;
+  margin-bottom: 2.5rem;
+  font-size: 1rem;
+}
+
+.back-btn {
+  background-color: $color-accent;
+  color: #121212;
+  text-decoration: none;
+  padding: 0.75rem 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 4px;
+  transition: all 0.25s ease;
+
+  &:hover {
+    background-color: #ffffff;
+    transform: translateY(-2px);
+  }
+}

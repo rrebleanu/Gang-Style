@@ -1,24 +1,52 @@
 <nav class="transparent-navbar">
-  <!-- Brand logo (left zone) -->
-  <div class="logo">
+  <!-- Logo (navighează la Home) -->
+  <a routerLink="/" class="logo">
     <span class="logo-title">GANG STYLE</span>
     <span class="logo-subtitle">EST 2020</span>
-  </div>
+  </a>
 
-  <!-- Page links -->
+  <!-- Meniu Navigare -->
   <ul class="nav-links">
-    <li><a href="#">Acasă</a></li>
-    <li><a href="#">Servicii și prețuri</a></li>
-    <li><a href="#">Despre noi</a></li>
-    <li><a href="#">Galerie</a></li>
-    <li><a href="#">Zona Frizeri</a></li>
+    <li>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        Acasă
+      </a>
+    </li>
+    <li>
+      <a routerLink="/despre" routerLinkActive="active">
+        Despre noi
+      </a>
+    </li>
+    <li>
+      <a routerLink="/servicii" routerLinkActive="active">
+        Servicii
+      </a>
+    </li>
+    <li>
+      <a routerLink="/contact" routerLinkActive="active">
+        Contact
+      </a>
+    </li>
+    <li>
+      <a routerLink="/dashboard" routerLinkActive="active">
+        Dashboard
+      </a>
+    </li>
+    <li>
+      <a routerLink="/admin" routerLinkActive="active">
+        Admin
+      </a>
+    </li>
   </ul>
 
-  <!-- Contact and booking actions (right zone) -->
+  <!-- Acțiuni Dreapta -->
   <div class="nav-actions">
     <a class="nav-phone" href="https://wa.me/40770426308" target="_blank" rel="noopener">
       WhatsApp · 0770426308
     </a>
-    <button class="nav-btn" type="button">Programare</button>
+    <a routerLink="/login" class="nav-login" routerLinkActive="active">
+      Login
+    </a>
+    <button class="nav-btn" routerLink="/" type="button">Programare</button>
   </div>
 </nav>

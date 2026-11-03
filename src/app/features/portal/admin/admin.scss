@@ -1,0 +1,26 @@
+$color-accent: #b39268;
+
+.page-container {
+  min-height: 75vh;
+  padding: 8rem 2rem 4rem;
+  max-width: 900px;
+  margin: 0 auto;
+  color: #ffffff;
+}
+
+.section-tag {
+  color: $color-accent;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.page-title {
+  color: $color-accent;
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 0.5rem 0 1rem;
+}
+
+.lead-text {
+  color: #cccccc;
+}

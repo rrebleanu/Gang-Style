@@ -1,0 +1,39 @@
+$color-accent: #b39268;
+
+.page-container {
+  min-height: 75vh;
+  padding: 8rem 2rem 4rem;
+  max-width: 900px;
+  margin: 0 auto;
+  color: #ffffff;
+}
+
+.section-tag {
+  color: $color-accent;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+}
+
+.page-title {
+  color: $color-accent;
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin: 0.5rem 0 1.5rem;
+  text-transform: uppercase;
+}
+
+.lead-text {
+  font-size: 1.2rem;
+  color: #e0e0e0;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.content-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid $color-accent;
+  padding: 1.5rem;
+  border-radius: 0 4px 4px 0;
+  color: #cccccc;
+}

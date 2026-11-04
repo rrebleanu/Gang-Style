@@ -15,9 +15,14 @@ export const routes: Routes = [
       import('./features/public/about/about').then((m) => m.About),
   },
   {
-    path: 'servicii',
+    path: 'echipa',
     loadComponent: () =>
       import('./features/public/services/services').then((m) => m.Services),
+  },
+  {
+    path: 'servicii',
+    redirectTo: 'echipa',
+    pathMatch: 'full',
   },
   {
     path: 'contact',
@@ -31,7 +36,7 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/auth').then((m) => m.Auth),
   },
 
-  // 4. Zone protejate (Dashboard frizer & Admin)
+  // 4. Zone protejate (Dashboard Client & Admin)
   {
     path: 'dashboard',
     loadComponent: () => import('./features/portal/portal').then((m) => m.Portal),

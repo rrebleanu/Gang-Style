@@ -1,0 +1,29 @@
+// Reusable SCSS helpers.
+// Import in any component with: @use 'mixins' as *;
+@use 'variables' as *;
+
+// tablet and smaller (<= 1000px)
+@mixin tablet {
+  @media screen and (max-width: $bp-tablet) {
+    @content;
+  }
+}
+
+// mobile only (<= 700px); written after tablet rules so it overrides them
+@mixin mobile {
+  @media screen and (max-width: $bp-mobile) {
+    @content;
+  }
+}
+
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+%reset-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

@@ -1,0 +1,32 @@
+<article class="card" [class.card--last-visit]="isLastVisit()">
+  <div class="card__photo">
+    <img [src]="barber().photoUrl" [alt]="'Frizerul ' + barber().name" />
+
+    @if (isLastVisit()) {
+      <span class="card__badge">⭐ Ultima vizită</span>
+    }
+  </div>
+
+  <div class="card__body">
+    <h3 class="card__name">{{ barber().name }}</h3>
+    <p class="card__bio">{{ barber().bio }}</p>
+
+    <ul class="card__tags" aria-label="Specializări">
+      @for (specialty of barber().specialties; track specialty) {
+        <li class="card__tag">{{ specialty }}</li>
+      }
+    </ul>
+
+    @if (barber().portfolio.length > 0) {
+      <div class="card__portfolio" aria-label="Portofoliu">
+        @for (image of barber().portfolio; track image) {
+          <img [src]="image" [alt]="'Lucrare realizată de ' + barber().name" loading="lazy" />
+        }
+      </div>
+    }
+
+    <a class="card__cta" [routerLink]="['/', barber().slug]">
+      Programează-te la {{ barber().name }}
+    </a>
+  </div>
+</article>

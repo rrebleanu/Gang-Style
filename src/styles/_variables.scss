@@ -1,0 +1,25 @@
+// Shared design tokens for the whole app.
+// Import in any component with: @use 'variables' as *;
+
+// brand colors
+$color-bg: #121212;
+$color-surface: rgba(255, 255, 255, 0.04);
+$color-text: #f4f4f4;
+$color-muted: #a0a0a0;
+$color-accent: #b39268;
+$color-accent-hover: #c9a97d;
+$color-border: rgba(179, 146, 104, 0.25);
+
+// shapes and motion
+$radius: 4px;
+$radius-lg: 8px;
+$transition-fast: 0.25s ease;
+$transition-slow: 0.5s ease;
+
+// layout
+$header-height: 4.5rem;
+$content-max-width: 1200px;
+
+// breakpoints (same values as in Tackle Hub)
+$bp-tablet: 1000px;
+$bp-mobile: 700px;

@@ -1,39 +1,55 @@
-<nav class="transparent-navbar">
+<nav class="navbar" [class.navbar--open]="menuOpen()" aria-label="Navigare principală">
   <!-- Logo (navighează la Home) -->
-  <a routerLink="/" class="logo">
+  <a routerLink="/" class="logo" (click)="closeMenu()">
     <span class="logo-title">GANG STYLE</span>
     <span class="logo-subtitle">EST 2020</span>
   </a>
 
-  <!-- Meniu Navigare -->
-  <ul class="nav-links">
-    <li>
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        Acasă
-      </a>
-    </li>
-    <li>
-      <a routerLink="/despre" routerLinkActive="active">
-        Despre noi
-      </a>
-    </li>
-    <li>
-      <a routerLink="/echipa" routerLinkActive="active">
-        Echipa
-      </a>
-    </li>
-    <li>
-      <a routerLink="/contact" routerLinkActive="active">
-        Contact
-      </a>
-    </li>
-  </ul>
+  <!-- Buton hamburger (vizibil doar pe mobil) -->
+  <button
+    type="button"
+    class="hamburger"
+    aria-controls="main-menu"
+    [attr.aria-expanded]="menuOpen()"
+    [attr.aria-label]="menuOpen() ? 'Închide meniul' : 'Deschide meniul'"
+    (click)="toggleMenu()"
+  >
+    <span class="bar"></span>
+    <span class="bar"></span>
+    <span class="bar"></span>
+  </button>
 
-  <!-- Acțiuni Dreapta -->
-  <div class="nav-actions">
-    <a routerLink="/login" class="nav-login" routerLinkActive="active">
-      Login
-    </a>
-    <button class="nav-btn" routerLink="/" type="button">Programare</button>
+  <!-- Meniu: orizontal pe desktop, panou vertical pe mobil -->
+  <div id="main-menu" class="menu">
+    <ul class="nav-links">
+      <li>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">
+          Acasă
+        </a>
+      </li>
+      <li>
+        <a routerLink="/" fragment="despre" (click)="scrollTo('despre')">
+          Despre noi
+        </a>
+      </li>
+      <li>
+        <a routerLink="/" fragment="frizeri" (click)="scrollTo('frizeri')">
+          Echipa
+        </a>
+      </li>
+      <li>
+        <a routerLink="/" fragment="locatie" (click)="scrollTo('locatie')">
+          Contact
+        </a>
+      </li>
+    </ul>
+
+    <!-- Acțiuni Dreapta -->
+    <div class="nav-actions">
+      <a routerLink="/login" class="nav-login" routerLinkActive="active" (click)="closeMenu()">
+        Login
+      </a>
+      <a routerLink="/" fragment="frizeri" class="nav-btn" (click)="scrollTo('frizeri')">Programare</a>
+    </div>
   </div>
 </nav>

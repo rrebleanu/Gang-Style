@@ -1,14 +1,94 @@
-<main class="main-container">
-  <img src="images/gangstyle.jpg" alt="Gang Style Logo" class="brand-logo">
+<main class="home">
+<!-- Marketing-->
+  <section class="hero">
+    <img src="images/gangstyle.jpg" alt="Gang Style Logo" class="brand-logo" />
 
-  <h1>Barber Shop Giurgiu | <span class="highlight">Gang Style</span></h1>
+    <h1>Barber Shop Giurgiu | <span class="highlight">Gang Style</span></h1>
 
-  <p class="subtitle">EXPERIENTA SI CALITATE IN STYLING</p>
+    <p class="subtitle">EXPERIENTA SI CALITATE IN STYLING</p>
 
-  <button class="cta-button" (click)="onBookClick()">PROGRAMEAZA-TE ACUM</button>
+    <button type="button" class="cta-button" (click)="team.scrollIntoView({ behavior: 'smooth' })">
+      PROGRAMEAZA-TE ACUM
+    </button>
+  </section>
 
   <section class="salon-photo">
     <img src="images/salon3.jpg" alt="Salon interior" class="salon-image" />
     <p class="photo-caption">Atmosferă modernă și confortabilă</p>
+  </section>
+
+  <!-- Barber cards -->
+  <section id="frizeri" class="team" #team aria-labelledby="team-title">
+    <h2 id="team-title" class="team__title">Alege-ți frizerul</h2>
+    <p class="team__subtitle">Fiecare frizer are propriile servicii și prețuri.</p>
+
+    <div class="team__grid">
+      @for (barber of barbers; track barber.id) {
+        <app-barber-card [barber]="barber" [isLastVisit]="barber.id === lastVisitBarberId()" />
+      } @empty {
+        <p class="empty-state">Momentan nu există frizeri disponibili.</p>
+      }
+    </div>
+  </section>
+
+  <!-- About section -->
+  <section id="despre" class="about-banner" aria-labelledby="about-title">
+    <div class="about-banner__content">
+      <h2 id="about-title" class="about-banner__title">Despre noi</h2>
+      <p class="about-banner__tagline">
+        <span class="about-banner__line" aria-hidden="true"></span>
+        Gang Style &middot; EST. 2020
+      </p>
+
+      <p class="about-banner__text">
+        Fondat în 2020 în Giurgiu, <strong>Gang Style</strong> a pornit cu ambiția clară de a schimba
+        modul în care arată și se simte o frizerie dedicată exclusiv bărbaților. Nu suntem doar un
+        loc în care vii pentru un tuns sau îngrijirea bărbii, ci o experiență completă — atmosferă
+        relaxată, vibe bun, discuții ca între prieteni și aceeași atenție la detalii la fiecare
+        vizită.
+      </p>
+
+      <p class="about-banner__text">
+        Aici nu e vorba doar de tuns — e vorba de stil, atitudine și încredere. Lucrăm modern, curat
+        și precis: fade-uri impecabile, linii exacte și barbă sculptată. Nu grăbim niciodată
+        lucrurile, pentru că fiecare client primește timpul și atenția cuvenită alături de un
+        barber care îi înțelege stilul și livrează un look impecabil, fără compromisuri.
+      </p>
+    </div>
+  </section>
+
+  <!-- Program, Contact & Harta (Ne Găsești Aici) -->
+  <section id="locatie" class="location-section" aria-label="Program, date de contact și locație">
+    <div class="location-section__info">
+      <div class="info-block">
+        <h2 class="info-block__title">Program De Lucru</h2>
+        <p class="info-block__days">Marți – Sâmbătă</p>
+        <p class="info-block__hours">10:00 – 19:00</p>
+        <p class="info-block__closed">Luni &amp; Duminică: Închis</p>
+      </div>
+
+      <div class="info-block">
+        <h2 class="info-block__title">Date De Contact</h2>
+        <p class="info-block__address">
+          Strada Negru-Vodă, Bl. 120G, Parter,<br />
+          Giurgiu, România
+        </p>
+        <a href="tel:+40770426308" class="info-block__phone">0770 426 308</a>
+        <a href="mailto:contact@gangstyle.ro" class="info-block__email">contact&#64;gangstyle.ro</a>
+      </div>
+    </div>
+
+    <div class="location-section__map">
+      <h2 class="info-block__title info-block__title--map">Ne Găsești Aici</h2>
+      <div class="map-frame">
+        <iframe
+          title="Locația GangStyle Barber Shop Giurgiu pe Google Maps"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1800.0!2d25.9688435!3d43.9014511!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x40ae6700119e4db9%3A0xb7b1f4d8f876120f!2sGangStyle!5e0!3m2!1sro!2sro!4v1731250000000!5m2!1sro!2sro"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </div>
   </section>
 </main>

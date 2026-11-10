@@ -1,20 +1,38 @@
-$color-accent: #b39268;
-$color-bg: #121212;
-$color-text: #ffffff;
+@use 'variables' as *;
+@use 'mixins' as *;
 
-.transparent-navbar {
-  position: absolute;
+$hamburger-delay: 150ms;
+
+// hamburger bars slide in one after another (idea from Tackle Hub, brand colors)
+// uses `translate`/`scale` instead of `transform`, so it doesn't block the X animation below
+@keyframes barIntro {
+  from {
+    opacity: 0;
+    translate: -12px 0;
+    scale: 0.5 1;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1 1;
+  }
+}
+
+// fixed overlay header: stays visible while scrolling
+.navbar {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  padding: 0.875rem clamp(1rem, 4vw, 3rem);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
+  right: 0;
   z-index: 100;
-  box-sizing: border-box;
+  height: $header-height;
+  padding: 0 clamp(1rem, 4vw, 3rem);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba($color-accent, 0.15);
 }
 
 .logo {
@@ -22,7 +40,7 @@ $color-text: #ffffff;
   flex-direction: column;
   align-items: center;
   text-decoration: none;
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .logo-title {
@@ -36,29 +54,34 @@ $color-text: #ffffff;
 .logo-subtitle {
   color: $color-accent;
   font-size: 0.5rem;
-  font-weight: 400;
   letter-spacing: 0.3em;
   margin-top: 4px;
 }
 
-.nav-links {
+// desktop: links in the middle, actions on the right
+.menu {
+  flex: 1;
   display: flex;
   align-items: center;
-  list-style: none;
+}
+
+.nav-links {
+  @extend %reset-list;
+  display: flex;
+  align-items: center;
   margin: 0 auto;
-  padding: 0;
   gap: clamp(0.75rem, 2vw, 1.75rem);
 
-  li a {
+  a {
     color: $color-text;
     text-decoration: none;
-    font-size: clamp(0.7rem, 0.65rem + 0.2vw, 0.8125rem);
+    font-size: 0.8125rem;
     text-transform: uppercase;
     font-weight: 500;
     letter-spacing: 0.1em;
     padding-bottom: 4px;
     border-bottom: 2px solid transparent;
-    transition: color 0.25s ease, border-color 0.25s ease;
+    transition: color $transition-fast, border-color $transition-fast;
 
     &:hover {
       color: $color-accent;
@@ -78,17 +101,6 @@ $color-text: #ffffff;
   gap: 1rem;
 }
 
-.nav-phone {
-  color: $color-accent;
-  text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 600;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .nav-login {
   color: $color-text;
   text-decoration: none;
@@ -97,8 +109,8 @@ $color-text: #ffffff;
   font-weight: 600;
   padding: 0.35rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  transition: all 0.25s ease;
+  border-radius: $radius;
+  transition: color $transition-fast, border-color $transition-fast;
 
   &:hover,
   &.active {
@@ -110,19 +122,173 @@ $color-text: #ffffff;
 .nav-btn {
   background-color: $color-accent;
   color: $color-bg;
-  border: none;
+  text-decoration: none;
   padding: 0.5rem 1rem;
-  font-family: inherit;
-  font-size: clamp(0.7rem, 0.65rem + 0.2vw, 0.8125rem);
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.25s ease, transform 0.25s ease;
+  border-radius: $radius;
+  transition: background-color $transition-fast, transform $transition-fast;
 
   &:hover {
     background-color: $color-text;
     transform: translateY(-2px);
+  }
+}
+
+// hidden on desktop and tablet
+.hamburger {
+  display: none;
+}
+
+// tablet: same layout, tighter spacing and smaller text
+@include tablet {
+  .navbar {
+    gap: 1rem;
+  }
+
+  .nav-links {
+    gap: 0.9rem;
+
+    a {
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+    }
+  }
+
+  .nav-actions {
+    gap: 0.6rem;
+  }
+
+  .nav-btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.7rem;
+  }
+}
+
+// mobile: hamburger + vertical dropdown panel
+@include mobile {
+  .navbar {
+    justify-content: space-between;
+  }
+
+  .hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 32px;
+    height: 22px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    .bar {
+      display: block;
+      width: 100%;
+      height: 3px;
+      border-radius: 2px;
+      background-color: $color-accent;
+      opacity: 0;
+      transition: transform $transition-fast, opacity $transition-fast;
+
+      // different delay for every bar (SCSS @for, like in Tackle Hub)
+      @for $i from 1 through 3 {
+        &:nth-child(#{$i}) {
+          animation: barIntro 0.5s ease-out forwards;
+          animation-delay: #{$i * $hamburger-delay};
+        }
+      }
+    }
+  }
+
+  // bars turn into an X when the menu is open
+  .navbar--open .hamburger .bar {
+    &:nth-child(1) {
+      transform: translateY(9.5px) rotate(45deg);
+    }
+
+    &:nth-child(2) {
+      opacity: 0 !important;
+    }
+
+    &:nth-child(3) {
+      transform: translateY(-9.5px) rotate(-45deg);
+    }
+  }
+
+  .menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem clamp(1rem, 4vw, 3rem) 1.5rem;
+    background: rgba(12, 12, 12, 0.97);
+    border-bottom: 1px solid $color-border;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+
+    // closed state: collapsed from the top
+    transform: scaleY(0);
+    transform-origin: top;
+    opacity: 0;
+    visibility: hidden;
+    transition: transform $transition-slow, opacity $transition-slow, visibility $transition-slow;
+  }
+
+  .navbar--open .menu {
+    transform: scaleY(1);
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0;
+    gap: 0;
+
+    li {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    a {
+      display: block;
+      padding: 0.9rem 0;
+      font-size: 0.9rem;
+      border-bottom: none;
+
+      &.active {
+        padding-left: 0.75rem;
+        border-left: 3px solid $color-accent;
+      }
+    }
+  }
+
+  .nav-actions {
+    margin-top: 1.25rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .nav-login,
+  .nav-btn {
+    text-align: center;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hamburger .bar {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .menu {
+    transition: none !important;
   }
 }

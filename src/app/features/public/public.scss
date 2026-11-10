@@ -150,12 +150,7 @@ h1 {
   font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.2rem);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-}
-
-.team__subtitle {
-  margin: 0.5rem 0 2rem;
-  color: $color-muted;
-  font-size: 0.95rem;
+  margin-bottom: 2rem;
 }
 
 // 50/50 on desktop and tablet, one card under the other on mobile

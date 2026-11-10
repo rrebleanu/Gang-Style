@@ -19,12 +19,14 @@
 
   <!-- Barber cards -->
   <section id="frizeri" class="team" #team aria-labelledby="team-title">
-    <h2 id="team-title" class="team__title">Alege-ți frizerul</h2>
-    <p class="team__subtitle">Fiecare frizer are propriile servicii și prețuri.</p>
+    <h2 id="team-title" class="team__title">Echipa noastră</h2>
 
     <div class="team__grid">
       @for (barber of barbers; track barber.id) {
-        <app-barber-card [barber]="barber" [isLastVisit]="barber.id === lastVisitBarberId()" />
+        <app-barber-card
+          [barber]="barber"
+          [isLastVisit]="barber.id === lastVisitBarberId()"
+        />
       } @empty {
         <p class="empty-state">Momentan nu există frizeri disponibili.</p>
       }

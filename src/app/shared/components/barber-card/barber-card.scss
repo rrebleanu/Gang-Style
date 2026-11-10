@@ -1,6 +1,8 @@
 @use 'variables' as *;
 @use 'mixins' as *;
 
+$ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+
 :host {
   display: block;
 }
@@ -14,29 +16,68 @@
   border: 1px solid $color-border;
   border-radius: $radius-lg;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  transition: transform $transition-fast, border-color $transition-fast;
-
-  &:hover {
-    transform: translateY(-4px);
-    border-color: rgba($color-accent, 0.6);
-  }
+  transition:
+    transform 0.4s $ease-smooth,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
 
   // returning client: subtle gold glow
   &--last-visit {
     border-color: $color-accent;
     box-shadow: 0 0 0 1px $color-accent, 0 8px 24px rgba(0, 0, 0, 0.45);
   }
+
+  // hover state: inner elements compact and reveal the booking button at the bottom
+  &:hover,
+  &:focus-within {
+    transform: translateY(-4px);
+    border-color: $color-accent;
+    box-shadow:
+      0 0 0 1px rgba($color-accent, 0.55),
+      0 14px 36px rgba(0, 0, 0, 0.65);
+
+    .card__photo {
+      height: 300px;
+
+      img {
+        transform: scale(1.04);
+      }
+    }
+
+    .card__content {
+      transform: scale(0.94);
+      gap: 0.7rem;
+    }
+
+    .card__thumb img {
+      height: 82px;
+    }
+
+    .card__cta-wrap {
+      max-height: 72px;
+      margin-top: 1rem;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
 }
 
 .card__photo {
   position: relative;
-  aspect-ratio: 4 / 5; // fixed shape: real photos can replace placeholders without breaking the layout
+  width: 100%;
+  height: 380px; // fixed equal height for both cards regardless of image resolution
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: height 0.45s $ease-smooth;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
     display: block;
+    transition: transform 0.5s $ease-smooth;
   }
 }
 
@@ -58,8 +99,18 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
   padding: 1.5rem;
+}
+
+.card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transform-origin: top center;
+  transition:
+    transform 0.45s $ease-smooth,
+    gap 0.45s $ease-smooth;
 }
 
 .card__name {
@@ -67,12 +118,6 @@
   font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.9rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.card__bio {
-  color: $color-muted;
-  font-size: 0.95rem;
-  line-height: 1.5;
 }
 
 .card__tags {
@@ -91,39 +136,259 @@
   border-radius: 999px;
 }
 
+.card__gallery-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.card__gallery-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: $color-accent;
+  cursor: pointer;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-accent-hover;
+    text-decoration: underline;
+  }
+}
+
 .card__portfolio {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
+}
+
+.card__thumb {
+  padding: 0;
+  border: 1px solid rgba($color-accent, 0.25);
+  border-radius: $radius;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color $transition-fast, transform $transition-fast;
+
+  &:hover {
+    border-color: $color-accent;
+    transform: scale(1.03);
+  }
 
   img {
     width: 100%;
-    aspect-ratio: 1;
+    height: 100px;
     object-fit: cover;
-    border-radius: $radius;
+    object-position: center;
     display: block;
+    transition: height 0.45s $ease-smooth;
   }
 }
 
+// animated wrapper that reveals the button only when the card is clicked
+.card__cta-wrap {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition:
+    max-height 0.45s $ease-smooth,
+    margin-top 0.45s $ease-smooth,
+    opacity 0.35s ease,
+    transform 0.45s $ease-smooth;
+}
+
 .card__cta {
-  margin-top: auto; // keeps the button at the bottom, so both cards align
-  padding: 0.85rem 1rem;
+  display: block;
+  width: 100%;
+  padding: 0.9rem 1rem;
   text-align: center;
   text-decoration: none;
   font-size: 0.85rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: $color-accent;
+  color: $color-bg;
+  background: $color-accent;
   border: 1px solid $color-accent;
   border-radius: $radius;
   transition: background-color $transition-fast, color $transition-fast;
 
   &:hover,
   &:focus-visible {
+    background: $color-accent-hover;
+    border-color: $color-accent-hover;
+  }
+}
+
+// Lightbox modal for haircut portfolio
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 5, 0.88);
+  backdrop-filter: blur(6px);
+}
+
+.lightbox__dialog {
+  width: 100%;
+  max-width: 680px;
+  background: #161616;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lightbox__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lightbox__title {
+  color: $color-text;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  strong {
+    color: $color-accent;
+  }
+}
+
+.lightbox__counter {
+  color: $color-muted;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lightbox__close {
+  background: none;
+  border: none;
+  color: $color-text;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-accent;
+  }
+}
+
+.lightbox__stage {
+  position: relative;
+  width: 100%;
+  height: clamp(280px, 55vh, 460px);
+  background: #0d0d0d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox__image {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba($color-accent, 0.6);
+  background: rgba(18, 18, 18, 0.8);
+  color: $color-accent;
+  font-size: 1.65rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color $transition-fast, color $transition-fast;
+
+  &:hover {
     background: $color-accent;
     color: $color-bg;
   }
+
+  &--prev {
+    left: 0.85rem;
+  }
+
+  &--next {
+    right: 0.85rem;
+  }
+}
+
+.lightbox__thumbs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  background: #121212;
+}
+
+.lightbox__thumb {
+  width: 64px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: $radius;
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity $transition-fast, border-color $transition-fast;
+
+  &:hover,
+  &--active {
+    opacity: 1;
+    border-color: $color-accent;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.lightbox__footer {
+  padding: 0.85rem 1.25rem 1.15rem;
+  background: #161616;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+}
+
+.lightbox__cta {
+  width: 100%;
 }
 
 @include mobile {
@@ -133,11 +398,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card {
+  .card,
+  .card__photo,
+  .card__content,
+  .card__cta-wrap {
     transition: none;
-
-    &:hover {
-      transform: none;
-    }
   }
 }

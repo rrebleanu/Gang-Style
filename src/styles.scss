@@ -7,11 +7,21 @@
 
 html, body {
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
   background-color: #121212;
   font-family: 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: clip;
   overflow-y: auto;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+iframe,
+video {
+  max-width: 100%;
+  display: block;
 }
 
 body {
@@ -19,7 +29,7 @@ body {
   isolation: isolate;
 }
 
-// brick wall background (fixed layer)
+// brick wall background (fixed layer, GPU-friendly without blur lag on mobile)
 body::before {
   content: '';
   position: fixed;
@@ -30,10 +40,6 @@ body::before {
   background:
     radial-gradient(ellipse 70% 50% at 50% 0%, rgba(179, 146, 104, 0.14), transparent 70%),
     radial-gradient(ellipse at center, transparent 30%, rgba(8, 8, 8, 0.85) 100%),
-    linear-gradient(rgba(18, 18, 18, 0.82), rgba(18, 18, 18, 0.82)),
+    linear-gradient(rgba(18, 18, 18, 0.84), rgba(18, 18, 18, 0.84)),
     url('/images/caramida.jpg') center / cover no-repeat;
-
-  // blur hides low-res pixels
-  filter: blur(2px);
-  transform: scale(1.04);
 }

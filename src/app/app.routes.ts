@@ -1,14 +1,14 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-  // 1. Pagina principală (Home)
+  // Home page
   {
     path: '',
     loadComponent: () => import('./features/public/public').then((m) => m.Public),
     pathMatch: 'full',
   },
 
-  // 2. Pagini Publice
+  // Public pages
   {
     path: 'despre',
     loadComponent: () =>
@@ -30,13 +30,13 @@ export const routes: Routes = [
       import('./features/public/contact/contact').then((m) => m.Contact),
   },
 
-  // 3. Autentificare
+  // Auth
   {
     path: 'login',
     loadComponent: () => import('./features/auth/auth').then((m) => m.Auth),
   },
 
-  // 4. Zone protejate (Dashboard Client & Admin)
+  // Protected routes (Barber & Admin)
   {
     path: 'dashboard',
     loadComponent: () => import('./features/portal/portal').then((m) => m.Portal),
@@ -47,7 +47,14 @@ export const routes: Routes = [
       import('./features/portal/admin/admin').then((m) => m.Admin),
   },
 
-  // 5. Pagina 404 Wildcard (trebuie să rămână ultima)
+  // Direct barber booking route (/filip, /sebi)
+  {
+    path: ':slug',
+    loadComponent: () =>
+      import('./features/booking/booking').then((m) => m.Booking),
+  },
+
+  // 404 wildcard (keep last)
   {
     path: '**',
     loadComponent: () =>

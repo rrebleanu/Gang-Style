@@ -15,7 +15,7 @@ $fs-button: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
   margin: 0 auto;
   padding: calc(#{$header-height} + 3rem) clamp(1rem, 4vw, 3rem) 4rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     'hero     photo'
     'team     team'
@@ -25,9 +25,14 @@ $fs-button: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
   gap: var(--home-gap);
   color: $color-text;
 
+  > * {
+    min-width: 0;
+    width: 100%;
+  }
+
   @include tablet {
-    --home-gap: 2.5rem;
-    grid-template-columns: 1fr;
+    --home-gap: 2.25rem;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       'hero'
       'photo'
@@ -37,8 +42,8 @@ $fs-button: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
   }
 
   @include mobile {
-    --home-gap: 2rem;
-    padding-top: calc(#{$header-height} + 2rem);
+    --home-gap: 1.75rem;
+    padding: calc(#{$header-height} + 1.25rem) 0.9rem 2.5rem;
   }
 }
 
@@ -138,34 +143,60 @@ h1 {
   color: $color-muted;
 }
 
-// barber cards
+// barber cards (single unified card housing both barbers on desktop and mobile)
 .team {
   grid-area: team;
-  scroll-margin-top: $header-height; // fixed header does not cover the title after scrolling
+  scroll-margin-top: $header-height;
   text-align: center;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
 }
 
 .team__title {
   color: $color-accent;
-  font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.2rem);
-  letter-spacing: 0.1em;
+  font-size: clamp(1.35rem, 1.1rem + 1vw, 2rem);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-bottom: 2rem;
-}
+  padding: clamp(1.35rem, 3vw, 2rem) 1.5rem clamp(1.1rem, 2.5vw, 1.5rem);
+  margin: 0;
+  border-bottom: 1px solid rgba($color-accent, 0.18);
 
-// 50/50 on desktop and tablet, one card under the other on mobile
-.team__grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-  text-align: left;
-
-  @include tablet {
-    gap: 1.5rem;
+  &::after {
+    content: '';
+    display: block;
+    width: 2.75rem;
+    height: 1px;
+    margin: 0.6rem auto 0;
+    background: rgba($color-accent, 0.55);
   }
 
   @include mobile {
-    grid-template-columns: 1fr;
+    font-size: 1.25rem;
+    padding: 1.15rem 1rem 0.95rem;
+  }
+}
+
+// 50/50 inside the same card on desktop/tablet, stacked with a fine divider on mobile
+.team__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  text-align: left;
+
+  > *:first-child {
+    border-right: 1px solid rgba($color-accent, 0.22);
+  }
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+
+    > *:first-child {
+      border-right: none;
+      border-bottom: 1px solid rgba($color-accent, 0.22);
+    }
   }
 }
 
@@ -268,21 +299,22 @@ h1 {
   grid-area: location;
   scroll-margin-top: $header-height;
   display: grid;
-  grid-template-columns: 1fr 1.35fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   align-items: start;
-  gap: clamp(2rem, 4vw, 3.5rem);
-  padding: clamp(2rem, 4vw, 3.25rem);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  padding: clamp(1.5rem, 4vw, 3.25rem);
   background: $color-surface;
   border: 1px solid $color-border;
   border-radius: $radius-lg;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 
   @include tablet {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   @include mobile {
-    padding: 1.5rem 1.25rem;
+    padding: 1.35rem 1rem;
+    gap: 1.5rem;
   }
 }
 
@@ -373,16 +405,24 @@ h1 {
   display: flex;
   flex-direction: column;
   width: 100%;
+  min-width: 0;
 }
 
 .map-frame {
   width: 100%;
-  min-height: 360px;
-  aspect-ratio: 16 / 11;
+  height: 360px;
   border-radius: $radius;
   overflow: hidden;
   border: 1px solid $color-border;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  @include tablet {
+    height: 320px;
+  }
+
+  @include mobile {
+    height: 240px;
+  }
 
   iframe {
     width: 100%;

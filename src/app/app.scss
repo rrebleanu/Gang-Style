@@ -1,13 +1,18 @@
 // app layout: header / page content / footer
 :host {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
 }
 
 .main-content {
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0; // prevents wide content from overflowing the grid column
 }

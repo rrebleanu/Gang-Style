@@ -2,7 +2,7 @@ import { Component, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Barber } from '../../models/barber.model';
 
-// Reusable card for one barber with hover animation and portfolio lightbox modal.
+// Barber card with hover animation and portfolio lightbox.
 @Component({
   selector: 'app-barber-card',
   imports: [RouterLink],
@@ -15,13 +15,10 @@ import { Barber } from '../../models/barber.model';
   },
 })
 export class BarberCard {
-  // required: the card cannot be rendered without a barber
   readonly barber = input.required<Barber>();
-
-  // optional: shows the "⭐ Ultima vizită" badge (filled from localStorage on Day 21)
   readonly isLastVisit = input(false);
 
-  // null = gallery modal closed; number = index of currently opened photo in portfolio
+  // null = modal closed; number = active photo index
   readonly activePhotoIndex = signal<number | null>(null);
 
   openGallery(index = 0, event?: Event): void {

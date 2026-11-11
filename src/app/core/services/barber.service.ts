@@ -1,9 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Barber } from '../../shared/models/barber.model';
 
-// Single source of barber data for the whole frontend.
-// For now the data is static; on Day 11 it will come from the Spring Boot API (GET /api/barbers).
-// Photos are temporary placeholders until the real salon photos are added.
+// Barber data service (static for now, replaced by GET /api/barbers later).
 @Injectable({ providedIn: 'root' })
 export class BarberService {
   private readonly barbers: Barber[] = [
@@ -12,18 +10,30 @@ export class BarberService {
       slug: 'filip',
       name: 'Filip',
       bio: 'Linii curate și tunsori moderne, adaptate stilului tău.',
-      photoUrl: 'images/salon3.jpg',
+      photoUrl: 'images/Filip.jpg',
       specialties: ['Skin fade', 'Tunsori moderne', 'Contur barbă'],
-      portfolio: ['images/salon.jpg', 'images/salon2.jpg', 'images/salon3.jpg'],
+      portfolio: [
+        'images/salon.jpg',
+        'images/salon2.jpg',
+        'images/salon3.jpg',
+        'images/about.jpg',
+        'images/salon2.jpg',
+      ],
     },
     {
       id: 'b2',
       slug: 'sebi',
       name: 'Sebi',
       bio: 'Tehnică clasică, atenție la detalii și bărbierit tradițional.',
-      photoUrl: 'images/salon2.jpg',
+      photoUrl: 'images/Sebi.jpg',
       specialties: ['Tunsori clasice', 'Bărbierit cu brici', 'Styling'],
-      portfolio: ['images/salon2.jpg', 'images/salon3.jpg', 'images/salon.jpg'],
+      portfolio: [
+        'images/salon2.jpg',
+        'images/salon3.jpg',
+        'images/salon.jpg',
+        'images/about.jpg',
+        'images/salon3.jpg',
+      ],
     },
   ];
 

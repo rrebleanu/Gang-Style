@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { BarberService } from '../../core/services/barber.service';
 import { BarberCard } from '../../shared/components/barber-card/barber-card';
 
@@ -8,12 +8,20 @@ import { BarberCard } from '../../shared/components/barber-card/barber-card';
   templateUrl: './public.html',
   styleUrl: './public.scss',
 })
-export class Public {
+export class Public implements OnInit {
   private readonly barberService = inject(BarberService);
 
   readonly barbers = this.barberService.getAll();
 
-  // id of the barber from the client's last booking.
-  // null for now; on Day 21 it will be read from localStorage.
+  // Barber id from the client's last visit (read from localStorage)
   readonly lastVisitBarberId = signal<string | null>(null);
+
+  ngOnInit(): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const savedId = window.localStorage.getItem('gangstyle_last_barber_id');
+      if (savedId) {
+        this.lastVisitBarberId.set(savedId);
+      }
+    }
+  }
 }

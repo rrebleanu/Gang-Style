@@ -1,0 +1,516 @@
+@if (barber(); as currentBarber) {
+  <main class="booking-page">
+    <!-- Top bar: back link + selected barber header -->
+    <div class="booking-container">
+      <div class="booking-top">
+        <a routerLink="/" fragment="frizeri" class="back-link">
+          &larr; Înapoi la echipă
+        </a>
+
+        <button type="button" class="gallery-trigger" (click)="openGallery(0)">
+          Vezi galeria
+        </button>
+      </div>
+
+      <!-- Barber identity banner -->
+      <header class="barber-banner">
+        <img
+          [src]="currentBarber.photoUrl"
+          [alt]="'Frizerul ' + currentBarber.name"
+          class="barber-banner__avatar"
+        />
+        <div class="barber-banner__info">
+          <span class="barber-banner__tag">Programare Online</span>
+          <h1 class="barber-banner__name">{{ currentBarber.name }} | Barber</h1>
+        </div>
+      </header>
+
+      @if (!isConfirmed()) {
+        <!-- Step progress indicator -->
+        <nav class="stepper" aria-label="Pași programare">
+          <div
+            class="stepper__item"
+            [class.stepper__item--active]="currentStep() === 1"
+            [class.stepper__item--done]="currentStep() > 1"
+          >
+            <span class="stepper__circle">1</span>
+            <span class="stepper__label">Serviciu</span>
+          </div>
+          <span class="stepper__line" [class.stepper__line--done]="currentStep() > 1"></span>
+
+          <div
+            class="stepper__item"
+            [class.stepper__item--active]="currentStep() === 2"
+            [class.stepper__item--done]="currentStep() > 2"
+          >
+            <span class="stepper__circle">2</span>
+            <span class="stepper__label">Dată &amp; Oră</span>
+          </div>
+          <span class="stepper__line" [class.stepper__line--done]="currentStep() > 2"></span>
+
+          <div
+            class="stepper__item"
+            [class.stepper__item--active]="currentStep() === 3"
+            [class.stepper__item--done]="currentStep() > 3"
+          >
+            <span class="stepper__circle">3</span>
+            <span class="stepper__label">Detalii</span>
+          </div>
+          <span class="stepper__line" [class.stepper__line--done]="currentStep() > 3"></span>
+
+          <div
+            class="stepper__item"
+            [class.stepper__item--active]="currentStep() === 4"
+          >
+            <span class="stepper__circle">4</span>
+            <span class="stepper__label">Rezumat</span>
+          </div>
+        </nav>
+
+        <!-- STEP 1: Select Service -->
+        @if (currentStep() === 1) {
+          <section class="step-card" aria-labelledby="step1-title">
+            <h2 id="step1-title" class="step-card__title">Selectează Serviciul</h2>
+
+            <div class="service-list">
+              @for (item of services(); track item.id) {
+                <button
+                  type="button"
+                  class="service-item"
+                  [class.service-item--selected]="selectedService()?.id === item.id"
+                  (click)="selectService(item)"
+                >
+                  <div class="service-item__top">
+                    <h3 class="service-item__name">{{ item.name }}</h3>
+                    <span class="service-item__check" aria-hidden="true">
+                      &#10003;
+                    </span>
+                  </div>
+
+                  <div class="service-item__bottom">
+                    <span class="service-item__duration">
+                      Durata: <strong>{{ item.durationMinutes }} min</strong>
+                    </span>
+
+                    <span class="service-item__price-wrap">
+                      <span class="service-item__price-label">Prețul:</span>
+                      <span class="service-item__price-badge">{{ item.priceRon }} RON</span>
+                    </span>
+                  </div>
+                </button>
+              }
+            </div>
+
+            @if (step1Submitted() && !selectedService()) {
+              <p class="field-error field-error--center">
+                <span class="field-error__icon">!</span>
+                Te rugăm să selectezi un serviciu pentru a continua.
+              </p>
+            }
+
+            <div class="step-actions step-actions--single">
+              <button type="button" class="btn-next" (click)="goToStep2()">
+                Alege Data și Ora &rarr;
+              </button>
+            </div>
+          </section>
+        }
+
+        <!-- STEP 2: Select Date & Time Slot -->
+        @if (currentStep() === 2) {
+          <section class="step-card" aria-labelledby="step2-title">
+            <h2 id="step2-title" class="step-card__title">Alege Data și Ora</h2>
+
+            <!-- Calendar date selector -->
+            <div class="calendar-picker">
+              <div class="calendar-picker__header">
+                <span class="calendar-picker__label">Selectează ziua (Marți – Sâmbătă)</span>
+                <label class="calendar-picker__input-wrap">
+                  <span>Calendar</span>
+                  <input
+                    type="date"
+                    class="calendar-picker__native"
+                    [value]="selectedDateIso()"
+                    (change)="onNativeDateChange($event)"
+                  />
+                </label>
+              </div>
+
+              <div class="days-strip">
+                @for (day of availableDays(); track day.iso) {
+                  <button
+                    type="button"
+                    class="day-pill"
+                    [class.day-pill--active]="selectedDateIso() === day.iso"
+                    (click)="selectDate(day.iso)"
+                  >
+                    <span class="day-pill__name">{{ day.dayName }}</span>
+                    <span class="day-pill__num">{{ day.dayNumber }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Continuous time slots list from morning to evening -->
+            <div class="slots-section">
+              <div class="slots-section__header">
+                <h3 class="slots-section__subtitle">Intervale Orare ({{ selectedDayLabel() }})</h3>
+                @if (selectedService(); as srv) {
+                  <span class="slots-section__badge">
+                    {{ srv.name }} &middot; {{ srv.durationMinutes }} min
+                  </span>
+                }
+              </div>
+
+              <div class="slots-grid">
+                @for (slot of timeSlots(); track slot.label) {
+                  <button
+                    type="button"
+                    class="slot-btn"
+                    [class.slot-btn--selected]="selectedSlot()?.label === slot.label"
+                    [class.slot-btn--disabled]="!slot.available"
+                    [disabled]="!slot.available"
+                    (click)="selectTimeSlot(slot)"
+                  >
+                    <span class="slot-btn__time">{{ slot.label }}</span>
+                    <span class="slot-btn__status">
+                      {{ slot.available ? '1 Loc liber' : '0 Locuri libere' }}
+                    </span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (step2Submitted() && !selectedSlot()) {
+              <p class="field-error field-error--center">
+                <span class="field-error__icon">!</span>
+                Te rugăm să alegi un interval orar disponibil.
+              </p>
+            }
+
+            <div class="step-actions">
+              <button type="button" class="btn-back" (click)="goBack()">
+                &larr; Înapoi
+              </button>
+              <button type="button" class="btn-next" (click)="goToStep3()">
+                Detalii Personale &rarr;
+              </button>
+            </div>
+          </section>
+        }
+
+        <!-- STEP 3: Personal Details Form -->
+        @if (currentStep() === 3) {
+          <section class="step-card" aria-labelledby="step3-title">
+            <h2 id="step3-title" class="step-card__title">Detalii Personale</h2>
+
+            <form [formGroup]="clientForm" (ngSubmit)="goToStep4()" class="details-form" novalidate>
+              <!-- Last Name -->
+              <div class="form-field">
+                <label for="lastName" class="form-field__label">
+                  Nume <span class="required">*</span>
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  formControlName="lastName"
+                  placeholder="Introdu numele tău"
+                  class="form-field__input"
+                  [class.form-field__input--invalid]="hasError('lastName')"
+                />
+                @if (hasError('lastName')) {
+                  <p class="field-error">
+                    <span class="field-error__icon">!</span>
+                    Te rugăm introdu numele tău
+                  </p>
+                }
+              </div>
+
+              <!-- First Name -->
+              <div class="form-field">
+                <label for="firstName" class="form-field__label">
+                  Prenume <span class="required">*</span>
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  formControlName="firstName"
+                  placeholder="Introdu prenumele tău"
+                  class="form-field__input"
+                  [class.form-field__input--invalid]="hasError('firstName')"
+                />
+                @if (hasError('firstName')) {
+                  <p class="field-error">
+                    <span class="field-error__icon">!</span>
+                    Te rugăm introdu prenumele tău
+                  </p>
+                }
+              </div>
+
+              <!-- Email -->
+              <div class="form-field">
+                <label for="email" class="form-field__label">
+                  Adresa E-mail <span class="required">*</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  formControlName="email"
+                  placeholder="Introdu adresa E-mail"
+                  class="form-field__input"
+                  [class.form-field__input--invalid]="hasError('email')"
+                />
+                @if (hasError('email')) {
+                  <p class="field-error">
+                    <span class="field-error__icon">!</span>
+                    Te rugăm introdu o adresă E-mail validă
+                  </p>
+                }
+              </div>
+
+              <!-- Phone with RO prefix -->
+              <div class="form-field">
+                <label for="phone" class="form-field__label">
+                  Numărul de telefon <span class="required">*</span>
+                </label>
+                <div
+                  class="phone-group"
+                  [class.phone-group--invalid]="hasError('phone')"
+                >
+                  <span class="phone-group__prefix" aria-hidden="true">
+                    🇷🇴 +40
+                  </span>
+                  <input
+                    id="phone"
+                    type="tel"
+                    formControlName="phone"
+                    placeholder="770 426 308"
+                    class="phone-group__input"
+                  />
+                </div>
+                @if (hasError('phone')) {
+                  <p class="field-error">
+                    <span class="field-error__icon">!</span>
+                    Te rugăm introdu numărul de telefon
+                  </p>
+                }
+              </div>
+
+              <!-- Optional Notes -->
+              <div class="form-field">
+                <label for="notes" class="form-field__label">Detalii</label>
+                <textarea
+                  id="notes"
+                  rows="3"
+                  formControlName="notes"
+                  placeholder="Adaugă detalii dacă este necesar"
+                  class="form-field__textarea"
+                ></textarea>
+              </div>
+
+              <!-- GDPR Consent checkbox (cleanly separated from error message) -->
+              <div class="form-field">
+                <label class="consent-label">
+                  <input
+                    type="checkbox"
+                    formControlName="gdprConsent"
+                    class="consent-label__checkbox"
+                  />
+                  <span class="consent-label__text">
+                    Am luat cunoștință de
+                    <strong>Politica de prelucrare a datelor cu caracter personal</strong>.
+                  </span>
+                </label>
+
+                @if (hasError('gdprConsent')) {
+                  <p class="field-error">
+                    <span class="field-error__icon">!</span>
+                    Te rugăm să confirmi că ai luat cunoștință de politica de prelucrare a datelor.
+                  </p>
+                }
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn-back" (click)="goBack()">
+                  &larr; Înapoi
+                </button>
+                <button type="submit" class="btn-next">
+                  Rezumat Programare &rarr;
+                </button>
+              </div>
+            </form>
+          </section>
+        }
+
+        <!-- STEP 4: Final Summary before Confirmation -->
+        @if (currentStep() === 4) {
+          <section class="step-card" aria-labelledby="step4-title">
+            <h2 id="step4-title" class="step-card__title">Rezumatul Programării</h2>
+            <p class="step-card__lead">
+              Verifică detaliile de mai jos înainte de a confirma programarea.
+            </p>
+
+            <div class="summary-box">
+              <div class="summary-row">
+                <span class="summary-row__label">Frizer</span>
+                <span class="summary-row__value">{{ currentBarber.name }}</span>
+              </div>
+
+              @if (selectedService(); as srv) {
+                <div class="summary-row">
+                  <span class="summary-row__label">Serviciu ales</span>
+                  <span class="summary-row__value">{{ srv.name }} ({{ srv.durationMinutes }} min)</span>
+                </div>
+              }
+
+              @if (selectedSlot(); as slot) {
+                <div class="summary-row">
+                  <span class="summary-row__label">Data &amp; Ora</span>
+                  <span class="summary-row__value">
+                    {{ selectedDayLabel() }} &middot; {{ slot.label }}
+                  </span>
+                </div>
+              }
+
+              <div class="summary-row">
+                <span class="summary-row__label">Client</span>
+                <span class="summary-row__value">
+                  {{ clientForm.controls.lastName.value }} {{ clientForm.controls.firstName.value }}
+                </span>
+              </div>
+
+              <div class="summary-row">
+                <span class="summary-row__label">E-mail confirmare</span>
+                <span class="summary-row__value">{{ clientForm.controls.email.value }}</span>
+              </div>
+
+              <div class="summary-row">
+                <span class="summary-row__label">Telefon</span>
+                <span class="summary-row__value">+40 {{ clientForm.controls.phone.value }}</span>
+              </div>
+
+              @if (clientForm.controls.notes.value) {
+                <div class="summary-row">
+                  <span class="summary-row__label">Detalii</span>
+                  <span class="summary-row__value">{{ clientForm.controls.notes.value }}</span>
+                </div>
+              }
+
+              @if (selectedService(); as srv) {
+                <div class="summary-row summary-row--total">
+                  <span class="summary-row__label">Total de plată la salon</span>
+                  <span class="summary-row__price">{{ srv.priceRon }} RON</span>
+                </div>
+              }
+            </div>
+
+            <p class="summary-note">
+              Vei primi automat un e-mail de confirmare și un reminder cu 3 ore înainte de programare.
+            </p>
+
+            <div class="step-actions">
+              <button type="button" class="btn-back" (click)="goBack()">
+                &larr; Înapoi
+              </button>
+              <button type="button" class="btn-next" (click)="confirmBooking()">
+                Confirmă Programarea &#10003;
+              </button>
+            </div>
+          </section>
+        }
+      } @else {
+        <!-- Confirmed Screen -->
+        <section class="step-card confirmed-card" aria-live="polite">
+          <div class="confirmed-card__badge">&#10003;</div>
+          <h2 class="confirmed-card__title">Programare Confirmată!</h2>
+          <p class="confirmed-card__text">
+            Mulțumim, <strong>{{ clientForm.controls.firstName.value }}</strong>! Te așteptăm la
+            <strong>Gang Style</strong> alături de <strong>{{ currentBarber.name }}</strong>,
+            <strong>{{ selectedDayLabel() }}</strong> în intervalul
+            <strong>{{ selectedSlot()?.label }}</strong>.
+          </p>
+          <p class="confirmed-card__subtext">
+            Un e-mail de confirmare a fost trimis la
+            <strong>{{ clientForm.controls.email.value }}</strong>.
+          </p>
+
+          <div class="confirmed-card__actions">
+            <a routerLink="/" class="btn-next">
+              Înapoi la pagina principală
+            </a>
+          </div>
+        </section>
+      }
+    </div>
+  </main>
+
+  <!-- Portfolio lightbox modal -->
+  @if (activePhotoIndex() !== null) {
+    @let currentIndex = activePhotoIndex()!;
+    <div
+      class="lightbox"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'Galeria de tunsori - ' + currentBarber.name"
+      (click)="closeGallery()"
+    >
+      <div class="lightbox__dialog" (click)="$event.stopPropagation()">
+        <header class="lightbox__header">
+          <span class="lightbox__title">
+            <strong>{{ currentBarber.name }}</strong> &middot; Galerie Tunsori
+          </span>
+          <span class="lightbox__counter">
+            {{ currentIndex + 1 }} / {{ currentBarber.portfolio.length }}
+          </span>
+          <button
+            type="button"
+            class="lightbox__close"
+            aria-label="Închide galeria"
+            (click)="closeGallery()"
+          >
+            &times;
+          </button>
+        </header>
+
+        <div class="lightbox__stage">
+          <button
+            type="button"
+            class="lightbox__nav lightbox__nav--prev"
+            aria-label="Poza anterioară"
+            (click)="stepPhoto(-1)"
+          >
+            &#8249;
+          </button>
+
+          <img
+            class="lightbox__image"
+            [src]="currentBarber.portfolio[currentIndex]"
+            [alt]="'Tunsoare ' + (currentIndex + 1) + ' - ' + currentBarber.name"
+          />
+
+          <button
+            type="button"
+            class="lightbox__nav lightbox__nav--next"
+            aria-label="Poza următoare"
+            (click)="stepPhoto(1)"
+          >
+            &#8250;
+          </button>
+        </div>
+
+        <div class="lightbox__thumbs">
+          @for (thumb of currentBarber.portfolio; track $index) {
+            <button
+              type="button"
+              class="lightbox__thumb"
+              [class.lightbox__thumb--active]="$index === currentIndex"
+              (click)="openGallery($index)"
+            >
+              <img [src]="thumb" [alt]="'Miniatură ' + ($index + 1)" />
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+}

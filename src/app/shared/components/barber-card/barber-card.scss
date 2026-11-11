@@ -1,43 +1,42 @@
+
 @use 'variables' as *;
 @use 'mixins' as *;
 
 $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+$hover-duration: 0.8s; // hover animation speed
 
 :host {
   display: block;
+  width: 100%;
+  min-width: 0;
 }
 
 .card {
+  width: 100%;
+  min-width: 0;
   height: 100%;
+  padding: clamp(1.25rem, 2.5vw, 1.85rem);
   display: flex;
   flex-direction: column;
+  gap: 1.15rem;
   overflow: hidden;
-  background: $color-surface;
-  border: 1px solid $color-border;
-  border-radius: $radius-lg;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  transition:
-    transform 0.4s $ease-smooth,
-    border-color 0.35s ease,
-    box-shadow 0.35s ease;
+  background: transparent;
+  outline: none;
+  transition: background-color $hover-duration ease;
 
-  // returning client: subtle gold glow
+  // returning client: subtle highlight
   &--last-visit {
-    border-color: $color-accent;
-    box-shadow: 0 0 0 1px $color-accent, 0 8px 24px rgba(0, 0, 0, 0.45);
+    background: rgba($color-accent, 0.03);
   }
 
   // hover state: inner elements compact and reveal the booking button at the bottom
   &:hover,
   &:focus-within {
-    transform: translateY(-4px);
-    border-color: $color-accent;
-    box-shadow:
-      0 0 0 1px rgba($color-accent, 0.55),
-      0 14px 36px rgba(0, 0, 0, 0.65);
+    background: rgba($color-accent, 0.04);
 
     .card__photo {
       height: 300px;
+      border-color: rgba($color-accent, 0.65);
 
       img {
         transform: scale(1.04);
@@ -45,7 +44,7 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     .card__content {
-      transform: scale(0.94);
+      transform: scale(0.95);
       gap: 0.7rem;
     }
 
@@ -69,30 +68,21 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   height: 380px; // fixed equal height for both cards regardless of image resolution
   flex-shrink: 0;
   overflow: hidden;
-  transition: height 0.45s $ease-smooth;
+  border-radius: $radius-lg;
+  border: 1px solid rgba($color-accent, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition:
+    height $hover-duration $ease-smooth,
+    border-color $hover-duration ease;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
+    object-position: center 22%;
     display: block;
-    transition: transform 0.5s $ease-smooth;
+    transition: transform $hover-duration $ease-smooth;
   }
-}
-
-.card__badge {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: $color-bg;
-  background: $color-accent;
-  border-radius: 999px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .card__body {
@@ -100,7 +90,7 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 1.5rem;
+  padding: 0.25rem 0 0;
 }
 
 .card__content {
@@ -109,8 +99,15 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   gap: 1rem;
   transform-origin: top center;
   transition:
-    transform 0.45s $ease-smooth,
-    gap 0.45s $ease-smooth;
+    transform $hover-duration $ease-smooth,
+    gap $hover-duration $ease-smooth;
+}
+
+.card__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .card__name {
@@ -118,6 +115,20 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.9rem);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: $color-bg;
+  background: $color-accent;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .card__tags {
@@ -164,16 +175,19 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
 
 .card__portfolio {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
 .card__thumb {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   padding: 0;
-  border: 1px solid rgba($color-accent, 0.25);
+  border: 1px solid rgba($color-accent, 0.35);
   border-radius: $radius;
   overflow: hidden;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.02);
   cursor: pointer;
   transition: border-color $transition-fast, transform $transition-fast;
 
@@ -188,11 +202,27 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
     object-fit: cover;
     object-position: center;
     display: block;
-    transition: height 0.45s $ease-smooth;
+    transition: height $hover-duration $ease-smooth;
   }
 }
 
-// animated wrapper that reveals the button only when the card is clicked
+.card__thumb-title {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: $color-accent;
+  background: rgba(18, 18, 18, 0.95);
+  border-bottom: 1px solid rgba($color-accent, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// animated wrapper that reveals the button on hover
 .card__cta-wrap {
   max-height: 0;
   margin-top: 0;
@@ -201,10 +231,10 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   transform: translateY(14px);
   pointer-events: none;
   transition:
-    max-height 0.45s $ease-smooth,
-    margin-top 0.45s $ease-smooth,
-    opacity 0.35s ease,
-    transform 0.45s $ease-smooth;
+    max-height $hover-duration $ease-smooth,
+    margin-top $hover-duration $ease-smooth,
+    opacity $hover-duration ease,
+    transform $hover-duration $ease-smooth;
 }
 
 .card__cta {
@@ -391,9 +421,115 @@ $ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   width: 100%;
 }
 
-@include mobile {
-  .card__body {
+@include tablet {
+  .card {
     padding: 1.25rem;
+  }
+
+  .card__photo {
+    height: 320px;
+  }
+
+  .card:hover .card__photo,
+  .card:focus-within .card__photo {
+    height: 255px;
+  }
+
+  .card__thumb img {
+    height: 88px;
+  }
+
+  .card:hover .card__thumb img,
+  .card:focus-within .card__thumb img {
+    height: 74px;
+  }
+}
+
+@include mobile {
+  // disable hover shrink on mobile
+  .card:hover,
+  .card:focus-within {
+    background: transparent;
+
+    .card__photo {
+      height: 225px;
+
+      img {
+        transform: none;
+      }
+    }
+
+    .card__content {
+      transform: none;
+      gap: 0.65rem;
+    }
+
+    .card__thumb img {
+      height: 72px;
+    }
+  }
+
+  .card {
+    padding: 1.15rem 1rem 1.25rem;
+    gap: 0.85rem;
+  }
+
+  .card__photo {
+    height: 225px;
+  }
+
+  .card__body {
+    padding: 0;
+  }
+
+  .card__content {
+    gap: 0.65rem;
+  }
+
+  .card__name {
+    font-size: 1.25rem;
+  }
+
+  .card__portfolio {
+    gap: 0.4rem;
+  }
+
+  .card__thumb-title {
+    padding: 0.3rem 0.15rem;
+    font-size: 0.65rem;
+  }
+
+  .card__thumb img {
+    height: 72px;
+  }
+
+  // always show button wrapper on mobile
+  .card__cta-wrap {
+    max-height: none;
+    margin-top: 0.85rem;
+    opacity: 1;
+    overflow: visible;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  // subtle outlined button on mobile
+  .card__cta {
+    padding: 0.65rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: $color-accent;
+    background: rgba($color-accent, 0.12);
+    border: 1px solid rgba($color-accent, 0.6);
+    border-radius: $radius;
+
+    &:active,
+    &:hover {
+      color: $color-bg;
+      background: $color-accent;
+      border-color: $color-accent;
+    }
   }
 }
 

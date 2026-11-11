@@ -1,0 +1,1569 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+$error-color: #ef4444;
+$success-color: #22c55e;
+$warning-color: #f59e0b;
+
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.portal-page {
+  min-height: 100vh;
+  padding: calc($header-height + 2rem) clamp(1rem, 3.5vw, 2.5rem) 4.5rem;
+}
+
+.portal-container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+// Top navigation bar + Mode Switcher
+.portal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.back-link {
+  color: $color-muted;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-accent;
+  }
+}
+
+.mode-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  background: rgba(24, 24, 24, 0.94);
+  border: 1px solid rgba($color-accent, 0.3);
+  border-radius: $radius;
+
+  @include mobile {
+    width: 100%;
+    order: 3;
+  }
+}
+
+.mode-switcher__btn {
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: $color-muted;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  @include mobile {
+    flex: 1;
+    padding: 0.5rem 0.35rem;
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  &:hover {
+    color: $color-text;
+  }
+
+  &--active {
+    background: $color-accent;
+    color: $color-bg;
+  }
+}
+
+.btn-logout-top {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: $color-muted;
+  padding: 0.45rem 0.9rem;
+  border-radius: $radius;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    color: $error-color;
+    border-color: rgba($error-color, 0.5);
+  }
+}
+
+// =============================================================================
+// BARBER DASHBOARD (FILIP & SEBI)
+// =============================================================================
+.barber-dash-header {
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba($color-accent, 0.35);
+  border-radius: $radius-lg;
+  padding: clamp(1.35rem, 2.8vw, 2rem);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.barber-dash-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.barber-dash-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.barber-dash-header__avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 22%;
+  border: 2px solid $color-accent;
+  flex-shrink: 0;
+}
+
+.barber-dash-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  @include mobile {
+    width: 100%;
+    flex-direction: column;
+  }
+}
+
+.btn-add-booking {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.78rem 1.35rem;
+  background: $color-accent;
+  border: 1px solid $color-accent;
+  border-radius: $radius;
+  color: $color-bg;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-accent-hover;
+    border-color: $color-accent-hover;
+    transform: translateY(-1px);
+  }
+}
+
+.btn-block-time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.78rem 1.25rem;
+  background: rgba($color-accent, 0.1);
+  border: 1px solid rgba($color-accent, 0.55);
+  border-radius: $radius;
+  color: $color-accent;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-accent;
+    color: $color-bg;
+  }
+}
+
+.barber-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+  @include tablet {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.6rem;
+  }
+}
+
+// Barber Filter & Search Controls
+.multi-day-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.multi-day-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.multi-day-card {
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba($color-accent, 0.28);
+  border-radius: $radius-lg;
+  padding: 1.15rem 1.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.multi-day-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.multi-day-card__date {
+  font-size: 1rem;
+  font-weight: 800;
+  color: $color-accent;
+}
+
+.multi-day-card__count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: $color-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.multi-day-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.multi-day-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: $radius;
+}
+
+.multi-day-item__time {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: $color-accent;
+  white-space: nowrap;
+}
+
+.multi-day-item__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.multi-day-item__client {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: $color-text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-day-item__service {
+  font-size: 0.78rem;
+  color: $color-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barber-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: rgba(24, 24, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: $radius-lg;
+  padding: 1rem 1.25rem;
+}
+
+.barber-controls__days {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.day-filter-pill {
+  padding: 0.5rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: $color-text;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: $color-accent;
+  }
+
+  &--active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $color-bg;
+    font-weight: 800;
+  }
+}
+
+.day-filter-calendar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba($color-accent, 0.4);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: $color-accent;
+  font-weight: 600;
+
+  input {
+    background: transparent;
+    border: none;
+    color: $color-text;
+    font-family: inherit;
+    font-size: 0.78rem;
+    color-scheme: dark;
+    cursor: pointer;
+    outline: none;
+  }
+}
+
+.barber-controls__search {
+  flex: 1;
+  min-width: 240px;
+  max-width: 340px;
+
+  @include mobile {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+.barber-search-input {
+  width: 100%;
+  padding: 0.6rem 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: $radius;
+  color: $color-text;
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color $transition-fast;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  &:focus {
+    border-color: $color-accent;
+  }
+}
+
+// Barber Appointments Table
+.barber-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.table-responsive {
+  width: 100%;
+  background: rgba(24, 24, 24, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+.barber-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+
+  thead {
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+    th {
+      padding: 0.95rem 1.1rem;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: $color-muted;
+    }
+
+    .th-actions {
+      text-align: right;
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    transition: background-color $transition-fast;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    &.row--cancelled {
+      opacity: 0.62;
+    }
+
+    &.row--blocked {
+      background: rgba($warning-color, 0.04);
+    }
+  }
+
+  td {
+    padding: 1rem 1.1rem;
+    vertical-align: middle;
+    font-size: 0.88rem;
+  }
+
+  .td-actions {
+    text-align: right;
+  }
+}
+
+.cell-time {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: $color-accent;
+}
+
+.cell-date {
+  font-size: 0.78rem;
+  color: $color-muted;
+  margin-top: 0.15rem;
+}
+
+.cell-client {
+  font-weight: 700;
+  color: $color-text;
+
+  &--blocked {
+    color: $warning-color;
+  }
+}
+
+.cell-phone {
+  display: inline-block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: $color-accent;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cell-sub {
+  font-size: 0.76rem;
+  color: $color-muted;
+  font-style: italic;
+  margin-top: 0.15rem;
+}
+
+.cell-service {
+  font-weight: 600;
+  color: $color-text;
+}
+
+.cell-price {
+  font-size: 0.8rem;
+  color: $color-muted;
+  margin-top: 0.15rem;
+
+  strong {
+    color: $color-accent;
+  }
+}
+
+// Source Badges (Online / Telefonic / Blocat)
+.source-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  &--online {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.45);
+    color: #60a5fa;
+  }
+
+  &--phone {
+    background: rgba($color-accent, 0.16);
+    border: 1px solid rgba($color-accent, 0.5);
+    color: $color-accent;
+  }
+
+  &--blocked {
+    background: rgba($warning-color, 0.16);
+    border: 1px solid rgba($warning-color, 0.45);
+    color: #fbbf24;
+  }
+}
+
+// Table Action Buttons
+.table-action-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tbl-btn {
+  padding: 0.38rem 0.65rem;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all $transition-fast;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: $color-text;
+
+  &--done {
+    border-color: rgba($success-color, 0.45);
+    color: #4ade80;
+
+    &:hover,
+    &.tbl-btn--active {
+      background: $success-color;
+      border-color: $success-color;
+      color: #09190e;
+    }
+  }
+
+  &--noshow {
+    border-color: rgba($warning-color, 0.45);
+    color: #fbbf24;
+
+    &:hover,
+    &.tbl-btn--active {
+      background: $warning-color;
+      border-color: $warning-color;
+      color: #1c1202;
+    }
+  }
+
+  &--cancel {
+    border-color: rgba($error-color, 0.45);
+    color: #f87171;
+
+    &:hover,
+    &.tbl-btn--active {
+      background: $error-color;
+      border-color: $error-color;
+      color: #fff;
+    }
+  }
+
+  &--reset {
+    color: $color-muted;
+
+    &:hover {
+      border-color: $color-accent;
+      color: $color-accent;
+    }
+  }
+}
+
+// Responsive Mobile Card Layout for the Barber Table
+@include mobile {
+  .barber-table thead {
+    display: none;
+  }
+
+  .barber-table,
+  .barber-table tbody,
+  .barber-table tr,
+  .barber-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .barber-table tbody tr {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .barber-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    text-align: right;
+
+    &::before {
+      content: attr(data-label);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: $color-muted;
+      text-align: left;
+    }
+  }
+
+  .barber-table .td-actions {
+    flex-direction: column;
+    align-items: stretch;
+    padding-top: 0.75rem;
+
+    &::before {
+      margin-bottom: 0.25rem;
+    }
+  }
+
+  .table-action-group {
+    width: 100%;
+    justify-content: stretch;
+
+    .tbl-btn {
+      flex: 1;
+      text-align: center;
+      padding: 0.55rem 0.4rem;
+    }
+  }
+}
+
+// =============================================================================
+// CLIENT PROFILE & DASHBOARD
+// =============================================================================
+.profile-banner {
+  background: rgba(24, 24, 24, 0.94);
+  border: 1px solid rgba($color-accent, 0.3);
+  border-radius: $radius-lg;
+  padding: clamp(1.35rem, 3vw, 2rem);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-banner__identity {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+}
+
+.profile-banner__avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba($color-accent, 0.15);
+  border: 2px solid $color-accent;
+  color: $color-accent;
+  font-size: 1.5rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-banner__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.profile-banner__tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: $color-accent;
+}
+
+.profile-banner__title {
+  font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+  font-weight: 800;
+  color: $color-text;
+}
+
+.profile-banner__email {
+  font-size: 0.85rem;
+  color: $color-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-banner__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+}
+
+.stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: $radius;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+
+  @include mobile {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.stat-box__value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: $color-accent;
+}
+
+.stat-box__label {
+  font-size: 0.78rem;
+  color: $color-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.profile-banner__quick-book {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.profile-banner__quick-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $color-muted;
+}
+
+.profile-banner__quick-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+
+  @include mobile {
+    width: 100%;
+    flex-direction: column;
+  }
+}
+
+.btn-quick-barber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.15rem;
+  background: $color-accent;
+  border: 1px solid $color-accent;
+  border-radius: $radius;
+  color: $color-bg;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-accent-hover;
+    border-color: $color-accent-hover;
+    transform: translateY(-1px);
+  }
+
+  &--outline {
+    background: rgba($color-accent, 0.1);
+    color: $color-accent;
+
+    &:hover {
+      background: $color-accent;
+      color: $color-bg;
+    }
+  }
+}
+
+// Feedback banner
+.portal-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1.2rem;
+  background: rgba($color-accent, 0.14);
+  border: 1px solid $color-accent;
+  border-radius: $radius;
+  color: $color-text;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.portal-alert__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: $color-accent;
+  color: $color-bg;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+// Appointments Section (Client)
+.appointments-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.appointments-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.appointments-header__title {
+  font-size: clamp(1.3rem, 2.2vw, 1.6rem);
+  font-weight: 800;
+  color: $color-text;
+}
+
+.appointments-header__subtitle {
+  font-size: 0.88rem;
+  color: $color-muted;
+  margin-top: 0.25rem;
+}
+
+.filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: rgba(24, 24, 24, 0.9);
+  padding: 0.35rem;
+  border-radius: $radius;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.filter-tab {
+  padding: 0.55rem 0.95rem;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: $color-muted;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  @include mobile {
+    flex: 1;
+    text-align: center;
+    padding: 0.55rem 0.45rem;
+    font-size: 0.75rem;
+  }
+
+  &:hover {
+    color: $color-text;
+  }
+
+  &--active {
+    background: $color-accent;
+    color: $color-bg;
+    font-weight: 700;
+  }
+}
+
+.appointments-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.apt-card {
+  background: rgba(24, 24, 24, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: $radius-lg;
+  padding: clamp(1.2rem, 2.5vw, 1.65rem);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  transition: border-color $transition-fast;
+
+  &:hover {
+    border-color: rgba($color-accent, 0.45);
+  }
+
+  &--cancelled {
+    opacity: 0.72;
+  }
+}
+
+.apt-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.apt-card__barber {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.apt-card__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 22%;
+  border: 2px solid $color-accent;
+  flex-shrink: 0;
+}
+
+.apt-card__barber-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: $color-muted;
+}
+
+.apt-card__barber-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: $color-text;
+}
+
+// Status Badge (Shared across Barber & Client views)
+.apt-status {
+  display: inline-block;
+  padding: 0.32rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+
+  &--confirmed {
+    background: rgba($success-color, 0.14);
+    border: 1px solid rgba($success-color, 0.45);
+    color: #4ade80;
+  }
+
+  &--completed {
+    background: rgba($color-accent, 0.14);
+    border: 1px solid rgba($color-accent, 0.45);
+    color: $color-accent;
+  }
+
+  &--cancelled {
+    background: rgba($error-color, 0.14);
+    border: 1px solid rgba($error-color, 0.4);
+    color: #f87171;
+  }
+
+  &--noshow {
+    background: rgba($warning-color, 0.16);
+    border: 1px solid rgba($warning-color, 0.45);
+    color: #fbbf24;
+  }
+
+  &--blocked {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: $color-muted;
+  }
+}
+
+.apt-card__body {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+
+  @include tablet {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.apt-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &--full {
+    grid-column: 1 / -1;
+    padding-top: 0.65rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+}
+
+.apt-detail__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: $color-muted;
+}
+
+.apt-detail__value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: $color-text;
+
+  &--accent {
+    color: $color-accent;
+    font-weight: 700;
+  }
+}
+
+.apt-detail__price {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: $color-accent;
+}
+
+.apt-detail__notes {
+  font-size: 0.86rem;
+  color: $color-text;
+  font-style: italic;
+}
+
+.apt-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.btn-cancel {
+  padding: 0.65rem 1.15rem;
+  background: rgba($error-color, 0.1);
+  border: 1px solid rgba($error-color, 0.45);
+  border-radius: $radius;
+  color: #f87171;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $error-color;
+    border-color: $error-color;
+    color: #fff;
+  }
+}
+
+.cancel-locked {
+  font-size: 0.8rem;
+  color: $color-muted;
+  padding: 0.5rem 0.85rem;
+  border-radius: $radius;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.apt-card__rule-hint {
+  font-size: 0.82rem;
+  color: $color-muted;
+}
+
+.btn-reschedule {
+  padding: 0.7rem 1.25rem;
+  background: $color-accent;
+  border: 1px solid $color-accent;
+  border-radius: $radius;
+  color: $color-bg;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: $color-accent-hover;
+    border-color: $color-accent-hover;
+    transform: translateY(-1px);
+  }
+}
+
+.empty-state {
+  background: rgba(24, 24, 24, 0.9);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: $radius-lg;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.empty-state__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.empty-state__text {
+  font-size: 0.88rem;
+  color: $color-muted;
+  max-width: 420px;
+}
+
+.empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.policy-note {
+  padding: 1rem 1.25rem;
+  background: rgba($color-accent, 0.07);
+  border-left: 3px solid $color-accent;
+  border-radius: $radius;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: $color-muted;
+
+  strong {
+    color: $color-text;
+  }
+}
+
+// =============================================================================
+// MODALS (Phone Booking, Block Interval, Cancel Confirmation)
+// =============================================================================
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 1rem;
+  background: rgba(5, 5, 5, 0.86);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #181818;
+  border: 1px solid rgba($color-accent, 0.35);
+  border-radius: $radius-lg;
+  padding: 1.65rem;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  &--wide {
+    max-width: 600px;
+  }
+}
+
+.modal-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.modal-dialog__title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: $color-accent;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: $color-muted;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-text;
+  }
+}
+
+.modal-dialog__text {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: $color-muted;
+
+  strong {
+    color: $color-text;
+  }
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.modal-field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $color-text;
+}
+
+.modal-field__input {
+  width: 100%;
+  padding: 0.68rem 0.85rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: $radius;
+  color: $color-text;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color-scheme: dark;
+  outline: none;
+
+  &:focus {
+    border-color: $color-accent;
+  }
+
+  option {
+    background: #181818;
+    color: $color-text;
+  }
+}
+
+.modal-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  max-height: 185px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+
+  @include mobile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.modal-slot-btn {
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: $color-text;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  small {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: $color-muted;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: $color-accent;
+  }
+
+  &--selected {
+    background: rgba($color-accent, 0.2);
+    border-color: $color-accent;
+    color: $color-accent;
+  }
+
+  &--disabled,
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.modal-error {
+  font-size: 0.76rem;
+  color: $error-color;
+}
+
+.block-type-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.block-type-btn {
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  color: $color-muted;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &--active {
+    background: rgba($color-accent, 0.18);
+    border-color: $color-accent;
+    color: $color-accent;
+  }
+}
+
+.modal-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+
+  @include mobile {
+    flex-direction: column-reverse;
+  }
+}
+
+.btn-modal-keep {
+  padding: 0.7rem 1.1rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: $radius;
+  color: $color-text;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-accent;
+    color: $color-accent;
+  }
+}
+
+.btn-modal-confirm {
+  padding: 0.7rem 1.2rem;
+  background: $error-color;
+  border: 1px solid $error-color;
+  border-radius: $radius;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    opacity: 0.92;
+  }
+}
+
+// Barber Services & Prices Management Grid
+.barber-services-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  margin-top: 0.5rem;
+}
+
+.barber-services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+
+  @include mobile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.srv-manage-card {
+  background: rgba(24, 24, 24, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: $radius-lg;
+  padding: 1.15rem 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  transition: border-color $transition-fast;
+
+  &:hover {
+    border-color: rgba($color-accent, 0.45);
+  }
+}
+
+.srv-manage-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.srv-manage-card__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: $color-text;
+}
+
+.srv-manage-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: $color-muted;
+
+  strong {
+    color: $color-text;
+  }
+}
+
+.srv-manage-card__price {
+  font-weight: 800;
+  color: $color-accent;
+  font-size: 0.95rem;
+}
+
+.srv-manage-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

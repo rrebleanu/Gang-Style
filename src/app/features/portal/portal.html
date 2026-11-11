@@ -1,1 +1,1078 @@
-<p>portal works!</p>
+<main class="portal-page">
+  <div class="portal-container">
+    <!-- Top bar: Back link + Role-based Switcher (visible only to ADMIN) + Logout -->
+    <div class="portal-top">
+      <a routerLink="/" class="back-link">&larr; Înapoi la pagina principală</a>
+
+      @if (authService.currentUser()?.role === 'ADMIN') {
+        <div class="mode-switcher" role="tablist" aria-label="Comută panoul (Admin)">
+          <button
+            type="button"
+            class="mode-switcher__btn"
+            [class.mode-switcher__btn--active]="viewMode() === 'CLIENT'"
+            (click)="setViewMode('CLIENT')"
+          >
+            Panou Client
+          </button>
+          <button
+            type="button"
+            class="mode-switcher__btn"
+            [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === 'filip'"
+            (click)="setViewMode('BARBER', 'filip')"
+          >
+            Dashboard Filip
+          </button>
+          <button
+            type="button"
+            class="mode-switcher__btn"
+            [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === 'sebi'"
+            (click)="setViewMode('BARBER', 'sebi')"
+          >
+            Dashboard Sebi
+          </button>
+          <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
+            Panou Admin &rarr;
+          </a>
+        </div>
+      }
+
+      <button type="button" class="btn-logout-top" (click)="logout()">
+        Deconectare
+      </button>
+    </div>
+
+    <!-- Shared feedback banner -->
+    @if (feedbackMessage(); as msg) {
+      <div class="portal-alert" role="status" aria-live="polite">
+        <span class="portal-alert__icon">&#10003;</span>
+        <span>{{ msg }}</span>
+      </div>
+    }
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1: BARBER DASHBOARD (FILIP & SEBI)                               -->
+    <!-- ===================================================================== -->
+    @if (viewMode() === 'BARBER') {
+      @if (currentBarber(); as barber) {
+        <!-- Barber Header & Primary Actions -->
+        <header class="barber-dash-header">
+          <div class="barber-dash-header__top">
+            <div class="barber-dash-header__identity">
+              <img
+                [src]="barber.photoUrl"
+                [alt]="'Frizer ' + barber.name"
+                class="barber-dash-header__avatar"
+              />
+              <div>
+                <span class="profile-banner__tag">Dashboard Frizer &middot; Gang Style</span>
+                <h1 class="profile-banner__title">Agenda lui {{ barber.name }}</h1>
+                <p class="profile-banner__email">
+                  Programări Online &amp; Telefonic sincronizate în timp real cu site-ul
+                </p>
+              </div>
+            </div>
+
+            <!-- Primary Barber Buttons -->
+            <div class="barber-dash-header__actions">
+              <button
+                type="button"
+                class="btn-add-booking"
+                (click)="openPhoneBookingModal()"
+              >
+                + Adaugă Programare
+              </button>
+              <button
+                type="button"
+                class="btn-block-time"
+                (click)="openBlockModal()"
+              >
+                Blochează Interval / Zi liberă
+              </button>
+            </div>
+          </div>
+
+          <!-- Barber Quick Stats -->
+          <div class="barber-stats-grid">
+            <div class="stat-box">
+              <span class="stat-box__value">{{ barberActiveBookingsCount() }}</span>
+              <span class="stat-box__label">Programări Online &amp; Telefonic</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-box__value">{{ barberPhoneBookingsCount() }}</span>
+              <span class="stat-box__label">Adăugate Telefonic</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-box__value">{{ barberBlockedCount() }}</span>
+              <span class="stat-box__label">Intervale Blocate</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Compact Multi-Day Schedule Overview -->
+        <section class="multi-day-section" aria-labelledby="multi-day-heading">
+          <div class="appointments-header">
+            <div>
+              <h2 id="multi-day-heading" class="appointments-header__title">
+                Programul pe Zile
+              </h2>
+              <p class="appointments-header__subtitle">
+                Vizualizare rapidă a rezervărilor ordonate pe zile și intervale orare.
+              </p>
+            </div>
+
+            <!-- Quick Source Filter: All vs Online vs Phone -->
+            <div class="filter-tabs" role="tablist" aria-label="Filtrează după tipul programării">
+              <button
+                type="button"
+                class="filter-tab"
+                [class.filter-tab--active]="barberSourceFilter() === 'ALL'"
+                (click)="setBarberSourceFilter('ALL')"
+              >
+                Toate
+              </button>
+              <button
+                type="button"
+                class="filter-tab"
+                [class.filter-tab--active]="barberSourceFilter() === 'ONLINE'"
+                (click)="setBarberSourceFilter('ONLINE')"
+              >
+                Online
+              </button>
+              <button
+                type="button"
+                class="filter-tab"
+                [class.filter-tab--active]="barberSourceFilter() === 'PHONE'"
+                (click)="setBarberSourceFilter('PHONE')"
+              >
+                Telefonic
+              </button>
+            </div>
+          </div>
+
+          @if (barberMultiDayGroups().length > 0) {
+            <div class="multi-day-grid">
+              @for (group of barberMultiDayGroups(); track group.dateIso) {
+                <div class="multi-day-card">
+                  <div class="multi-day-card__head">
+                    <h3 class="multi-day-card__date">{{ group.dateLabel }}</h3>
+                    <span class="multi-day-card__count">
+                      {{ group.items.length }} {{ group.items.length === 1 ? 'programare' : 'programări' }}
+                    </span>
+                  </div>
+
+                  <ul class="multi-day-list">
+                    @for (item of group.items; track item.id) {
+                      <li class="multi-day-item">
+                        <span class="multi-day-item__time">
+                          {{ item.startTime }} - {{ item.endTime }}
+                        </span>
+                        <div class="multi-day-item__main">
+                          <strong class="multi-day-item__client">
+                            {{ item.clientLastName }} {{ item.clientFirstName }}
+                          </strong>
+                          <span class="multi-day-item__service">
+                            {{ item.serviceName }}
+                          </span>
+                        </div>
+                        <span
+                          class="source-badge"
+                          [class.source-badge--phone]="item.source === 'PHONE'"
+                          [class.source-badge--online]="item.source !== 'PHONE'"
+                        >
+                          {{ item.source === 'PHONE' ? 'Telefonic' : 'Online' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="empty-state">
+              <p class="empty-state__text">Nu există programări pentru filtrul selectat.</p>
+            </div>
+          }
+        </section>
+
+        <!-- Barber Filters: Day selector + Search by name/phone -->
+        <section class="barber-controls" aria-label="Filtrare și căutare programări">
+          <div class="barber-controls__days">
+            <button
+              type="button"
+              class="day-filter-pill"
+              [class.day-filter-pill--active]="barberDateFilter() === 'ALL'"
+              (click)="setBarberDateFilter('ALL')"
+            >
+              Toate zilele
+            </button>
+            @for (day of workingDays().slice(0, 5); track day.iso) {
+              <button
+                type="button"
+                class="day-filter-pill"
+                [class.day-filter-pill--active]="barberDateFilter() === day.iso"
+                (click)="setBarberDateFilter(day.iso)"
+              >
+                {{ day.shortLabel }}
+              </button>
+            }
+
+            <label class="day-filter-calendar">
+              <span>Calendar</span>
+              <input
+                type="date"
+                [value]="barberDateFilter() === 'ALL' ? '' : barberDateFilter()"
+                (change)="onBarberDateInput($event)"
+              />
+            </label>
+          </div>
+
+          <div class="barber-controls__search">
+            <input
+              type="search"
+              placeholder="Caută după nume client, telefon sau serviciu..."
+              [value]="barberSearchQuery()"
+              (input)="onBarberSearchInput($event)"
+              class="barber-search-input"
+            />
+          </div>
+        </section>
+
+        <!-- Barber Appointments Table -->
+        <section class="barber-table-section">
+          @if (filteredBarberAppointments().length > 0) {
+            <div class="table-responsive">
+              <table class="barber-table">
+                <thead>
+                  <tr>
+                    <th>Oră &amp; Dată</th>
+                    <th>Client &amp; Telefon</th>
+                    <th>Serviciu &amp; Preț</th>
+                    <th>Sursă</th>
+                    <th>Status</th>
+                    <th class="th-actions">Acțiuni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (apt of filteredBarberAppointments(); track apt.id) {
+                    <tr
+                      [class.row--cancelled]="apt.status === 'CANCELLED' || apt.status === 'NO_SHOW'"
+                      [class.row--blocked]="apt.source === 'BLOCKED'"
+                    >
+                      <!-- Time & Date -->
+                      <td data-label="Oră & Dată">
+                        <div class="cell-time">{{ apt.startTime }} - {{ apt.endTime }}</div>
+                        <div class="cell-date">{{ apt.dateLabel }}</div>
+                      </td>
+
+                      <!-- Client & Phone -->
+                      <td data-label="Client & Telefon">
+                        @if (apt.source === 'BLOCKED') {
+                          <div class="cell-client cell-client--blocked">Interval Indisponibil</div>
+                          <div class="cell-sub">{{ apt.notes }}</div>
+                        } @else {
+                          <div class="cell-client">
+                            {{ apt.clientLastName }} {{ apt.clientFirstName }}
+                          </div>
+                          <a [href]="'tel:+40' + apt.clientPhone" class="cell-phone">
+                            &#9742; +40 {{ apt.clientPhone }}
+                          </a>
+                          @if (apt.notes) {
+                            <div class="cell-sub">{{ apt.notes }}</div>
+                          }
+                        }
+                      </td>
+
+                      <!-- Service & Price -->
+                      <td data-label="Serviciu & Preț">
+                        <div class="cell-service">{{ apt.serviceName }}</div>
+                        @if (apt.source !== 'BLOCKED') {
+                          <div class="cell-price">
+                            {{ apt.durationMinutes }} min &middot;
+                            <strong>{{ apt.priceRon }} RON</strong>
+                          </div>
+                        } @else {
+                          <div class="cell-sub">{{ apt.durationMinutes }} min blocate</div>
+                        }
+                      </td>
+
+                      <!-- Source Badge -->
+                      <td data-label="Sursă">
+                        @if (apt.source === 'PHONE') {
+                          <span class="source-badge source-badge--phone">Telefonic</span>
+                        } @else if (apt.source === 'BLOCKED') {
+                          <span class="source-badge source-badge--blocked">Blocat</span>
+                        } @else {
+                          <span class="source-badge source-badge--online">Online</span>
+                        }
+                      </td>
+
+                      <!-- Status Badge -->
+                      <td data-label="Status">
+                        <span
+                          class="apt-status"
+                          [class.apt-status--confirmed]="getStatusModifier(apt) === 'confirmed'"
+                          [class.apt-status--completed]="getStatusModifier(apt) === 'completed'"
+                          [class.apt-status--cancelled]="getStatusModifier(apt) === 'cancelled'"
+                          [class.apt-status--noshow]="getStatusModifier(apt) === 'noshow'"
+                          [class.apt-status--blocked]="getStatusModifier(apt) === 'blocked'"
+                        >
+                          {{ getStatusLabel(apt) }}
+                        </span>
+                      </td>
+
+                      <!-- Actions -->
+                      <td data-label="Acțiuni" class="td-actions">
+                        @if (apt.source === 'BLOCKED') {
+                          @if (apt.status === 'CONFIRMED') {
+                            <button
+                              type="button"
+                              class="tbl-btn tbl-btn--cancel"
+                              (click)="setBarberAppointmentStatus(apt, 'CANCELLED')"
+                            >
+                              Deblochează
+                            </button>
+                          } @else {
+                            <button
+                              type="button"
+                              class="tbl-btn tbl-btn--reset"
+                              (click)="setBarberAppointmentStatus(apt, 'CONFIRMED')"
+                            >
+                              Blochează la loc
+                            </button>
+                          }
+                        } @else {
+                          <div class="table-action-group">
+                            <button
+                              type="button"
+                              class="tbl-btn tbl-btn--done"
+                              [class.tbl-btn--active]="apt.status === 'COMPLETED'"
+                              title="Marchează manual ca Finalizată"
+                              (click)="setBarberAppointmentStatus(apt, 'COMPLETED')"
+                            >
+                              &#10003; Finalizată
+                            </button>
+                            <button
+                              type="button"
+                              class="tbl-btn tbl-btn--noshow"
+                              [class.tbl-btn--active]="apt.status === 'NO_SHOW'"
+                              title="Clientul nu s-a prezentat"
+                              (click)="setBarberAppointmentStatus(apt, 'NO_SHOW')"
+                            >
+                              Neprezentare
+                            </button>
+                            <button
+                              type="button"
+                              class="tbl-btn tbl-btn--cancel"
+                              [class.tbl-btn--active]="apt.status === 'CANCELLED'"
+                              title="Anulează și eliberează locul pe site"
+                              (click)="setBarberAppointmentStatus(apt, 'CANCELLED')"
+                            >
+                              Anulează
+                            </button>
+                            @if (apt.status !== 'CONFIRMED') {
+                              <button
+                                type="button"
+                                class="tbl-btn tbl-btn--reset"
+                                title="Reconfirmă programarea"
+                                (click)="setBarberAppointmentStatus(apt, 'CONFIRMED')"
+                              >
+                                Reset
+                              </button>
+                            }
+                          </div>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <h3 class="empty-state__title">Nicio programare găsită pentru filtrele alese</h3>
+              <p class="empty-state__text">
+                Poți adăuga o programare telefonică nouă sau reseta filtrul de zi.
+              </p>
+              <div class="empty-state__actions">
+                <button
+                  type="button"
+                  class="btn-add-booking"
+                  (click)="openPhoneBookingModal()"
+                >
+                  + Adaugă Programare
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Explanation Note about Automatic Status -->
+          <div class="policy-note">
+            <strong>Notă utilă pentru frizer:</strong> Programările confirmate trec
+            <strong>automat în „Finalizată (Auto)”</strong> imediat ce ora programării s-a încheiat —
+            nu ești obligat să apeși manual pe fiecare! Folosește butoanele
+            <strong>Anulează</strong> (când sună clientul și vrei să eliberezi locul pe site) sau
+            <strong>Neprezentare</strong> doar atunci când este cazul.
+          </div>
+        </section>
+
+        <!-- Barber Services & Prices Management Section -->
+        <section class="barber-services-section" aria-labelledby="barber-srv-heading">
+          <div class="appointments-header">
+            <div>
+              <h2 id="barber-srv-heading" class="appointments-header__title">
+                Servicii &amp; Prețuri &middot; {{ barber.name }}
+              </h2>
+              <p class="appointments-header__subtitle">
+                Modifică prețurile, durata sau adaugă pachete noi. Orice modificare se actualizează instant pe pagina publică de programări.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="btn-add-booking"
+              (click)="openBarberServiceModal()"
+            >
+              + Adaugă Pachet Serviciu
+            </button>
+          </div>
+
+          <div class="barber-services-grid">
+            @for (srv of barberServices(); track srv.id) {
+              <div class="srv-manage-card">
+                <div class="srv-manage-card__info">
+                  <h3 class="srv-manage-card__name">{{ srv.name }}</h3>
+                  <div class="srv-manage-card__meta">
+                    <span>Durată: <strong>{{ srv.durationMinutes }} min</strong></span>
+                    <span>&middot;</span>
+                    <span class="srv-manage-card__price">{{ srv.priceRon }} RON</span>
+                  </div>
+                </div>
+
+                <div class="srv-manage-card__actions">
+                  <button
+                    type="button"
+                    class="tbl-btn tbl-btn--reset"
+                    (click)="openBarberServiceModal(srv)"
+                  >
+                    Editează Preț / Durată
+                  </button>
+                  <button
+                    type="button"
+                    class="tbl-btn tbl-btn--cancel"
+                    (click)="deleteBarberService(srv)"
+                  >
+                    Șterge
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    }
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 2: CLIENT ACCOUNT DASHBOARD                                      -->
+    <!-- ===================================================================== -->
+    @if (viewMode() === 'CLIENT') {
+      @if (authService.currentUser(); as user) {
+        <header class="profile-banner">
+          <div class="profile-banner__identity">
+            <div class="profile-banner__avatar" aria-hidden="true">
+              {{ user.displayName.charAt(0).toUpperCase() }}
+            </div>
+            <div class="profile-banner__info">
+              <span class="profile-banner__tag">Panoul Clientului</span>
+              <h1 class="profile-banner__title">Salut, {{ user.displayName }}!</h1>
+              <p class="profile-banner__email">{{ user.email }}</p>
+            </div>
+          </div>
+
+          <div class="profile-banner__stats">
+            <div class="stat-box">
+              <span class="stat-box__value">{{ upcomingAppointments().length }}</span>
+              <span class="stat-box__label">Programări Viitoare</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-box__value">{{ completedCount() }}</span>
+              <span class="stat-box__label">Vizite Finalizate</span>
+            </div>
+          </div>
+
+          <div class="profile-banner__quick-book">
+            <span class="profile-banner__quick-label">Programare nouă rapidă:</span>
+            <div class="profile-banner__quick-btns">
+              <a routerLink="/filip" class="btn-quick-barber">
+                Programează-te la Filip &rarr;
+              </a>
+              <a routerLink="/sebi" class="btn-quick-barber btn-quick-barber--outline">
+                Programează-te la Sebi &rarr;
+              </a>
+            </div>
+          </div>
+        </header>
+      }
+
+      <!-- Client Appointments Section -->
+      <section class="appointments-section" aria-labelledby="appointments-heading">
+        <div class="appointments-header">
+          <div>
+            <h2 id="appointments-heading" class="appointments-header__title">
+              Programările Mele
+            </h2>
+            <p class="appointments-header__subtitle">
+              Gestionează programările viitoare, verifică istoricul vizitelor sau reprogramează-te dintr-un singur click.
+            </p>
+          </div>
+
+          <div class="filter-tabs" role="tablist" aria-label="Filtrează programările">
+            <button
+              type="button"
+              role="tab"
+              class="filter-tab"
+              [class.filter-tab--active]="activeTab() === 'UPCOMING'"
+              [attr.aria-selected]="activeTab() === 'UPCOMING'"
+              (click)="setTab('UPCOMING')"
+            >
+              Viitoare
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="filter-tab"
+              [class.filter-tab--active]="activeTab() === 'HISTORY'"
+              [attr.aria-selected]="activeTab() === 'HISTORY'"
+              (click)="setTab('HISTORY')"
+            >
+              Trecute &amp; Anulate
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="filter-tab"
+              [class.filter-tab--active]="activeTab() === 'ALL'"
+              [attr.aria-selected]="activeTab() === 'ALL'"
+              (click)="setTab('ALL')"
+            >
+              Toate
+            </button>
+          </div>
+        </div>
+
+        @if (visibleAppointments().length > 0) {
+          <div class="appointments-grid">
+            @for (apt of visibleAppointments(); track apt.id) {
+              <article
+                class="apt-card"
+                [class.apt-card--cancelled]="apt.status === 'CANCELLED'"
+              >
+                <div class="apt-card__top">
+                  <div class="apt-card__barber">
+                    <img
+                      [src]="apt.barberPhotoUrl"
+                      [alt]="'Frizer ' + apt.barberName"
+                      class="apt-card__avatar"
+                    />
+                    <div>
+                      <span class="apt-card__barber-label">Frizer ales</span>
+                      <h3 class="apt-card__barber-name">{{ apt.barberName }} | Barber</h3>
+                    </div>
+                  </div>
+
+                  <span
+                    class="apt-status"
+                    [class.apt-status--confirmed]="getStatusModifier(apt) === 'confirmed'"
+                    [class.apt-status--completed]="getStatusModifier(apt) === 'completed'"
+                    [class.apt-status--cancelled]="getStatusModifier(apt) === 'cancelled'"
+                    [class.apt-status--noshow]="getStatusModifier(apt) === 'noshow'"
+                  >
+                    {{ getStatusLabel(apt) }}
+                  </span>
+                </div>
+
+                <div class="apt-card__body">
+                  <div class="apt-detail">
+                    <span class="apt-detail__label">Serviciu</span>
+                    <span class="apt-detail__value">
+                      {{ apt.serviceName }} &middot; {{ apt.durationMinutes }} min
+                    </span>
+                  </div>
+
+                  <div class="apt-detail">
+                    <span class="apt-detail__label">Data</span>
+                    <span class="apt-detail__value">{{ apt.dateLabel }}</span>
+                  </div>
+
+                  <div class="apt-detail">
+                    <span class="apt-detail__label">Interval orar</span>
+                    <span class="apt-detail__value apt-detail__value--accent">
+                      {{ apt.startTime }} - {{ apt.endTime }}
+                    </span>
+                  </div>
+
+                  <div class="apt-detail">
+                    <span class="apt-detail__label">Preț</span>
+                    <span class="apt-detail__price">{{ apt.priceRon }} RON</span>
+                  </div>
+
+                  @if (apt.notes) {
+                    <div class="apt-detail apt-detail--full">
+                      <span class="apt-detail__label">Mențiuni</span>
+                      <span class="apt-detail__notes">{{ apt.notes }}</span>
+                    </div>
+                  }
+                </div>
+
+                <div class="apt-card__footer">
+                  @if (apt.status === 'CONFIRMED' && !isPast(apt)) {
+                    @if (canCancel(apt)) {
+                      <button
+                        type="button"
+                        class="btn-cancel"
+                        (click)="openCancelModal(apt)"
+                      >
+                        Anulează programarea
+                      </button>
+                    } @else {
+                      <span
+                        class="cancel-locked"
+                        title="Anularea online este permisă cu cel puțin 3 ore înainte de programare."
+                      >
+                        Anulare blocată (&lt; 3 ore rămase)
+                      </span>
+                    }
+                  } @else {
+                    <span class="apt-card__rule-hint">
+                      @if (apt.status === 'CANCELLED') {
+                        Intervalul orar a fost eliberat
+                      } @else {
+                        Mulțumim pentru vizită!
+                      }
+                    </span>
+                  }
+
+                  <button
+                    type="button"
+                    class="btn-reschedule"
+                    (click)="rescheduleOneClick(apt)"
+                  >
+                    Reprogramează dintr-un click &rarr;
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        } @else {
+          <div class="empty-state">
+            <h3 class="empty-state__title">
+              @if (activeTab() === 'UPCOMING') {
+                Nu ai nicio programare viitoare activă
+              } @else {
+                Nu există programări în această secțiune
+              }
+            </h3>
+            <p class="empty-state__text">
+              Alege frizerul tău preferat și rezervă-ți locul în mai puțin de un minut.
+            </p>
+            <div class="empty-state__actions">
+              <a routerLink="/filip" class="btn-quick-barber">
+                Programează-te la Filip
+              </a>
+              <a routerLink="/sebi" class="btn-quick-barber btn-quick-barber--outline">
+                Programează-te la Sebi
+              </a>
+            </div>
+          </div>
+        }
+
+        <div class="policy-note">
+          <strong>Politica de anulare și reprogramare:</strong> Poți anula gratuit orice programare
+          direct din contul tău cu <strong>cel puțin 3 ore înainte</strong> de ora stabilită, iar
+          locul se va elibera automat în calendarul frizerului.
+        </div>
+      </section>
+    }
+  </div>
+</main>
+
+<!-- ======================================================================= -->
+<!-- MODAL 1: "+ Adaugă Programare (Telefonică)"                             -->
+<!-- ======================================================================= -->
+@if (phoneModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="phone-modal-title"
+    (click)="closePhoneBookingModal()"
+  >
+    <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="phone-modal-title" class="modal-dialog__title">
+          + Adaugă Programare &middot; {{ currentBarber()?.name }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closePhoneBookingModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p class="modal-dialog__text">
+        Programarea adăugată aici va ocupa automat intervalul orar și pe site-ul public.
+      </p>
+
+      <form [formGroup]="phoneBookingForm" (ngSubmit)="submitPhoneBooking()" class="modal-form" novalidate>
+        <div class="modal-form__row">
+          <!-- Service selector -->
+          <div class="modal-field">
+            <label class="modal-field__label">Serviciu *</label>
+            <select
+              formControlName="serviceId"
+              class="modal-field__input"
+              (change)="onPhoneFormSelectionChange()"
+            >
+              @for (srv of barberServices(); track srv.id) {
+                <option [value]="srv.id">
+                  {{ srv.name }} &middot; {{ srv.durationMinutes }} min &middot; {{ srv.priceRon }} RON
+                </option>
+              }
+            </select>
+          </div>
+
+          <!-- Date selector -->
+          <div class="modal-field">
+            <label class="modal-field__label">Data programării *</label>
+            <input
+              type="date"
+              formControlName="dateIso"
+              class="modal-field__input"
+              (change)="onPhoneFormSelectionChange()"
+            />
+          </div>
+        </div>
+
+        <!-- Available Time Slots Grid -->
+        <div class="modal-field">
+          <label class="modal-field__label">Alege Intervalul Orar Disponibil *</label>
+          <div class="modal-slots-grid">
+            @for (slot of phoneModalSlots(); track slot.label) {
+              <button
+                type="button"
+                class="modal-slot-btn"
+                [class.modal-slot-btn--selected]="phoneBookingForm.controls.startTime.value === slot.startTime"
+                [class.modal-slot-btn--disabled]="!slot.available"
+                [disabled]="!slot.available"
+                (click)="selectPhoneSlot(slot)"
+              >
+                <span>{{ slot.label }}</span>
+                <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
+              </button>
+            }
+          </div>
+          @if (phoneFormSubmitted() && phoneBookingForm.controls.startTime.invalid) {
+            <span class="modal-error">Selectează un interval orar disponibil.</span>
+          }
+        </div>
+
+        <div class="modal-form__row">
+          <!-- Client Name -->
+          <div class="modal-field">
+            <label class="modal-field__label">Nume și Prenume Client *</label>
+            <input
+              type="text"
+              formControlName="clientName"
+              placeholder="Ex: Popa Alexandru"
+              class="modal-field__input"
+            />
+            @if (phoneFormSubmitted() && phoneBookingForm.controls.clientName.invalid) {
+              <span class="modal-error">Introdu numele clientului.</span>
+            }
+          </div>
+
+          <!-- Client Phone -->
+          <div class="modal-field">
+            <label class="modal-field__label">Telefon Client *</label>
+            <input
+              type="tel"
+              formControlName="clientPhone"
+              placeholder="Ex: 722 123 456"
+              class="modal-field__input"
+            />
+            @if (phoneFormSubmitted() && phoneBookingForm.controls.clientPhone.invalid) {
+              <span class="modal-error">Introdu un număr de telefon valid.</span>
+            }
+          </div>
+        </div>
+
+        <!-- Optional Notes -->
+        <div class="modal-field">
+          <label class="modal-field__label">Detalii / Mențiuni</label>
+          <input
+            type="text"
+            formControlName="notes"
+            placeholder="Ex: Programare telefonică / client fidel"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closePhoneBookingModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-add-booking">
+            Salvează Programarea &#10003;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ======================================================================= -->
+<!-- MODAL 2: "Blochează Interval / Zi liberă"                               -->
+<!-- ======================================================================= -->
+@if (blockModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="block-modal-title"
+    (click)="closeBlockModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="block-modal-title" class="modal-dialog__title">
+          Blochează Interval / Zi liberă &middot; {{ currentBarber()?.name }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeBlockModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p class="modal-dialog__text">
+        Orele blocate devin indisponibile pe pagina publică de programări.
+      </p>
+
+      <form [formGroup]="blockIntervalForm" (ngSubmit)="submitBlockInterval()" class="modal-form" novalidate>
+        <!-- Toggle: Interval vs Full Day -->
+        <div class="block-type-switch">
+          <button
+            type="button"
+            class="block-type-btn"
+            [class.block-type-btn--active]="blockIntervalForm.controls.blockType.value === 'INTERVAL'"
+            (click)="setBlockType('INTERVAL')"
+          >
+            Interval Orar
+          </button>
+          <button
+            type="button"
+            class="block-type-btn"
+            [class.block-type-btn--active]="blockIntervalForm.controls.blockType.value === 'FULL_DAY'"
+            (click)="setBlockType('FULL_DAY')"
+          >
+            Toată Ziua Liberă
+          </button>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Data *</label>
+          <input
+            type="date"
+            formControlName="dateIso"
+            class="modal-field__input"
+          />
+        </div>
+
+        @if (blockIntervalForm.controls.blockType.value === 'INTERVAL') {
+          <div class="modal-form__row">
+            <div class="modal-field">
+              <label class="modal-field__label">Ora de început *</label>
+              <select formControlName="startTime" class="modal-field__input">
+                <option value="10:00">10:00</option>
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+              </select>
+            </div>
+            <div class="modal-field">
+              <label class="modal-field__label">Ora de sfârșit *</label>
+              <select formControlName="endTime" class="modal-field__input">
+                <option value="11:00">11:00</option>
+                <option value="12:00">12:00</option>
+                <option value="13:00">13:00</option>
+                <option value="14:00">14:00</option>
+                <option value="15:00">15:00</option>
+                <option value="16:00">16:00</option>
+                <option value="17:00">17:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:00">19:00</option>
+              </select>
+            </div>
+          </div>
+        }
+
+        <div class="modal-field">
+          <label class="modal-field__label">Motiv *</label>
+          <input
+            type="text"
+            formControlName="reason"
+            placeholder="Ex: Pauză de masă / Concediu"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeBlockModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-add-booking">
+            Confirmă Blocarea
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ======================================================================= -->
+<!-- MODAL 3: Client Cancellation Confirmation                               -->
+<!-- ======================================================================= -->
+@if (appointmentToCancel(); as target) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="cancel-modal-title"
+    (click)="closeCancelModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <h3 id="cancel-modal-title" class="modal-dialog__title">
+        Confirmă anularea programării
+      </h3>
+      <p class="modal-dialog__text">
+        Ești sigur că vrei să anulezi programarea la
+        <strong>{{ target.barberName }}</strong> pentru serviciul
+        <strong>{{ target.serviceName }}</strong> din
+        <strong>{{ target.dateLabel }} ({{ target.startTime }} - {{ target.endTime }})</strong>?
+      </p>
+
+      <div class="modal-dialog__actions">
+        <button
+          type="button"
+          class="btn-modal-keep"
+          (click)="closeCancelModal()"
+        >
+          Păstrează programarea
+        </button>
+        <button
+          type="button"
+          class="btn-modal-confirm"
+          (click)="confirmCancel()"
+        >
+          Da, anulează programarea
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ======================================================================= -->
+<!-- MODAL 4: Barber Add / Edit Service Package                              -->
+<!-- ======================================================================= -->
+@if (serviceModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="srv-modal-title"
+    (click)="closeBarberServiceModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="srv-modal-title" class="modal-dialog__title">
+          {{ editingServiceId() ? 'Editează Serviciu & Preț' : '+ Adaugă Pachet Serviciu' }}
+          &middot; {{ currentBarber()?.name }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeBarberServiceModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <form [formGroup]="barberServiceForm" (ngSubmit)="submitBarberService()" class="modal-form" novalidate>
+        <div class="modal-field">
+          <label class="modal-field__label">Denumire Pachet Serviciu *</label>
+          <input
+            type="text"
+            formControlName="name"
+            placeholder="Ex: Tuns + Barbă + Spălat"
+            class="modal-field__input"
+          />
+          @if (serviceFormSubmitted() && barberServiceForm.controls.name.invalid) {
+            <span class="modal-error">Introdu denumirea serviciului.</span>
+          }
+        </div>
+
+        <div class="modal-form__row">
+          <div class="modal-field">
+            <label class="modal-field__label">Durată în minute *</label>
+            <select formControlName="durationMinutes" class="modal-field__input">
+              <option [ngValue]="30">30 minute</option>
+              <option [ngValue]="45">45 minute</option>
+              <option [ngValue]="60">60 minute</option>
+            </select>
+          </div>
+
+          <div class="modal-field">
+            <label class="modal-field__label">Preț în RON *</label>
+            <input
+              type="number"
+              formControlName="priceRon"
+              min="10"
+              step="5"
+              class="modal-field__input"
+            />
+          </div>
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeBarberServiceModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-add-booking">
+            Salvează Serviciul &#10003;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

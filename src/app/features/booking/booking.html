@@ -435,9 +435,21 @@
           </p>
 
           <div class="confirmed-card__actions">
-            <a routerLink="/" class="btn-next">
-              Înapoi la pagina principală
-            </a>
+            @if (authService.currentUser()) {
+              <a routerLink="/dashboard" class="btn-next">
+                Vezi în Contul Meu &rarr;
+              </a>
+              <a routerLink="/" class="btn-back" style="text-decoration: none;">
+                Înapoi la pagina principală
+              </a>
+            } @else {
+              <a routerLink="/" class="btn-next">
+                Înapoi la pagina principală
+              </a>
+              <a routerLink="/login" class="btn-back" style="text-decoration: none;">
+                Creează cont / Contul Meu
+              </a>
+            }
           </div>
         </section>
       }

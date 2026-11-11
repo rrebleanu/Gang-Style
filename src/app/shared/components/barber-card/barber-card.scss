@@ -81,6 +81,11 @@ $hover-duration: 0.8s; // hover animation speed
     object-fit: cover;
     object-position: center 22%;
     display: block;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
     transition: transform $hover-duration $ease-smooth;
   }
 }
@@ -202,6 +207,10 @@ $hover-duration: 0.8s; // hover animation speed
     object-fit: cover;
     object-position: center;
     display: block;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    transform: translateZ(0);
+    backface-visibility: hidden;
     transition: height $hover-duration $ease-smooth;
   }
 }

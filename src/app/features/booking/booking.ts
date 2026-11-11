@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { BarberService } from '../../core/services/barber.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
 import { Barber } from '../../shared/models/barber.model';
 import { ServiceItem, TimeSlot } from '../../shared/models/service-item.model';
@@ -31,6 +32,7 @@ export class Booking implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly barberService = inject(BarberService);
   private readonly catalogService = inject(ServiceCatalogService);
+  readonly authService = inject(AuthService);
 
   // Active barber and their service packages
   readonly barber = signal<Barber | null>(null);
@@ -90,6 +92,11 @@ export class Booking implements OnInit {
   });
 
   ngOnInit(): void {
+    const loggedUser = this.authService.currentUser();
+    if (loggedUser?.email.includes('@')) {
+      this.clientForm.controls.email.setValue(loggedUser.email);
+    }
+
     const days = this.generateWorkingDays(7);
     this.availableDays.set(days);
     if (days.length > 0) {
@@ -106,7 +113,18 @@ export class Booking implements OnInit {
       }
 
       this.barber.set(foundBarber);
-      this.services.set(this.catalogService.getByBarberSlug(foundBarber.slug));
+      const barberServices = this.catalogService.getByBarberSlug(foundBarber.slug);
+      this.services.set(barberServices);
+
+      // If navigated via 1-Click Reschedule (?serviceId=...), pre-select service and jump to Step 2
+      const preselectedId = this.route.snapshot.queryParamMap.get('serviceId');
+      if (preselectedId) {
+        const matchedService = barberServices.find((s) => s.id === preselectedId);
+        if (matchedService) {
+          this.selectedService.set(matchedService);
+          this.currentStep.set(2);
+        }
+      }
     });
   }
 
@@ -191,13 +209,28 @@ export class Booking implements OnInit {
       return;
     }
 
-    // Mark slot as occupied in memory
-    this.catalogService.addBooking(
-      currentBarber.slug,
+    const formVal = this.clientForm.getRawValue();
+
+    // Persist full appointment record and mark slot as occupied
+    this.catalogService.createAppointment({
+      barberSlug: currentBarber.slug,
+      barberName: currentBarber.name,
+      barberPhotoUrl: currentBarber.photoUrl,
+      serviceId: service.id,
+      serviceName: service.name,
+      durationMinutes: service.durationMinutes,
+      slotMinutes: service.slotMinutes,
+      priceRon: service.priceRon,
       dateIso,
-      slot.startTime,
-      service.slotMinutes
-    );
+      dateLabel: this.selectedDayLabel(),
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      clientFirstName: formVal.firstName.trim(),
+      clientLastName: formVal.lastName.trim(),
+      clientEmail: formVal.email.trim(),
+      clientPhone: formVal.phone.trim(),
+      notes: formVal.notes.trim() || undefined,
+    });
 
     // Save last visited barber in localStorage for the "⭐ Ultima vizită" badge on Home
     if (typeof window !== 'undefined' && window.localStorage) {

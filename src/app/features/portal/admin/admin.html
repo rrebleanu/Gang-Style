@@ -1,7 +1,417 @@
-<section class="page-container">
-  <span class="section-tag">Administrare Salon</span>
-  <h1 class="page-title">Panou Administrator</h1>
-  <p class="lead-text">
-    Gestionare program de lucru, frizeri, servicii și sistemul Anti-No-Show (Blacklist).
-  </p>
-</section>
+<main class="admin-page">
+  <div class="admin-container">
+    <!-- Top bar: Back to Home + Switch to Client/Barber Dashboard + Logout -->
+    <div class="admin-top">
+      <a routerLink="/" class="back-link">&larr; Înapoi la pagina principală</a>
+
+      <div class="admin-top__actions">
+        <a routerLink="/dashboard" class="btn-switch-dash">
+          &larr; Panou Client / Dashboard Frizer
+        </a>
+        <button type="button" class="btn-logout-top" (click)="logout()">
+          Deconectare
+        </button>
+      </div>
+    </div>
+
+    <!-- Feedback banner -->
+    @if (feedbackMessage(); as msg) {
+      <div class="admin-alert" role="status" aria-live="polite">
+        <span class="admin-alert__icon">&#10003;</span>
+        <span>{{ msg }}</span>
+      </div>
+    }
+
+    <!-- Admin Header & Global Salon KPIs -->
+    <header class="admin-header">
+      <div class="admin-header__top">
+        <div>
+          <span class="admin-header__tag">Administrare Salon &middot; Gang Style Giurgiu</span>
+          <h1 class="admin-header__title">Panou de Administrare</h1>
+          <p class="admin-header__sub">
+            Gestionare Pachete de Servicii &amp; Prețuri și Lista Blacklist
+          </p>
+        </div>
+
+        <div class="admin-header__btns">
+          <button
+            type="button"
+            class="btn-primary-gold"
+            (click)="openServiceModal()"
+          >
+            + Adaugă Pachet Serviciu
+          </button>
+          <button
+            type="button"
+            class="btn-outline-gold"
+            (click)="openBlacklistModal()"
+          >
+            + Adaugă în Blacklist
+          </button>
+        </div>
+      </div>
+
+      <div class="admin-kpi-grid">
+        <div class="kpi-box">
+          <span class="kpi-box__val">{{ services().length }}</span>
+          <span class="kpi-box__label">Pachete Servicii Active</span>
+        </div>
+        <div class="kpi-box">
+          <span class="kpi-box__val">{{ totalActiveAppointments() }}</span>
+          <span class="kpi-box__label">Programări Online &amp; Telefonic</span>
+        </div>
+        <div class="kpi-box">
+          <span class="kpi-box__val kpi-box__val--danger">{{ blacklist().length }}</span>
+          <span class="kpi-box__label">Clienți în Blacklist</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- SECTION 1: CRUD SERVICII & PREȚURI                                  -->
+    <!-- =================================================================== -->
+    <section class="admin-section" aria-labelledby="crud-services-title">
+      <div class="admin-section__head">
+        <div>
+          <h2 id="crud-services-title" class="admin-section__title">
+            Catalog Pachete de Servicii &amp; Prețuri
+          </h2>
+          <p class="admin-section__subtitle">
+            Orice adăugare, modificare de preț/durată sau ștergere se sincronizează instantaneu pe paginile publice <strong>/filip</strong> și <strong>/sebi</strong>.
+          </p>
+        </div>
+
+        <!-- Barber Filter Tabs -->
+        <div class="barber-tabs" role="tablist">
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'ALL'"
+            (click)="setBarberFilter('ALL')"
+          >
+            Toți Frizerii
+          </button>
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'filip'"
+            (click)="setBarberFilter('filip')"
+          >
+            Filip
+          </button>
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'sebi'"
+            (click)="setBarberFilter('sebi')"
+          >
+            Sebi
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Frizer</th>
+              <th>Denumire Pachet Serviciu</th>
+              <th>Durată Tunsoare</th>
+              <th>Preț</th>
+              <th class="th-right">Acțiuni CRUD</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (srv of filteredServices(); track srv.id) {
+              <tr>
+                <td data-label="Frizer">
+                  <span class="barber-badge">
+                    <img
+                      [src]="srv.barberSlug === 'filip' ? 'images/Filip.jpg' : 'images/Sebi.jpg'"
+                      [alt]="srv.barberSlug"
+                      class="barber-badge__img"
+                    />
+                    <strong>{{ srv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
+                  </span>
+                </td>
+                <td data-label="Serviciu">
+                  <span class="srv-name">{{ srv.name }}</span>
+                </td>
+                <td data-label="Durată">
+                  <span class="srv-duration">
+                    {{ srv.durationMinutes }} min
+                  </span>
+                </td>
+                <td data-label="Preț">
+                  <span class="srv-price">{{ srv.priceRon }} RON</span>
+                </td>
+                <td data-label="Acțiuni" class="td-right">
+                  <div class="crud-actions">
+                    <button
+                      type="button"
+                      class="btn-crud btn-crud--edit"
+                      (click)="openServiceModal(srv)"
+                    >
+                      Editează Preț / Durată
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-crud btn-crud--delete"
+                      (click)="deleteService(srv)"
+                    >
+                      Șterge
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- SECTION 2: LISTA BLACKLIST (ANTI-NO-SHOW)                           -->
+    <!-- =================================================================== -->
+    <section class="admin-section" aria-labelledby="blacklist-title">
+      <div class="admin-section__head">
+        <div>
+          <h2 id="blacklist-title" class="admin-section__title">
+            Lista Blacklist
+          </h2>
+          <p class="admin-section__subtitle">
+            Clienții marcați cu „Neprezentare” de către frizeri sau adăugați manual sunt monitorizați aici pentru prevenirea rezervărilor false.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="btn-outline-gold"
+          (click)="openBlacklistModal()"
+        >
+          + Adaugă Client în Blacklist
+        </button>
+      </div>
+
+      @if (blacklist().length > 0) {
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Nume Client</th>
+                <th>Telefon</th>
+                <th>Neprezentări</th>
+                <th>Motiv &amp; Adăugat de</th>
+                <th class="th-right">Acțiuni</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of blacklist(); track item.id) {
+                <tr>
+                  <td data-label="Client">
+                    <strong class="srv-name">{{ item.clientName }}</strong>
+                  </td>
+                  <td data-label="Telefon">
+                    <a [href]="'tel:+40' + item.clientPhone" class="phone-link">
+                      &#9742; +40 {{ item.clientPhone }}
+                    </a>
+                  </td>
+                  <td data-label="Neprezentări">
+                    <span class="noshow-pill">{{ item.noShowCount }}x No-Show</span>
+                  </td>
+                  <td data-label="Motiv">
+                    <div class="reason-text">{{ item.reason }}</div>
+                    <small class="reason-meta">Adăugat de: {{ item.addedBy }}</small>
+                  </td>
+                  <td data-label="Acțiuni" class="td-right">
+                    <button
+                      type="button"
+                      class="btn-crud btn-crud--edit"
+                      (click)="unblockClient(item)"
+                    >
+                      Scoate din Blacklist
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-box">
+          Nu există niciun client în lista Blacklist în acest moment.
+        </div>
+      }
+    </section>
+  </div>
+</main>
+
+<!-- ======================================================================= -->
+<!-- MODAL 1: Add / Edit Service Package                                     -->
+<!-- ======================================================================= -->
+@if (serviceModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-srv-modal-title"
+    (click)="closeServiceModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="admin-srv-modal-title" class="modal-dialog__title">
+          {{ editingServiceId() ? 'Editează Pachet Serviciu' : '+ Adaugă Pachet Serviciu Nou' }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeServiceModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <form [formGroup]="serviceForm" (ngSubmit)="submitServiceForm()" class="modal-form" novalidate>
+        @if (!editingServiceId()) {
+          <div class="modal-field">
+            <label class="modal-field__label">Pentru ce frizer adaugi pachetul? *</label>
+            <select formControlName="barberTarget" class="modal-field__input">
+              <option value="both">Ambii Frizeri &middot; Filip &amp; Sebi</option>
+              <option value="filip">Doar Filip</option>
+              <option value="sebi">Doar Sebi</option>
+            </select>
+          </div>
+        }
+
+        <div class="modal-field">
+          <label class="modal-field__label">Denumire Pachet Serviciu *</label>
+          <input
+            type="text"
+            formControlName="name"
+            placeholder="Ex: Tuns + Barbă + Tratament Facial"
+            class="modal-field__input"
+          />
+          @if (serviceFormSubmitted() && serviceForm.controls.name.invalid) {
+            <span class="modal-error">Introdu denumirea serviciului.</span>
+          }
+        </div>
+
+        <div class="modal-form__row">
+          <div class="modal-field">
+            <label class="modal-field__label">Durată în minute *</label>
+            <select formControlName="durationMinutes" class="modal-field__input">
+              <option [ngValue]="30">30 minute</option>
+              <option [ngValue]="45">45 minute</option>
+              <option [ngValue]="60">60 minute</option>
+            </select>
+          </div>
+
+          <div class="modal-field">
+            <label class="modal-field__label">Preț în RON *</label>
+            <input
+              type="number"
+              formControlName="priceRon"
+              min="10"
+              step="5"
+              class="modal-field__input"
+            />
+          </div>
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeServiceModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-primary-gold">
+            Salvează Pachetul &#10003;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ======================================================================= -->
+<!-- MODAL 2: Add Client to Blacklist                                        -->
+<!-- ======================================================================= -->
+@if (blacklistModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="blacklist-modal-title"
+    (click)="closeBlacklistModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="blacklist-modal-title" class="modal-dialog__title">
+          + Adaugă Client în Blacklist
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeBlacklistModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <form [formGroup]="blacklistForm" (ngSubmit)="submitBlacklistForm()" class="modal-form" novalidate>
+        <div class="modal-field">
+          <label class="modal-field__label">Nume și Prenume Client *</label>
+          <input
+            type="text"
+            formControlName="clientName"
+            placeholder="Ex: Marin Andrei"
+            class="modal-field__input"
+          />
+          @if (blacklistFormSubmitted() && blacklistForm.controls.clientName.invalid) {
+            <span class="modal-error">Introdu numele clientului.</span>
+          }
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Număr de Telefon *</label>
+          <input
+            type="tel"
+            formControlName="clientPhone"
+            placeholder="Ex: 744 112 233"
+            class="modal-field__input"
+          />
+          @if (blacklistFormSubmitted() && blacklistForm.controls.clientPhone.invalid) {
+            <span class="modal-error">Introdu un număr de telefon valid.</span>
+          }
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Motivul blocării *</label>
+          <input
+            type="text"
+            formControlName="reason"
+            placeholder="Ex: 2 neprezentări fără să anunțe"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeBlacklistModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-primary-gold">
+            Adaugă în Blacklist
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

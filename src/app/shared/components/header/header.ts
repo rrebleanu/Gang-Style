@@ -1,5 +1,6 @@
-import { Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-header',
@@ -13,6 +14,9 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   },
 })
 export class HeaderComponent {
+  readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
+
   // mobile menu state (only visible below 700px)
   readonly menuOpen = signal(false);
 
@@ -23,6 +27,12 @@ export class HeaderComponent {
   // called on every link click, so the menu closes after navigation
   closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.closeMenu();
+    this.router.navigate(['/']);
   }
 
   // closes mobile menu and smoothly scrolls to the target section on the page

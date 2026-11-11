@@ -5,19 +5,42 @@
     <span class="logo-subtitle">EST 2020</span>
   </a>
 
-  <!-- Buton hamburger (vizibil doar pe mobil) -->
-  <button
-    type="button"
-    class="hamburger"
-    aria-controls="main-menu"
-    [attr.aria-expanded]="menuOpen()"
-    [attr.aria-label]="menuOpen() ? 'Închide meniul' : 'Deschide meniul'"
-    (click)="toggleMenu()"
-  >
-    <span class="bar"></span>
-    <span class="bar"></span>
-    <span class="bar"></span>
-  </button>
+  <!-- Right-side mobile controls: quick account/dashboard pill + hamburger button -->
+  <div class="mobile-bar-controls">
+    @if (authService.currentUser(); as user) {
+      <a
+        [routerLink]="user.role === 'ADMIN' ? '/admin' : '/dashboard'"
+        class="mobile-account-pill mobile-account-pill--logged"
+        routerLinkActive="active"
+        (click)="closeMenu()"
+      >
+        {{ user.role === 'ADMIN' ? 'Admin' : 'Contul Meu' }}
+      </a>
+    } @else {
+      <a
+        routerLink="/login"
+        class="mobile-account-pill"
+        routerLinkActive="active"
+        (click)="closeMenu()"
+      >
+        Contul Meu
+      </a>
+    }
+
+    <!-- Buton hamburger (vizibil doar pe mobil) -->
+    <button
+      type="button"
+      class="hamburger"
+      aria-controls="main-menu"
+      [attr.aria-expanded]="menuOpen()"
+      [attr.aria-label]="menuOpen() ? 'Închide meniul' : 'Deschide meniul'"
+      (click)="toggleMenu()"
+    >
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </button>
+  </div>
 
   <!-- Meniu: orizontal pe desktop, panou vertical pe mobil -->
   <div id="main-menu" class="menu">
@@ -44,11 +67,25 @@
       </li>
     </ul>
 
-    <!-- Acțiuni Dreapta -->
+    <!-- Right actions -->
     <div class="nav-actions">
-      <a routerLink="/login" class="nav-login" routerLinkActive="active" (click)="closeMenu()">
-        Contul Meu
-      </a>
+      @if (authService.currentUser(); as user) {
+        <a
+          [routerLink]="user.role === 'ADMIN' ? '/admin' : '/dashboard'"
+          class="nav-login nav-user-link"
+          routerLinkActive="active"
+          (click)="closeMenu()"
+        >
+          {{ user.role === 'ADMIN' ? 'Admin' : 'Contul Meu' }}
+        </a>
+        <button type="button" class="nav-login nav-logout" (click)="logout()">
+          Ieșire
+        </button>
+      } @else {
+        <a routerLink="/login" class="nav-login" routerLinkActive="active" (click)="closeMenu()">
+          Contul Meu
+        </a>
+      }
       <a routerLink="/" fragment="frizeri" class="nav-btn" (click)="scrollTo('frizeri')">Programare</a>
     </div>
   </div>

@@ -28,6 +28,16 @@ public class User {
         this.displayName = displayName;
         this.phone = phone;
         this.role = role;
+        this.createdAt = Instant.now();
+    }
+
+    public User(String email, String password, String displayName, String phone, String role, Instant createdAt) {
+        this.email = email;
+        this.password = password;
+        this.displayName = displayName;
+        this.phone = phone;
+        this.role = role;
+        this.createdAt = createdAt != null ? createdAt : Instant.now();
     }
 
     public String getId() { return id; }

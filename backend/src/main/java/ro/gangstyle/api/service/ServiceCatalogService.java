@@ -41,9 +41,8 @@ public class ServiceCatalogService {
     }
 
     public ServicePackageResponseDto createService(ServicePackageRequestDto dto) {
-        // Validare existență frizer
         if (!barberRepository.existsBySlug(dto.getBarberSlug())) {
-            throw new IllegalArgumentException("Frizerul cu slug-ul '" + dto.getBarberSlug() + "' nu există.");
+            throw new IllegalArgumentException("Frizerul selectat nu a fost găsit în salon.");
         }
 
         ServicePackage entity = new ServicePackage(
@@ -60,10 +59,10 @@ public class ServiceCatalogService {
 
     public ServicePackageResponseDto updateService(String id, ServicePackageRequestDto dto) {
         ServicePackage existing = servicePackageRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Serviciul cu ID-ul " + id + " nu a fost găsit."));
+                .orElseThrow(() -> new ResourceNotFoundException("Serviciul selectat nu mai există sau a fost șters."));
 
         if (!barberRepository.existsBySlug(dto.getBarberSlug())) {
-            throw new IllegalArgumentException("Frizerul cu slug-ul '" + dto.getBarberSlug() + "' nu există.");
+            throw new IllegalArgumentException("Frizerul selectat nu a fost găsit în salon.");
         }
 
         existing.setBarberSlug(dto.getBarberSlug());
@@ -78,7 +77,7 @@ public class ServiceCatalogService {
 
     public void deleteService(String id) {
         if (!servicePackageRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Serviciul cu ID-ul " + id + " nu a fost găsit.");
+            throw new ResourceNotFoundException("Serviciul selectat nu mai există sau a fost deja șters.");
         }
         servicePackageRepository.deleteById(id);
     }

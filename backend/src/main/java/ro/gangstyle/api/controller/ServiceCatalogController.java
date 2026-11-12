@@ -6,13 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ro.gangstyle.api.dto.ServicePackageRequestDto;
 import ro.gangstyle.api.dto.ServicePackageResponseDto;
+import ro.gangstyle.api.exception.ResourceNotFoundException;
 import ro.gangstyle.api.service.ServiceCatalogService;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/services")
-@CrossOrigin(origins = {"http://localhost:4200", "http://127.0.0.1:4200"})
 public class ServiceCatalogController {
 
     private final ServiceCatalogService serviceCatalogService;
@@ -29,9 +29,9 @@ public class ServiceCatalogController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ServicePackageResponseDto> getServiceById(@PathVariable String id) {
-        return serviceCatalogService.getServiceById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        ServicePackageResponseDto service = serviceCatalogService.getServiceById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Serviciul selectat nu a fost găsit."));
+        return ResponseEntity.ok(service);
     }
 
     @PostMapping

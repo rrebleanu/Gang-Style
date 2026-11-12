@@ -41,7 +41,7 @@ public class GlobalExceptionHandler {
         ApiErrorResponse error = new ApiErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "Eroare de validare a datelor trimise.",
+                "Unele câmpuri nu sunt completate corect. Te rugăm să verifici datele introduse.",
                 request.getRequestURI(),
                 fieldErrors
         );

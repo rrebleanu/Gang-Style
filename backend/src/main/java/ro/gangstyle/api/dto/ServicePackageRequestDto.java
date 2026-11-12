@@ -3,23 +3,25 @@ package ro.gangstyle.api.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 public class ServicePackageRequestDto {
 
-    @NotBlank(message = "barberSlug este obligatoriu (ex: 'filip' sau 'sebi')")
+    @NotBlank(message = "Selectarea frizerului este obligatorie.")
     private String barberSlug;
 
-    @NotBlank(message = "Numele serviciului este obligatoriu")
+    @NotBlank(message = "Te rugăm să introduci denumirea serviciului.")
+    @Size(max = 100, message = "Denumirea serviciului poate avea cel mult 100 de caractere.")
     private String name;
 
-    @Positive(message = "Durata trebuie sa fie un numar pozitiv de minute")
+    @Positive(message = "Durata serviciului trebuie să fie mai mare de 0 minute.")
     private int durationMinutes;
 
-    @Positive(message = "Slotul trebuie sa fie un numar pozitiv de minute (ex: 30, 45, 60)")
+    @Positive(message = "Intervalul alocat (slotul) trebuie să fie mai mare de 0 minute.")
     private int slotMinutes;
 
-    @NotNull(message = "Pretul este obligatoriu")
-    @Positive(message = "Pretul trebuie sa fie mai mare decat 0 RON")
+    @NotNull(message = "Te rugăm să introduci prețul serviciului.")
+    @Positive(message = "Prețul serviciului trebuie să fie mai mare de 0 RON.")
     private Double priceRon;
 
     public ServicePackageRequestDto() {}

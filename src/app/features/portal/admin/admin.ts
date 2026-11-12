@@ -32,6 +32,8 @@ export class Admin implements OnInit {
 
   // State signals
   readonly services = signal<ServiceItem[]>([]);
+  readonly isLoadingServices = signal(true);
+  readonly servicesError = signal<string | null>(null);
   readonly appointments = signal<AppointmentRecord[]>([]);
   readonly blacklist = signal<BlacklistEntry[]>([]);
   readonly barberFilter = signal<AdminBarberFilter>('ALL');
@@ -98,9 +100,27 @@ export class Admin implements OnInit {
   }
 
   refreshData(): void {
-    this.services.set(this.catalogService.getAllServices());
+    this.loadServices();
     this.appointments.set(this.catalogService.getAllAppointments());
     this.blacklist.set(this.catalogService.getBlacklist());
+  }
+
+  loadServices(): void {
+    this.isLoadingServices.set(true);
+    this.servicesError.set(null);
+
+    this.catalogService.fetchAllServices().subscribe({
+      next: (data) => {
+        this.services.set(data);
+        this.isLoadingServices.set(false);
+      },
+      error: () => {
+        this.servicesError.set(
+          'Nu am putut încărca serviciile din server. Verifică dacă backend-ul este pornit.'
+        );
+        this.isLoadingServices.set(false);
+      },
+    });
   }
 
   setBarberFilter(filter: AdminBarberFilter): void {
@@ -148,38 +168,76 @@ export class Admin implements OnInit {
     const editId = this.editingServiceId();
 
     if (editId) {
-      this.catalogService.updateServicePackage(editId, {
-        name: val.name,
-        durationMinutes: Number(val.durationMinutes),
-        priceRon: Number(val.priceRon),
-      });
-      this.showFeedback(
-        `Pachetul „${val.name}” · ${val.priceRon} RON a fost actualizat cu succes!`
-      );
-    } else {
-      this.catalogService.addServicePackage({
-        barberTarget: val.barberTarget,
-        name: val.name,
-        durationMinutes: Number(val.durationMinutes),
-        priceRon: Number(val.priceRon),
-      });
-      this.showFeedback(
-        `Pachetul nou „${val.name}” · ${val.priceRon} RON a fost adăugat în catalog!`
-      );
-    }
+      const existing = this.services().find((s) => s.id === editId);
+      const barberSlug =
+        existing?.barberSlug ?? (val.barberTarget === 'sebi' ? 'sebi' : 'filip');
 
-    this.closeServiceModal();
-    this.refreshData();
+      this.catalogService
+        .updateServiceApi(editId, {
+          barberSlug,
+          name: val.name,
+          durationMinutes: Number(val.durationMinutes),
+          priceRon: Number(val.priceRon),
+        })
+        .subscribe({
+          next: () => {
+            this.closeServiceModal();
+            this.loadServices();
+            this.showFeedback(
+              `Pachetul „${val.name}” · ${val.priceRon} RON a fost actualizat în baza de date!`
+            );
+          },
+          error: (err) => {
+            this.showFeedback(this.extractErrorMessage(err));
+          },
+        });
+    } else {
+      this.catalogService
+        .createServiceApi({
+          barberTarget: val.barberTarget,
+          name: val.name,
+          durationMinutes: Number(val.durationMinutes),
+          priceRon: Number(val.priceRon),
+        })
+        .subscribe({
+          next: () => {
+            this.closeServiceModal();
+            this.loadServices();
+            this.showFeedback(
+              `Pachetul nou „${val.name}” · ${val.priceRon} RON a fost salvat în MongoDB!`
+            );
+          },
+          error: (err) => {
+            this.showFeedback(this.extractErrorMessage(err));
+          },
+        });
+    }
   }
 
   deleteService(service: ServiceItem): void {
-    const ok = this.catalogService.deleteServicePackage(service.id);
-    if (ok) {
-      this.refreshData();
-      this.showFeedback(
-        `Pachetul „${service.name}” a fost șters.`
-      );
+    this.catalogService.deleteServiceApi(service.id).subscribe({
+      next: () => {
+        this.loadServices();
+        this.showFeedback(`Pachetul „${service.name}” a fost șters din baza de date.`);
+      },
+      error: (err) => {
+        this.showFeedback(this.extractErrorMessage(err));
+      },
+    });
+  }
+
+  private extractErrorMessage(err: any): string {
+    const apiBody = err?.error;
+    if (apiBody?.fieldErrors) {
+      const firstError = Object.values(apiBody.fieldErrors)[0];
+      if (typeof firstError === 'string') {
+        return firstError;
+      }
     }
+    if (typeof apiBody?.message === 'string' && apiBody.message.trim().length > 0) {
+      return apiBody.message;
+    }
+    return 'Operațiunea nu a putut fi salvată. Verifică conexiunea cu serverul.';
   }
 
   // Blacklist modal & actions

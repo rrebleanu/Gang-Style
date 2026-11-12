@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { BarberService } from '../../core/services/barber.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
@@ -37,6 +38,9 @@ export class Booking implements OnInit {
   // Active barber and their service packages
   readonly barber = signal<Barber | null>(null);
   readonly services = signal<ServiceItem[]>([]);
+  readonly activeSlug = signal<string>('');
+  readonly isLoadingData = signal(true);
+  readonly loadError = signal<string | null>(null);
 
   // Wizard step: 1 = Service, 2 = Date & Time, 3 = Personal Details, 4 = Summary
   readonly currentStep = signal<1 | 2 | 3 | 4>(1);
@@ -105,26 +109,49 @@ export class Booking implements OnInit {
 
     this.route.paramMap.subscribe((params) => {
       const slug = params.get('slug') ?? '';
-      const foundBarber = this.barberService.getBySlug(slug);
+      this.activeSlug.set(slug);
+      this.loadBarberAndServices(slug);
+    });
+  }
 
-      if (!foundBarber) {
-        this.router.navigate(['/404']);
-        return;
-      }
+  loadBarberAndServices(slug: string): void {
+    if (!slug) {
+      this.router.navigate(['/404']);
+      return;
+    }
 
-      this.barber.set(foundBarber);
-      const barberServices = this.catalogService.getByBarberSlug(foundBarber.slug);
-      this.services.set(barberServices);
+    this.isLoadingData.set(true);
+    this.loadError.set(null);
 
-      // If navigated via 1-Click Reschedule (?serviceId=...), pre-select service and jump to Step 2
-      const preselectedId = this.route.snapshot.queryParamMap.get('serviceId');
-      if (preselectedId) {
-        const matchedService = barberServices.find((s) => s.id === preselectedId);
-        if (matchedService) {
-          this.selectedService.set(matchedService);
-          this.currentStep.set(2);
+    forkJoin({
+      barber: this.barberService.getBySlug(slug),
+      services: this.catalogService.fetchServicesByBarber(slug),
+    }).subscribe({
+      next: ({ barber, services }) => {
+        this.barber.set(barber);
+        this.services.set(services);
+        this.isLoadingData.set(false);
+
+        // If navigated via 1-Click Reschedule (?serviceId=...), pre-select service and jump to Step 2
+        const preselectedId = this.route.snapshot.queryParamMap.get('serviceId');
+        if (preselectedId) {
+          const matchedService = services.find((s) => s.id === preselectedId);
+          if (matchedService) {
+            this.selectedService.set(matchedService);
+            this.currentStep.set(2);
+          }
         }
-      }
+      },
+      error: (err) => {
+        if (err?.status === 404) {
+          this.router.navigate(['/404']);
+          return;
+        }
+        this.loadError.set(
+          'Nu am putut încărca datele frizerului. Verifică dacă serverul backend este pornit.'
+        );
+        this.isLoadingData.set(false);
+      },
     });
   }
 

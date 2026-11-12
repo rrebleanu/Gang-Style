@@ -255,7 +255,9 @@ export class Portal implements OnInit {
       return;
     }
 
-    this.barbers.set(this.barberService.getAll());
+    this.barberService.getAll().subscribe({
+      next: (list) => this.barbers.set(list),
+    });
     const days = this.generateWorkingDays(7);
     this.workingDays.set(days);
 
@@ -284,9 +286,11 @@ export class Portal implements OnInit {
     this.barberAppointments.set(
       this.catalogService.getAppointmentsByBarber(this.selectedBarberSlug())
     );
-    this.barberServices.set(
-      this.catalogService.getByBarberSlug(this.selectedBarberSlug())
-    );
+    this.catalogService
+      .fetchServicesByBarber(this.selectedBarberSlug())
+      .subscribe({
+        next: (services) => this.barberServices.set(services),
+      });
   }
 
   // Switches between Client view and Barber view (allowed only for ADMIN)
@@ -669,36 +673,58 @@ export class Portal implements OnInit {
     const editId = this.editingServiceId();
 
     if (editId) {
-      this.catalogService.updateServicePackage(editId, {
-        name: val.name,
-        durationMinutes: Number(val.durationMinutes),
-        priceRon: Number(val.priceRon),
-      });
-      this.showFeedback(
-        `Serviciul „${val.name}” (${val.priceRon} RON) a fost actualizat pe site!`
-      );
+      this.catalogService
+        .updateServiceApi(editId, {
+          barberSlug: this.selectedBarberSlug(),
+          name: val.name,
+          durationMinutes: Number(val.durationMinutes),
+          priceRon: Number(val.priceRon),
+        })
+        .subscribe({
+          next: () => {
+            this.closeBarberServiceModal();
+            this.refreshAllData();
+            this.showFeedback(
+              `Serviciul „${val.name}” (${val.priceRon} RON) a fost actualizat în baza de date!`
+            );
+          },
+          error: () => {
+            this.showFeedback('Nu am putut actualiza serviciul. Verifică serverul.');
+          },
+        });
     } else {
-      this.catalogService.addServicePackage({
-        barberTarget: this.selectedBarberSlug(),
-        name: val.name,
-        durationMinutes: Number(val.durationMinutes),
-        priceRon: Number(val.priceRon),
-      });
-      this.showFeedback(
-        `Pachetul nou „${val.name}” (${val.priceRon} RON) a fost adăugat pentru ${this.currentBarber()?.name}!`
-      );
+      this.catalogService
+        .createServiceApi({
+          barberTarget: this.selectedBarberSlug(),
+          name: val.name,
+          durationMinutes: Number(val.durationMinutes),
+          priceRon: Number(val.priceRon),
+        })
+        .subscribe({
+          next: () => {
+            this.closeBarberServiceModal();
+            this.refreshAllData();
+            this.showFeedback(
+              `Pachetul nou „${val.name}” (${val.priceRon} RON) a fost salvat pentru ${this.currentBarber()?.name}!`
+            );
+          },
+          error: () => {
+            this.showFeedback('Nu am putut adăuga serviciul. Verifică serverul.');
+          },
+        });
     }
-
-    this.closeBarberServiceModal();
-    this.refreshAllData();
   }
 
   deleteBarberService(service: ServiceItem): void {
-    const ok = this.catalogService.deleteServicePackage(service.id);
-    if (ok) {
-      this.refreshAllData();
-      this.showFeedback(`Serviciul „${service.name}” a fost șters.`);
-    }
+    this.catalogService.deleteServiceApi(service.id).subscribe({
+      next: () => {
+        this.refreshAllData();
+        this.showFeedback(`Serviciul „${service.name}” a fost șters din baza de date.`);
+      },
+      error: () => {
+        this.showFeedback('Nu am putut șterge serviciul. Verifică serverul.');
+      },
+    });
   }
 
   closeAllModals(): void {

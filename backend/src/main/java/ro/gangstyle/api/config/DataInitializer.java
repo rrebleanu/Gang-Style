@@ -44,8 +44,10 @@ public class DataInitializer {
                         "images/Filip.jpg",
                         List.of("Skin Fade", "Texture Crop", "Modern Pompadour", "Beard Sculpting"),
                         List.of(
-                                "images/Filip.jpg",
-                                "images/Sebi.jpg"
+                                "images/salon.jpg",
+                                "images/salon2.jpg",
+                                "images/salon3.jpg",
+                                "images/about.jpg"
                         )
                 );
 
@@ -56,8 +58,10 @@ public class DataInitializer {
                         "images/Sebi.jpg",
                         List.of("Classic Cut", "Hot Towel Shave", "Beard Grooming", "Scissor Work"),
                         List.of(
-                                "images/Sebi.jpg",
-                                "images/Filip.jpg"
+                                "images/salon2.jpg",
+                                "images/salon3.jpg",
+                                "images/salon.jpg",
+                                "images/about.jpg"
                         )
                 );
 

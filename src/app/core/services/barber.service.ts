@@ -1,48 +1,27 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
 import { Barber } from '../../shared/models/barber.model';
 
-// Barber data service (static for now, replaced by GET /api/barbers later).
+// Barber data service connected to the Spring Boot REST API (/api/barbers).
 @Injectable({ providedIn: 'root' })
 export class BarberService {
-  private readonly barbers: Barber[] = [
-    {
-      id: 'b1',
-      slug: 'filip',
-      name: 'Filip',
-      bio: 'Linii curate și tunsori moderne, adaptate stilului tău.',
-      photoUrl: 'images/Filip.jpg',
-      specialties: ['Skin fade', 'Tunsori moderne', 'Contur barbă'],
-      portfolio: [
-        'images/salon.jpg',
-        'images/salon2.jpg',
-        'images/salon3.jpg',
-        'images/about.jpg',
-        'images/salon2.jpg',
-      ],
-    },
-    {
-      id: 'b2',
-      slug: 'sebi',
-      name: 'Sebi',
-      bio: 'Tehnică clasică, atenție la detalii și bărbierit tradițional.',
-      photoUrl: 'images/Sebi.jpg',
-      specialties: ['Tunsori clasice', 'Bărbierit cu brici', 'Styling'],
-      portfolio: [
-        'images/salon2.jpg',
-        'images/salon3.jpg',
-        'images/salon.jpg',
-        'images/about.jpg',
-        'images/salon3.jpg',
-      ],
-    },
-  ];
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = BarberService.resolveApiUrl();
 
-  getAll(): Barber[] {
-    return this.barbers;
+  private static resolveApiUrl(): string {
+    const host =
+      typeof window !== 'undefined' && window.location?.hostname
+        ? window.location.hostname
+        : 'localhost';
+    return `http://${host}:8080/api/barbers`;
   }
 
-  // used on Day 5 by the /:slug route
-  getBySlug(slug: string): Barber | undefined {
-    return this.barbers.find((barber) => barber.slug === slug.toLowerCase());
+  getAll(): Observable<Barber[]> {
+    return this.http.get<Barber[]>(this.apiUrl);
+  }
+
+  getBySlug(slug: string): Observable<Barber> {
+    return this.http.get<Barber>(`${this.apiUrl}/${slug.toLowerCase()}`);
   }
 }

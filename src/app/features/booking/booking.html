@@ -1,4 +1,27 @@
-@if (barber(); as currentBarber) {
+@if (isLoadingData()) {
+  <main class="booking-page">
+    <div class="booking-state-card" role="status" aria-live="polite">
+      <span class="booking-spinner" aria-hidden="true"></span>
+      <p>Se încarcă profilul frizerului și serviciile...</p>
+    </div>
+  </main>
+} @else if (loadError(); as errorMsg) {
+  <main class="booking-page">
+    <div class="booking-state-card booking-state-card--error" role="alert">
+      <p>{{ errorMsg }}</p>
+      <div class="booking-state-actions">
+        <button
+          type="button"
+          class="btn-next"
+          (click)="loadBarberAndServices(activeSlug())"
+        >
+          Reîncearcă
+        </button>
+        <a routerLink="/" class="back-link">&larr; Înapoi la echipă</a>
+      </div>
+    </div>
+  </main>
+} @else if (barber(); as currentBarber) {
   <main class="booking-page">
     <!-- Top bar: back link + selected barber header -->
     <div class="booking-container">
@@ -98,6 +121,10 @@
                     </span>
                   </div>
                 </button>
+              } @empty {
+                <div class="booking-empty-services">
+                  Momentan nu există servicii configurate pentru {{ currentBarber.name }}.
+                </div>
               }
             </div>
 

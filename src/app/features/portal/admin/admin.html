@@ -110,64 +110,81 @@
         </div>
       </div>
 
-      <div class="table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Frizer</th>
-              <th>Denumire Pachet Serviciu</th>
-              <th>Durată Tunsoare</th>
-              <th>Preț</th>
-              <th class="th-right">Acțiuni CRUD</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (srv of filteredServices(); track srv.id) {
+      @if (isLoadingServices()) {
+        <div class="empty-box" role="status" aria-live="polite">
+          Se încarcă serviciile din baza de date...
+        </div>
+      } @else if (servicesError(); as errorMsg) {
+        <div class="empty-box" role="alert">
+          <p>{{ errorMsg }}</p>
+          <button type="button" class="btn-outline-gold" (click)="loadServices()">
+            Reîncearcă
+          </button>
+        </div>
+      } @else if (filteredServices().length === 0) {
+        <div class="empty-box">
+          Nu există pachete de servicii configurate pentru această selecție.
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
               <tr>
-                <td data-label="Frizer">
-                  <span class="barber-badge">
-                    <img
-                      [src]="srv.barberSlug === 'filip' ? 'images/Filip.jpg' : 'images/Sebi.jpg'"
-                      [alt]="srv.barberSlug"
-                      class="barber-badge__img"
-                    />
-                    <strong>{{ srv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
-                  </span>
-                </td>
-                <td data-label="Serviciu">
-                  <span class="srv-name">{{ srv.name }}</span>
-                </td>
-                <td data-label="Durată">
-                  <span class="srv-duration">
-                    {{ srv.durationMinutes }} min
-                  </span>
-                </td>
-                <td data-label="Preț">
-                  <span class="srv-price">{{ srv.priceRon }} RON</span>
-                </td>
-                <td data-label="Acțiuni" class="td-right">
-                  <div class="crud-actions">
-                    <button
-                      type="button"
-                      class="btn-crud btn-crud--edit"
-                      (click)="openServiceModal(srv)"
-                    >
-                      Editează Preț / Durată
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-crud btn-crud--delete"
-                      (click)="deleteService(srv)"
-                    >
-                      Șterge
-                    </button>
-                  </div>
-                </td>
+                <th>Frizer</th>
+                <th>Denumire Pachet Serviciu</th>
+                <th>Durată Tunsoare</th>
+                <th>Preț</th>
+                <th class="th-right">Acțiuni CRUD</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              @for (srv of filteredServices(); track srv.id) {
+                <tr>
+                  <td data-label="Frizer">
+                    <span class="barber-badge">
+                      <img
+                        [src]="srv.barberSlug === 'filip' ? 'images/Filip.jpg' : 'images/Sebi.jpg'"
+                        [alt]="srv.barberSlug"
+                        class="barber-badge__img"
+                      />
+                      <strong>{{ srv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
+                    </span>
+                  </td>
+                  <td data-label="Serviciu">
+                    <span class="srv-name">{{ srv.name }}</span>
+                  </td>
+                  <td data-label="Durată">
+                    <span class="srv-duration">
+                      {{ srv.durationMinutes }} min
+                    </span>
+                  </td>
+                  <td data-label="Preț">
+                    <span class="srv-price">{{ srv.priceRon }} RON</span>
+                  </td>
+                  <td data-label="Acțiuni" class="td-right">
+                    <div class="crud-actions">
+                      <button
+                        type="button"
+                        class="btn-crud btn-crud--edit"
+                        (click)="openServiceModal(srv)"
+                      >
+                        Editează Preț / Durată
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-crud btn-crud--delete"
+                        (click)="deleteService(srv)"
+                      >
+                        Șterge
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </section>
 
     <!-- =================================================================== -->

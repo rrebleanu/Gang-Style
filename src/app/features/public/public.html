@@ -22,13 +22,27 @@
     <h2 id="team-title" class="team__title">Echipa noastra</h2>
 
     <div class="team__grid">
-      @for (barber of barbers; track barber.id) {
-        <app-barber-card
-          [barber]="barber"
-          [isLastVisit]="barber.id === lastVisitBarberId()"
-        />
-      } @empty {
-        <p class="empty-state">Momentan nu există frizeri disponibili.</p>
+      @if (isLoadingBarbers()) {
+        <div class="state-box" role="status" aria-live="polite">
+          <span class="state-spinner" aria-hidden="true"></span>
+          <p>Se încarcă frizerii...</p>
+        </div>
+      } @else if (barbersError(); as errorMsg) {
+        <div class="state-box state-box--error" role="alert">
+          <p>{{ errorMsg }}</p>
+          <button type="button" class="state-retry-btn" (click)="loadBarbers()">
+            Reîncearcă
+          </button>
+        </div>
+      } @else {
+        @for (barber of barbers(); track barber.id) {
+          <app-barber-card
+            [barber]="barber"
+            [isLastVisit]="barber.id === lastVisitBarberId()"
+          />
+        } @empty {
+          <p class="empty-state">Momentan nu există frizeri disponibili.</p>
+        }
       }
     </div>
   </section>

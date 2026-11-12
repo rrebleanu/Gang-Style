@@ -209,6 +209,57 @@ h1 {
   border-radius: $radius-lg;
 }
 
+.state-box {
+  grid-column: 1 / -1;
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  text-align: center;
+  color: $color-muted;
+
+  &--error {
+    color: #f38b8f;
+  }
+}
+
+.state-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid rgba($color-accent, 0.25);
+  border-top-color: $color-accent;
+  animation: spin 0.8s linear infinite;
+}
+
+.state-retry-btn {
+  padding: 0.55rem 1.25rem;
+  background: transparent;
+  border: 1px solid $color-accent;
+  color: $color-accent;
+  border-radius: $radius;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color $transition-fast, color $transition-fast;
+
+  &:hover {
+    background: $color-accent;
+    color: $color-bg;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 // about section below barber cards (inspired by reference banner)
 .about-banner {
   grid-area: about;

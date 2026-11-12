@@ -1,4 +1,6 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { forkJoin, Observable } from 'rxjs';
 import {
   AppointmentRecord,
   BlacklistEntry,
@@ -6,10 +8,28 @@ import {
   TimeSlot,
 } from '../../shared/models/service-item.model';
 
-// Service catalog (CRUD), slot generator, appointment storage, and Anti-No-Show Blacklist service.
+export interface ServicePackageApiPayload {
+  barberSlug: string;
+  name: string;
+  durationMinutes: number;
+  slotMinutes: number;
+  priceRon: number;
+}
+
+// Service catalog (API + local appointment/blacklist helpers until Tasks 12-13).
 @Injectable({ providedIn: 'root' })
 export class ServiceCatalogService {
+  private readonly http = inject(HttpClient);
+  private readonly servicesApiUrl = ServiceCatalogService.resolveApiUrl();
   private readonly storageKey = 'gangstyle_appointments_v3';
+
+  private static resolveApiUrl(): string {
+    const host =
+      typeof window !== 'undefined' && window.location?.hostname
+        ? window.location.hostname
+        : 'localhost';
+    return `http://${host}:8080/api/services`;
+  }
   private readonly servicesStorageKey = 'gangstyle_services_v1';
   private readonly blacklistStorageKey = 'gangstyle_blacklist_v1';
 
@@ -82,6 +102,68 @@ export class ServiceCatalogService {
       priceRon: 50,
     },
   ];
+
+  // ===========================================================================
+  // REST API Methods (/api/services)
+  // ===========================================================================
+
+  fetchAllServices(): Observable<ServiceItem[]> {
+    return this.http.get<ServiceItem[]>(this.servicesApiUrl);
+  }
+
+  fetchServicesByBarber(barberSlug: string): Observable<ServiceItem[]> {
+    return this.http.get<ServiceItem[]>(this.servicesApiUrl, {
+      params: { barber: barberSlug.toLowerCase() },
+    });
+  }
+
+  createServiceApi(payload: {
+    barberTarget: 'filip' | 'sebi' | 'both';
+    name: string;
+    durationMinutes: number;
+    priceRon: number;
+  }): Observable<ServiceItem[]> {
+    const slotMinutes: 30 | 60 = Number(payload.durationMinutes) <= 30 ? 30 : 60;
+    const targets: ('filip' | 'sebi')[] =
+      payload.barberTarget === 'both' ? ['filip', 'sebi'] : [payload.barberTarget];
+
+    const requests = targets.map((slug) => {
+      const body: ServicePackageApiPayload = {
+        barberSlug: slug,
+        name: payload.name.trim(),
+        durationMinutes: Number(payload.durationMinutes),
+        slotMinutes,
+        priceRon: Number(payload.priceRon),
+      };
+      return this.http.post<ServiceItem>(this.servicesApiUrl, body);
+    });
+
+    return forkJoin(requests);
+  }
+
+  updateServiceApi(
+    id: string,
+    payload: {
+      barberSlug: string;
+      name: string;
+      durationMinutes: number;
+      priceRon: number;
+    }
+  ): Observable<ServiceItem> {
+    const slotMinutes: 30 | 60 = Number(payload.durationMinutes) <= 30 ? 30 : 60;
+    const body: ServicePackageApiPayload = {
+      barberSlug: payload.barberSlug,
+      name: payload.name.trim(),
+      durationMinutes: Number(payload.durationMinutes),
+      slotMinutes,
+      priceRon: Number(payload.priceRon),
+    };
+    return this.http.put<ServiceItem>(`${this.servicesApiUrl}/${id}`, body);
+  }
+
+  deleteServiceApi(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.servicesApiUrl}/${id}`);
+  }
 
   // Returns all service packages (persisted in localStorage)
   getAllServices(): ServiceItem[] {

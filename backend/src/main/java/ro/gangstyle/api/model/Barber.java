@@ -22,6 +22,15 @@ public class Barber {
 
     public Barber() {}
 
+    public Barber(String slug, String name, String bio, String photoUrl, List<String> specialties, List<String> portfolio) {
+        this.slug = slug;
+        this.name = name;
+        this.bio = bio;
+        this.photoUrl = photoUrl;
+        this.specialties = specialties;
+        this.portfolio = portfolio;
+    }
+
     public Barber(String id, String slug, String name, String bio, String photoUrl, List<String> specialties, List<String> portfolio) {
         this.id = id;
         this.slug = slug;

@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ro.gangstyle.api.dto.AuthResponseDto;
@@ -12,10 +13,9 @@ import ro.gangstyle.api.dto.LoginRequestDto;
 import ro.gangstyle.api.dto.RegisterRequestDto;
 import ro.gangstyle.api.service.AuthService;
 
-/**
- * Controller handling user authentication (Login and Register).
- * Mapped to both /api/auth and /auth to satisfy all client conventions.
- */
+import java.util.Map;
+
+// Controller handling user authentication (login, registration, and logout).
 @RestController
 @RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
@@ -36,5 +36,12 @@ public class AuthController {
     public ResponseEntity<AuthResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
         AuthResponseDto response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        authService.logout(authHeader);
+        return ResponseEntity.ok(Map.of("message", "Te-ai deconectat cu succes."));
     }
 }

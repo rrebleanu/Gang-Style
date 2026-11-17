@@ -11,27 +11,25 @@ import ro.gangstyle.api.model.User;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Utility for generating, parsing, and validating JSON Web Tokens (JJWT 0.12.x).
- */
+// Utility for generating, parsing, and validating JSON Web Tokens.
 @Component
 public class JwtUtil {
 
     private final SecretKey key;
     private final long expirationMs;
+    private final Set<String> invalidatedTokens = ConcurrentHashMap.newKeySet();
 
     public JwtUtil(
             @Value("${gangstyle.jwt.secret}") String secret,
             @Value("${gangstyle.jwt.expiration-ms:604800000}") long expirationMs) {
-        // JJWT 0.12 requires a SecretKey object derived from UTF-8 bytes
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
 
-    /**
-     * Creates a signed JWT containing user email as subject and role as claim.
-     */
+    // Creates a signed JWT containing user email as subject and role as claim.
     public String generateToken(User user) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
@@ -46,24 +44,26 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * Extracts the subject (email) from the token.
-     */
     public String extractEmail(String token) {
         return getClaims(token).getSubject();
     }
 
-    /**
-     * Extracts the role claim (e.g. ROLE_ADMIN, ROLE_BARBER, ROLE_CLIENT).
-     */
     public String extractRole(String token) {
         return getClaims(token).get("role", String.class);
     }
 
-    /**
-     * Validates cryptographic signature and checks that token is not expired.
-     */
+    // Marks a token as revoked on logout.
+    public void invalidateToken(String token) {
+        if (token != null && !token.isBlank()) {
+            invalidatedTokens.add(token.trim());
+        }
+    }
+
+    // Validates cryptographic signature, expiration date, and revocation state.
     public boolean validateToken(String token) {
+        if (token == null || invalidatedTokens.contains(token.trim())) {
+            return false;
+        }
         try {
             Claims claims = getClaims(token);
             return !claims.getExpiration().before(new Date());

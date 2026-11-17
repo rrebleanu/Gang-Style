@@ -1,6 +1,7 @@
 package ro.gangstyle.api.service;
 
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ro.gangstyle.api.dto.AuthResponseDto;
@@ -12,9 +13,7 @@ import ro.gangstyle.api.security.JwtUtil;
 
 import java.time.Instant;
 
-/**
- * Service managing user login and registration with BCrypt hashing and JWT token issuance.
- */
+// Service managing user login, registration, and logout.
 @Service
 public class AuthService {
 
@@ -28,16 +27,13 @@ public class AuthService {
         this.jwtUtil = jwtUtil;
     }
 
-    /**
-     * Authenticates a user against BCrypt hash in MongoDB and returns JWT.
-     */
+    // Authenticates a user against BCrypt hash in MongoDB and returns a signed JWT.
     public AuthResponseDto login(LoginRequestDto request) {
         String normalizedEmail = request.getEmail().toLowerCase().trim();
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BadCredentialsException("Emailul sau parola introdusă este incorectă."));
 
-        // Verify plain password against BCrypt hash stored in MongoDB
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Emailul sau parola introdusă este incorectă.");
         }
@@ -52,9 +48,7 @@ public class AuthService {
         );
     }
 
-    /**
-     * Registers a new client account (role is strictly enforced as ROLE_CLIENT).
-     */
+    // Registers a new client account with ROLE_CLIENT.
     public AuthResponseDto register(RegisterRequestDto request) {
         String normalizedEmail = request.getEmail().toLowerCase().trim();
 
@@ -62,7 +56,6 @@ public class AuthService {
             throw new IllegalArgumentException("Există deja un cont creat cu această adresă de email.");
         }
 
-        // Create new user with BCrypt hashed password and enforced ROLE_CLIENT
         User newUser = new User(
                 normalizedEmail,
                 passwordEncoder.encode(request.getPassword()),
@@ -82,5 +75,14 @@ public class AuthService {
                 savedUser.getPhone(),
                 savedUser.getRole()
         );
+    }
+
+    // Revokes the active JWT and clears the security context.
+    public void logout(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
+            jwtUtil.invalidateToken(token);
+        }
+        SecurityContextHolder.clearContext();
     }
 }

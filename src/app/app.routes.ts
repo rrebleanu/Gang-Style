@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard, authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Home page
@@ -30,19 +31,21 @@ export const routes: Routes = [
       import('./features/public/contact/contact').then((m) => m.Contact),
   },
 
-  // Auth
+  // Authentication page
   {
     path: 'login',
     loadComponent: () => import('./features/auth/auth').then((m) => m.Auth),
   },
 
-  // Protected routes (Barber & Admin)
+  // Protected routes (Barber, Client & Admin)
   {
     path: 'dashboard',
+    canActivate: [authGuard],
     loadComponent: () => import('./features/portal/portal').then((m) => m.Portal),
   },
   {
     path: 'admin',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/portal/admin/admin').then((m) => m.Admin),
   },

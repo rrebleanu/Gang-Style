@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, catchError, of, tap, throwError, timeout } from 'rxjs';
 import {
   AppointmentRecord,
   BlacklistEntry,
@@ -16,7 +16,7 @@ export interface ServicePackageApiPayload {
   priceRon: number;
 }
 
-// Service catalog (API + local appointment/blacklist helpers until Tasks 12-13).
+// Manages service packages CRUD via REST API and local appointment helpers.
 @Injectable({ providedIn: 'root' })
 export class ServiceCatalogService {
   private readonly http = inject(HttpClient);
@@ -103,27 +103,35 @@ export class ServiceCatalogService {
     },
   ];
 
-  // ===========================================================================
-  // REST API Methods (/api/services)
-  // ===========================================================================
-
+  // Fetches all service packages from GET /api/services.
   fetchAllServices(): Observable<ServiceItem[]> {
-    return this.http.get<ServiceItem[]>(this.servicesApiUrl);
+    return this.http.get<ServiceItem[]>(this.servicesApiUrl).pipe(
+      timeout(1500),
+      tap((items) => this.saveServices(items)),
+      catchError(() => of(this.getAllServices()))
+    );
   }
 
+  // Fetches service packages for a specific barber from GET /api/services?barber=slug.
   fetchServicesByBarber(barberSlug: string): Observable<ServiceItem[]> {
-    return this.http.get<ServiceItem[]>(this.servicesApiUrl, {
-      params: { barber: barberSlug.toLowerCase() },
-    });
+    return this.http
+      .get<ServiceItem[]>(this.servicesApiUrl, {
+        params: { barber: barberSlug.toLowerCase() },
+      })
+      .pipe(
+        timeout(1500),
+        catchError(() => of(this.getByBarberSlug(barberSlug)))
+      );
   }
 
+  // Creates a new service package via POST /api/services (protected by JWT).
   createServiceApi(payload: {
     barberTarget: 'filip' | 'sebi' | 'both';
     name: string;
     durationMinutes: number;
     priceRon: number;
   }): Observable<ServiceItem[]> {
-    const slotMinutes: 30 | 60 = Number(payload.durationMinutes) <= 30 ? 30 : 60;
+    const slotMinutes = Number(payload.durationMinutes);
     const targets: ('filip' | 'sebi')[] =
       payload.barberTarget === 'both' ? ['filip', 'sebi'] : [payload.barberTarget];
 
@@ -138,9 +146,17 @@ export class ServiceCatalogService {
       return this.http.post<ServiceItem>(this.servicesApiUrl, body);
     });
 
-    return forkJoin(requests);
+    return forkJoin(requests).pipe(
+      catchError((err) => {
+        if (err?.status === 0) {
+          return of(this.addServicePackage(payload));
+        }
+        return throwError(() => err);
+      })
+    );
   }
 
+  // Updates an existing service package via PUT /api/services/:id (protected by JWT).
   updateServiceApi(
     id: string,
     payload: {
@@ -150,7 +166,7 @@ export class ServiceCatalogService {
       priceRon: number;
     }
   ): Observable<ServiceItem> {
-    const slotMinutes: 30 | 60 = Number(payload.durationMinutes) <= 30 ? 30 : 60;
+    const slotMinutes = Number(payload.durationMinutes);
     const body: ServicePackageApiPayload = {
       barberSlug: payload.barberSlug,
       name: payload.name.trim(),
@@ -158,11 +174,40 @@ export class ServiceCatalogService {
       slotMinutes,
       priceRon: Number(payload.priceRon),
     };
-    return this.http.put<ServiceItem>(`${this.servicesApiUrl}/${id}`, body);
+    return this.http.put<ServiceItem>(`${this.servicesApiUrl}/${id}`, body).pipe(
+      tap(() => {
+        this.updateServicePackage(id, {
+          name: payload.name,
+          durationMinutes: payload.durationMinutes,
+          priceRon: payload.priceRon,
+        });
+      }),
+      catchError((err) => {
+        if (err?.status === 0) {
+          this.updateServicePackage(id, {
+            name: payload.name,
+            durationMinutes: payload.durationMinutes,
+            priceRon: payload.priceRon,
+          });
+          return of({ id, ...body });
+        }
+        return throwError(() => err);
+      })
+    );
   }
 
+  // Deletes a service package via DELETE /api/services/:id (protected by JWT).
   deleteServiceApi(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.servicesApiUrl}/${id}`);
+    return this.http.delete<void>(`${this.servicesApiUrl}/${id}`).pipe(
+      tap(() => this.deleteServicePackage(id)),
+      catchError((err) => {
+        if (err?.status === 0) {
+          this.deleteServicePackage(id);
+          return of(undefined);
+        }
+        return throwError(() => err);
+      })
+    );
   }
 
   // Returns all service packages (persisted in localStorage)
@@ -196,7 +241,7 @@ export class ServiceCatalogService {
     priceRon: number;
   }): ServiceItem[] {
     const all = this.getAllServices();
-    const slotMinutes: 30 | 60 = payload.durationMinutes <= 30 ? 30 : 60;
+    const slotMinutes = Number(payload.durationMinutes);
     const targets: ('filip' | 'sebi')[] =
       payload.barberTarget === 'both' ? ['filip', 'sebi'] : [payload.barberTarget];
 
@@ -227,7 +272,7 @@ export class ServiceCatalogService {
 
     target.name = changes.name.trim();
     target.durationMinutes = Number(changes.durationMinutes);
-    target.slotMinutes = Number(changes.durationMinutes) <= 30 ? 30 : 60;
+    target.slotMinutes = Number(changes.durationMinutes);
     target.priceRon = Number(changes.priceRon);
 
     this.saveServices(all);
@@ -574,7 +619,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-upcoming-1',
         barberSlug: 'filip',
         barberName: 'Filip',
-        barberPhotoUrl: 'images/Filip.jpg',
+        barberPhotoUrl: '/images/Filip.jpg',
         serviceId: 's-filip-2',
         serviceName: 'Tuns + Barbă',
         durationMinutes: 60,
@@ -599,7 +644,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-phone-1',
         barberSlug: 'filip',
         barberName: 'Filip',
-        barberPhotoUrl: 'images/Filip.jpg',
+        barberPhotoUrl: '/images/Filip.jpg',
         serviceId: 's-filip-1',
         serviceName: 'Tuns & Styling',
         durationMinutes: 45,
@@ -624,7 +669,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-upcoming-2',
         barberSlug: 'filip',
         barberName: 'Filip',
-        barberPhotoUrl: 'images/Filip.jpg',
+        barberPhotoUrl: '/images/Filip.jpg',
         serviceId: 's-filip-1',
         serviceName: 'Tuns & Styling',
         durationMinutes: 45,
@@ -648,7 +693,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-upcoming-3',
         barberSlug: 'filip',
         barberName: 'Filip',
-        barberPhotoUrl: 'images/Filip.jpg',
+        barberPhotoUrl: '/images/Filip.jpg',
         serviceId: 's-filip-3',
         serviceName: 'Aranjat & Contur Barbă',
         durationMinutes: 30,
@@ -672,7 +717,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-sebi-1',
         barberSlug: 'sebi',
         barberName: 'Sebi',
-        barberPhotoUrl: 'images/Sebi.jpg',
+        barberPhotoUrl: '/images/Sebi.jpg',
         serviceId: 's-sebi-2',
         serviceName: 'Tuns + Barbă',
         durationMinutes: 60,
@@ -697,7 +742,7 @@ export class ServiceCatalogService {
         id: 'apt-demo-past-1',
         barberSlug: 'sebi',
         barberName: 'Sebi',
-        barberPhotoUrl: 'images/Sebi.jpg',
+        barberPhotoUrl: '/images/Sebi.jpg',
         serviceId: 's-sebi-1',
         serviceName: 'Tuns & Styling',
         durationMinutes: 45,

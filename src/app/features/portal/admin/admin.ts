@@ -37,16 +37,39 @@ export class Admin implements OnInit {
   readonly appointments = signal<AppointmentRecord[]>([]);
   readonly blacklist = signal<BlacklistEntry[]>([]);
   readonly barberFilter = signal<AdminBarberFilter>('ALL');
+  readonly adminTimeFilter = signal<'TODAY' | 'TOMORROW' | 'MONTH' | 'ALL'>('TODAY');
+  readonly adminSearchQuery = signal<string>('');
+  readonly appointmentToDelete = signal<AppointmentRecord | null>(null);
   readonly feedbackMessage = signal<string | null>(null);
 
   // Service CRUD modal state
   readonly serviceModalOpen = signal(false);
   readonly editingServiceId = signal<string | null>(null);
   readonly serviceFormSubmitted = signal(false);
+  readonly serviceToDelete = signal<ServiceItem | null>(null);
 
   // Blacklist modal state
   readonly blacklistModalOpen = signal(false);
   readonly blacklistFormSubmitted = signal(false);
+
+  // Helper date generators for filtering
+  private toIsoDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  readonly todayIso = computed(() => this.toIsoDate(new Date()));
+  readonly tomorrowIso = computed(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return this.toIsoDate(d);
+  });
+  readonly currentMonthPrefix = computed(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Filtered services by barber tab
   readonly filteredServices = computed<ServiceItem[]>(() => {
@@ -56,6 +79,49 @@ export class Admin implements OnInit {
       return list;
     }
     return list.filter((s) => s.barberSlug === filter);
+  });
+
+  // Filtered appointments by barber, time tab, and search query
+  readonly filteredAppointments = computed<AppointmentRecord[]>(() => {
+    const timeFilter = this.adminTimeFilter();
+    const barber = this.barberFilter();
+    const today = this.todayIso();
+    const tomorrow = this.tomorrowIso();
+    const month = this.currentMonthPrefix();
+    const query = this.adminSearchQuery().trim().toLowerCase();
+
+    return this.appointments()
+      .filter((apt) => {
+        if (apt.source === 'BLOCKED' || apt.status === 'CANCELLED') {
+          return false;
+        }
+        if (barber !== 'ALL' && apt.barberSlug !== barber) {
+          return false;
+        }
+        if (timeFilter === 'TODAY' && apt.dateIso !== today) {
+          return false;
+        }
+        if (timeFilter === 'TOMORROW' && apt.dateIso !== tomorrow) {
+          return false;
+        }
+        if (timeFilter === 'MONTH' && !apt.dateIso.startsWith(month)) {
+          return false;
+        }
+        if (query.length > 0) {
+          const matchClient = `${apt.clientLastName} ${apt.clientFirstName}`.toLowerCase().includes(query);
+          const matchPhone = apt.clientPhone.toLowerCase().includes(query);
+          const matchService = apt.serviceName.toLowerCase().includes(query);
+          if (!matchClient && !matchPhone && !matchService) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dateDiff = a.dateIso.localeCompare(b.dateIso);
+        if (dateDiff !== 0) return dateDiff;
+        return a.startTime.localeCompare(b.startTime);
+      });
   });
 
   // Global salon KPIs
@@ -72,8 +138,8 @@ export class Admin implements OnInit {
   readonly serviceForm = this.fb.nonNullable.group({
     barberTarget: ['both' as 'filip' | 'sebi' | 'both', [Validators.required]],
     name: ['', [Validators.required, Validators.minLength(2)]],
-    durationMinutes: [45, [Validators.required, Validators.min(15)]],
-    priceRon: [60, [Validators.required, Validators.min(10)]],
+    durationMinutes: [45, [Validators.required, Validators.min(5)]],
+    priceRon: [60, [Validators.required, Validators.min(5)]],
   });
 
   // Reactive form for adding a client to the Anti-No-Show Blacklist
@@ -91,12 +157,46 @@ export class Admin implements OnInit {
         return;
       }
       // Restrict /admin strictly to ADMIN role
-      if (user.role !== 'ADMIN') {
+      if (!this.authService.isAdmin(user)) {
         this.router.navigate(['/dashboard']);
         return;
       }
     }
     this.refreshData();
+  }
+
+  setAdminTimeFilter(filter: 'TODAY' | 'TOMORROW' | 'MONTH' | 'ALL'): void {
+    this.adminTimeFilter.set(filter);
+  }
+
+  onAdminSearchInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.adminSearchQuery.set(val);
+  }
+
+  openDeleteModal(apt: AppointmentRecord): void {
+    this.appointmentToDelete.set(apt);
+  }
+
+  closeDeleteModal(): void {
+    this.appointmentToDelete.set(null);
+  }
+
+  confirmDeleteAppointment(): void {
+    const target = this.appointmentToDelete();
+    if (!target) {
+      return;
+    }
+
+    const ok = this.catalogService.cancelAppointment(target.id);
+    this.appointmentToDelete.set(null);
+
+    if (ok) {
+      this.refreshData();
+      this.showFeedback(
+        `Programarea pentru ${target.clientLastName} ${target.clientFirstName} (${target.startTime} - ${target.endTime}) a fost ștearsă, iar intervalul a fost eliberat.`
+      );
+    }
   }
 
   refreshData(): void {
@@ -214,13 +314,30 @@ export class Admin implements OnInit {
     }
   }
 
-  deleteService(service: ServiceItem): void {
-    this.catalogService.deleteServiceApi(service.id).subscribe({
+  // Opens confirmation modal before deleting a service package.
+  openDeleteServiceModal(service: ServiceItem): void {
+    this.serviceToDelete.set(service);
+  }
+
+  closeDeleteServiceModal(): void {
+    this.serviceToDelete.set(null);
+  }
+
+  // Deletes the selected service package after modal confirmation.
+  confirmDeleteService(): void {
+    const target = this.serviceToDelete();
+    if (!target) {
+      return;
+    }
+
+    this.catalogService.deleteServiceApi(target.id).subscribe({
       next: () => {
+        this.serviceToDelete.set(null);
         this.loadServices();
-        this.showFeedback(`Pachetul „${service.name}” a fost șters din baza de date.`);
+        this.showFeedback(`Pachetul „${target.name}” a fost șters din baza de date.`);
       },
       error: (err) => {
+        this.serviceToDelete.set(null);
         this.showFeedback(this.extractErrorMessage(err));
       },
     });
@@ -289,7 +406,9 @@ export class Admin implements OnInit {
 
   closeModals(): void {
     this.closeServiceModal();
+    this.closeDeleteServiceModal();
     this.closeBlacklistModal();
+    this.closeDeleteModal();
   }
 
   logout(): void {

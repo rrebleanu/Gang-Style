@@ -1,6 +1,11 @@
-<article class="card" [class.card--last-visit]="isLastVisit()">
+<article class="card" [class.card--last-visit]="isLastVisit()" [class.card--no-shrink]="!showBooking()">
   <div class="card__photo">
-    <img [src]="barber().photoUrl" [alt]="'Frizerul ' + barber().name" decoding="async" />
+    <img
+      [src]="barber().photoUrl"
+      [alt]="'Frizerul ' + barber().name"
+      decoding="async"
+      (error)="onPhotoError($event)"
+    />
   </div>
 
   <div class="card__body">
@@ -30,18 +35,26 @@
               @if (barber().specialties[$index]; as title) {
                 <span class="card__thumb-title">{{ title }}</span>
               }
-              <img [src]="image" [alt]="'Tunsoare realizată de ' + barber().name" decoding="async" />
+              <img
+                [src]="image"
+                [alt]="'Tunsoare realizată de ' + barber().name"
+                decoding="async"
+                loading="lazy"
+                (error)="onThumbError($event)"
+              />
             </button>
           }
         </div>
       }
     </div>
 
-    <div class="card__cta-wrap">
-      <a class="card__cta" [routerLink]="['/', barber().slug]">
-        Programează-te
-      </a>
-    </div>
+    @if (showBooking()) {
+      <div class="card__cta-wrap">
+        <a class="card__cta" [routerLink]="['/', barber().slug]">
+          Programează-te
+        </a>
+      </div>
+    }
   </div>
 </article>
 
@@ -87,6 +100,7 @@
           class="lightbox__image"
           [src]="barber().portfolio[currentIndex]"
           [alt]="'Tunsoare ' + (currentIndex + 1) + ' - ' + barber().name"
+          (error)="onThumbError($event)"
         />
 
         <button
@@ -112,15 +126,17 @@
         }
       </div>
 
-      <footer class="lightbox__footer">
-        <a
-          class="card__cta lightbox__cta"
-          [routerLink]="['/', barber().slug]"
-          (click)="closeGallery()"
-        >
-          Programează-te
-        </a>
-      </footer>
+      @if (showBooking()) {
+        <footer class="lightbox__footer">
+          <a
+            class="card__cta lightbox__cta"
+            [routerLink]="['/', barber().slug]"
+            (click)="closeGallery()"
+          >
+            Programează-te
+          </a>
+        </footer>
+      }
     </div>
   </div>
 }

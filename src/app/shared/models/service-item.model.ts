@@ -3,8 +3,8 @@ export interface ServiceItem {
   id: string;
   barberSlug: string;
   name: string;
-  durationMinutes: number; // displayed duration (e.g. 45, 60, 30)
-  slotMinutes: 30 | 60; // calendar block size to prevent 15-min dead gaps
+  durationMinutes: number;
+  slotMinutes: number;
   priceRon: number;
 }
 
@@ -25,7 +25,7 @@ export interface AppointmentRecord {
   serviceId: string;
   serviceName: string;
   durationMinutes: number;
-  slotMinutes: 30 | 60;
+  slotMinutes: number;
   priceRon: number;
   dateIso: string; // YYYY-MM-DD
   dateLabel: string; // e.g. Sâmbătă, 14 Noiembrie

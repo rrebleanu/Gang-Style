@@ -58,7 +58,7 @@
         </div>
         <div class="kpi-box">
           <span class="kpi-box__val">{{ totalActiveAppointments() }}</span>
-          <span class="kpi-box__label">Programări Online &amp; Telefonic</span>
+          <span class="kpi-box__label">Programări Online &amp; Manuale</span>
         </div>
         <div class="kpi-box">
           <span class="kpi-box__val kpi-box__val--danger">{{ blacklist().length }}</span>
@@ -67,9 +67,147 @@
       </div>
     </header>
 
-    <!-- =================================================================== -->
-    <!-- SECTION 1: CRUD SERVICII & PREȚURI                                  -->
-    <!-- =================================================================== -->
+    <!-- Salon schedule & appointments section -->
+    <section class="admin-section" aria-labelledby="salon-schedule-heading">
+      <div class="admin-section__head">
+        <div>
+          <h2 id="salon-schedule-heading" class="admin-section__title">
+            Agenda Salonului &middot; Programări
+          </h2>
+          <p class="admin-section__subtitle">
+            Gestionează programările clienților în timp real. Apasă pe <strong>✕</strong> pentru a elibera intervalul.
+          </p>
+        </div>
+
+        <!-- Barber Filter Tabs -->
+        <div class="barber-tabs" role="tablist">
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'ALL'"
+            (click)="setBarberFilter('ALL')"
+          >
+            Toți Frizerii
+          </button>
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'filip'"
+            (click)="setBarberFilter('filip')"
+          >
+            Filip
+          </button>
+          <button
+            type="button"
+            class="barber-tab"
+            [class.barber-tab--active]="barberFilter() === 'sebi'"
+            (click)="setBarberFilter('sebi')"
+          >
+            Sebi
+          </button>
+        </div>
+      </div>
+
+      <!-- Time Filter Tabs + Search -->
+      <div class="schedule-controls-bar">
+        <div class="time-filter-tabs" role="tablist" aria-label="Filtrează programările după perioadă">
+          <button
+            type="button"
+            class="time-filter-tab"
+            [class.time-filter-tab--active]="adminTimeFilter() === 'TODAY'"
+            (click)="setAdminTimeFilter('TODAY')"
+          >
+            Azi
+          </button>
+          <button
+            type="button"
+            class="time-filter-tab"
+            [class.time-filter-tab--active]="adminTimeFilter() === 'TOMORROW'"
+            (click)="setAdminTimeFilter('TOMORROW')"
+          >
+            Ziua următoare
+          </button>
+          <button
+            type="button"
+            class="time-filter-tab"
+            [class.time-filter-tab--active]="adminTimeFilter() === 'MONTH'"
+            (click)="setAdminTimeFilter('MONTH')"
+          >
+            Luna aceasta
+          </button>
+          <button
+            type="button"
+            class="time-filter-tab"
+            [class.time-filter-tab--active]="adminTimeFilter() === 'ALL'"
+            (click)="setAdminTimeFilter('ALL')"
+          >
+            Toate
+          </button>
+        </div>
+
+        <div class="schedule-controls-bar__search">
+          <input
+            type="search"
+            placeholder="Caută client, telefon, serviciu..."
+            [value]="adminSearchQuery()"
+            (input)="onAdminSearchInput($event)"
+            class="barber-search-input"
+          />
+        </div>
+      </div>
+
+      <!-- Client appointment cards list -->
+      @if (filteredAppointments().length > 0) {
+        <div class="client-cards-list">
+          @for (apt of filteredAppointments(); track apt.id; let idx = $index) {
+            <div class="client-card">
+              <button
+                type="button"
+                class="btn-delete-card"
+                title="Șterge programarea"
+                aria-label="Șterge programarea"
+                (click)="openDeleteModal(apt)"
+              >
+                &#10005;
+              </button>
+
+              <div class="client-card__header">
+                <div class="client-card__time-box">
+                  <span class="client-card__num">{{ idx + 1 }}</span>
+                  <strong class="client-card__time">{{ apt.startTime }} - {{ apt.endTime }}</strong>
+                  <span class="client-card__barber-tag">
+                    {{ apt.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}
+                  </span>
+                  @if (adminTimeFilter() === 'MONTH' || adminTimeFilter() === 'ALL') {
+                    <span class="client-card__date">{{ apt.dateLabel }}</span>
+                  }
+                </div>
+              </div>
+
+              <div class="client-card__body">
+                <div class="client-card__name">{{ apt.clientLastName }} {{ apt.clientFirstName }}</div>
+
+                <div class="client-card__meta">
+                  <span class="client-card__service">
+                    <span class="meta-label">Serviciu:</span> {{ apt.serviceName }}
+                  </span>
+
+                  <a [href]="'tel:+40' + apt.clientPhone" class="client-card__phone">
+                    &#9742; +40 {{ apt.clientPhone }}
+                  </a>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-box">
+          Nu există programări pentru perioada și selecția aleasă.
+        </div>
+      }
+    </section>
+
+    <!-- Service packages CRUD section -->
     <section class="admin-section" aria-labelledby="crud-services-title">
       <div class="admin-section__head">
         <div>
@@ -143,7 +281,7 @@
                   <td data-label="Frizer">
                     <span class="barber-badge">
                       <img
-                        [src]="srv.barberSlug === 'filip' ? 'images/Filip.jpg' : 'images/Sebi.jpg'"
+                        [src]="srv.barberSlug === 'filip' ? '/images/Filip.jpg' : '/images/Sebi.jpg'"
                         [alt]="srv.barberSlug"
                         class="barber-badge__img"
                       />
@@ -173,7 +311,7 @@
                       <button
                         type="button"
                         class="btn-crud btn-crud--delete"
-                        (click)="deleteService(srv)"
+                        (click)="openDeleteServiceModal(srv)"
                       >
                         Șterge
                       </button>
@@ -187,9 +325,7 @@
       }
     </section>
 
-    <!-- =================================================================== -->
-    <!-- SECTION 2: LISTA BLACKLIST (ANTI-NO-SHOW)                           -->
-    <!-- =================================================================== -->
+    <!-- Blacklist management section -->
     <section class="admin-section" aria-labelledby="blacklist-title">
       <div class="admin-section__head">
         <div>
@@ -263,9 +399,7 @@
   </div>
 </main>
 
-<!-- ======================================================================= -->
-<!-- MODAL 1: Add / Edit Service Package                                     -->
-<!-- ======================================================================= -->
+<!-- Add or edit service package modal -->
 @if (serviceModalOpen()) {
   <div
     class="modal-backdrop"
@@ -318,9 +452,19 @@
           <div class="modal-field">
             <label class="modal-field__label">Durată în minute *</label>
             <select formControlName="durationMinutes" class="modal-field__input">
+              <option [ngValue]="10">10 minute</option>
+              <option [ngValue]="15">15 minute</option>
+              <option [ngValue]="20">20 minute</option>
+              <option [ngValue]="25">25 minute</option>
               <option [ngValue]="30">30 minute</option>
+              <option [ngValue]="35">35 minute</option>
+              <option [ngValue]="40">40 minute</option>
               <option [ngValue]="45">45 minute</option>
+              <option [ngValue]="50">50 minute</option>
+              <option [ngValue]="55">55 minute</option>
               <option [ngValue]="60">60 minute</option>
+              <option [ngValue]="75">75 minute</option>
+              <option [ngValue]="90">90 minute</option>
             </select>
           </div>
 
@@ -353,9 +497,7 @@
   </div>
 }
 
-<!-- ======================================================================= -->
-<!-- MODAL 2: Add Client to Blacklist                                        -->
-<!-- ======================================================================= -->
+<!-- Add client to blacklist modal -->
 @if (blacklistModalOpen()) {
   <div
     class="modal-backdrop"
@@ -429,6 +571,85 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+}
+
+<!-- Delete appointment confirmation modal -->
+@if (appointmentToDelete(); as target) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-delete-modal-title"
+    (click)="closeDeleteModal()"
+  >
+    <div class="modal-dialog modal-dialog--delete" (click)="$event.stopPropagation()">
+      <h3 id="admin-delete-modal-title" class="modal-dialog__title">
+        Ești sigur că vrei să ștergi programarea?
+      </h3>
+      <p class="modal-dialog__text">
+        Programarea pentru <strong>{{ target.clientLastName }} {{ target.clientFirstName }}</strong>
+        la <strong>{{ target.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
+        de la ora <strong>{{ target.startTime }} - {{ target.endTime }}</strong>
+        ({{ target.serviceName }}) va fi ștearsă, iar intervalul orar va deveni disponibil pentru alte rezervări.
+      </p>
+
+      <div class="modal-dialog__actions">
+        <button
+          type="button"
+          class="btn-modal-keep"
+          (click)="closeDeleteModal()"
+        >
+          Renunță
+        </button>
+        <button
+          type="button"
+          class="btn-modal-confirm"
+          (click)="confirmDeleteAppointment()"
+        >
+          Da, șterge programarea
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Service Package Confirmation Modal -->
+@if (serviceToDelete(); as targetSrv) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-delete-srv-modal-title"
+    (click)="closeDeleteServiceModal()"
+  >
+    <div class="modal-dialog modal-dialog--delete" (click)="$event.stopPropagation()">
+      <h3 id="admin-delete-srv-modal-title" class="modal-dialog__title">
+        Confirmă ștergerea serviciului
+      </h3>
+      <p class="modal-dialog__text">
+        Ești sigur că vrei să ștergi pachetul
+        <strong>„{{ targetSrv.name }}”</strong> ({{ targetSrv.priceRon }} RON &middot; {{ targetSrv.durationMinutes }} min)
+        pentru <strong>{{ targetSrv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>?
+      </p>
+
+      <div class="modal-dialog__actions">
+        <button
+          type="button"
+          class="btn-modal-keep"
+          (click)="closeDeleteServiceModal()"
+        >
+          Renunță
+        </button>
+        <button
+          type="button"
+          class="btn-modal-confirm"
+          (click)="confirmDeleteService()"
+        >
+          Da, șterge serviciul
+        </button>
+      </div>
     </div>
   </div>
 }

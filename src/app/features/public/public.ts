@@ -1,4 +1,5 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { AuthService } from '../../core/services/auth.service';
 import { BarberService } from '../../core/services/barber.service';
 import { BarberCard } from '../../shared/components/barber-card/barber-card';
 import { Barber } from '../../shared/models/barber.model';
@@ -11,9 +12,22 @@ import { Barber } from '../../shared/models/barber.model';
 })
 export class Public implements OnInit {
   private readonly barberService = inject(BarberService);
+  readonly authService = inject(AuthService);
 
-  readonly barbers = signal<Barber[]>([]);
-  readonly isLoadingBarbers = signal(true);
+  readonly isBarber = computed(() => {
+    return this.authService.isBarber();
+  });
+
+  readonly isAdmin = computed(() => {
+    return this.authService.isAdmin();
+  });
+
+  readonly isStaff = computed(() => {
+    return this.authService.isBarber() || this.authService.isAdmin();
+  });
+
+  readonly barbers = signal<Barber[]>(this.barberService.getInitialBarbers());
+  readonly isLoadingBarbers = signal(false);
   readonly barbersError = signal<string | null>(null);
 
   // Barber id from the client's last visit (read from localStorage)
@@ -31,18 +45,25 @@ export class Public implements OnInit {
   }
 
   loadBarbers(): void {
-    this.isLoadingBarbers.set(true);
+    if (this.barbers().length === 0) {
+      this.isLoadingBarbers.set(true);
+    }
     this.barbersError.set(null);
 
     this.barberService.getAll().subscribe({
       next: (data) => {
-        this.barbers.set(data);
+        if (data && data.length > 0) {
+          this.barbers.set(data);
+        }
         this.isLoadingBarbers.set(false);
       },
       error: () => {
-        this.barbersError.set(
-          'Nu am putut încărca lista de frizeri. Verifică dacă serverul backend este pornit.'
-        );
+        // If we already have barbers from initial fallback, do not block UI with an error box
+        if (this.barbers().length === 0) {
+          this.barbersError.set(
+            'Nu am putut încărca lista de frizeri. Verifică dacă serverul backend este pornit.'
+          );
+        }
         this.isLoadingBarbers.set(false);
       },
     });

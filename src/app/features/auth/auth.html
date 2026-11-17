@@ -5,6 +5,12 @@
     </div>
   }
 
+  @if (authErrorMessage(); as errMsg) {
+    <div class="global-banner global-banner--error" role="alert">
+      &#9888; {{ errMsg }}
+    </div>
+  }
+
   <div class="auth-grid" [class.auth-grid--expanded]="showRegister()">
     <!-- LEFT COLUMN: Login (Autentificare) -->
     <section class="auth-col" aria-labelledby="login-title">

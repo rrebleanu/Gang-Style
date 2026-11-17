@@ -15,24 +15,35 @@ $hover-duration: 0.8s; // hover animation speed
   width: 100%;
   min-width: 0;
   height: 100%;
-  padding: clamp(1.25rem, 2.5vw, 1.85rem);
+  padding: clamp(1.2rem, 2vw, 1.6rem);
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
   overflow: hidden;
-  background: transparent;
+  background: rgba(22, 22, 22, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: $radius-lg;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   outline: none;
-  transition: background-color $hover-duration ease;
+  transition:
+    background-color $hover-duration ease,
+    border-color $transition-fast,
+    box-shadow $transition-fast,
+    transform $transition-fast;
 
   // returning client: subtle highlight
   &--last-visit {
-    background: rgba($color-accent, 0.03);
+    border-color: rgba($color-accent, 0.5);
+    background: rgba($color-accent, 0.06);
   }
 
-  // hover state: inner elements compact and reveal the booking button at the bottom
-  &:hover,
-  &:focus-within {
-    background: rgba($color-accent, 0.04);
+  // hover state: inner elements compact and reveal the booking button at the bottom (only for clients/visitors)
+  &:not(&--no-shrink):hover,
+  &:not(&--no-shrink):focus-within {
+    border-color: rgba($color-accent, 0.45);
+    background: rgba(28, 28, 28, 0.95);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+    transform: translateY(-3px);
 
     .card__photo {
       height: 300px;
@@ -58,6 +69,23 @@ $hover-duration: 0.8s; // hover animation speed
       opacity: 1;
       transform: translateY(0);
       pointer-events: auto;
+    }
+  }
+
+  // When logged in as barber or admin: no shrinking, no height jump, static layout
+  &--no-shrink {
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &:hover,
+    &:focus-within {
+      border-color: rgba($color-accent, 0.35);
+      background: rgba(24, 24, 24, 0.92);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      transform: none;
+
+      .card__photo {
+        border-color: rgba($color-accent, 0.4);
+      }
     }
   }
 }
@@ -439,8 +467,8 @@ $hover-duration: 0.8s; // hover animation speed
     height: 320px;
   }
 
-  .card:hover .card__photo,
-  .card:focus-within .card__photo {
+  .card:not(.card--no-shrink):hover .card__photo,
+  .card:not(.card--no-shrink):focus-within .card__photo {
     height: 255px;
   }
 
@@ -448,8 +476,8 @@ $hover-duration: 0.8s; // hover animation speed
     height: 88px;
   }
 
-  .card:hover .card__thumb img,
-  .card:focus-within .card__thumb img {
+  .card:not(.card--no-shrink):hover .card__thumb img,
+  .card:not(.card--no-shrink):focus-within .card__thumb img {
     height: 74px;
   }
 }
@@ -458,7 +486,7 @@ $hover-duration: 0.8s; // hover animation speed
   // disable hover shrink on mobile
   .card:hover,
   .card:focus-within {
-    background: transparent;
+    background: rgba(22, 22, 22, 0.85);
 
     .card__photo {
       height: 225px;
@@ -479,8 +507,12 @@ $hover-duration: 0.8s; // hover animation speed
   }
 
   .card {
-    padding: 1.15rem 1rem 1.25rem;
+    padding: 1.2rem 1rem 1.45rem;
     gap: 0.85rem;
+
+    &--no-shrink {
+      padding-bottom: 1.6rem;
+    }
   }
 
   .card__photo {

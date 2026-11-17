@@ -1,22 +1,23 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideRouter, withInMemoryScrolling, withRouterConfig } from '@angular/router';
+import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 
 import { routes } from './app.routes';
-import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { jwtInterceptor } from './core/interceptors/jwt.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withFetch()),
+    provideHttpClient(withFetch(), withInterceptors([jwtInterceptor])),
     provideRouter(
       routes,
       withInMemoryScrolling({
-        anchorScrolling: 'enabled', // links like "/#frizeri" scroll to the section
-        scrollPositionRestoration: 'enabled', // new page starts at the top
+        anchorScrolling: 'enabled',
+        scrollPositionRestoration: 'enabled',
       }),
       withRouterConfig({
-        onSameUrlNavigation: 'reload', // allows re-scrolling if user clicks the same anchor link again
+        onSameUrlNavigation: 'reload',
       }),
     ),
     provideClientHydration(withEventReplay()),

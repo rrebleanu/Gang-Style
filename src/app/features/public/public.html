@@ -1,21 +1,30 @@
 <main class="home">
 <!-- Marketing-->
   <section class="hero">
-    <img src="images/gangstyle.jpg" alt="Gang Style Logo" class="brand-logo" />
+    <img src="/images/gangstyle.jpg" alt="Gang Style Logo" class="brand-logo" />
 
     <h1>Barber Shop Giurgiu | <span class="highlight">Gang Style</span></h1>
 
     <p class="subtitle">EXPERIENTA SI CALITATE IN STYLING</p>
 
-    <button type="button" class="cta-button" (click)="team.scrollIntoView({ behavior: 'smooth' })">
-      PROGRAMEAZA-TE ACUM
-    </button>
+    @if (!isStaff()) {
+      <button type="button" class="cta-button" (click)="team.scrollIntoView({ behavior: 'smooth' })">
+        PROGRAMEAZA-TE ACUM
+      </button>
+    }
   </section>
 
   <section class="salon-photo">
-    <img src="images/salon3.jpg" alt="Salon interior" class="salon-image" />
+    <img src="/images/salon3.jpg" alt="Salon interior" class="salon-image" />
     <p class="photo-caption">Atmosferă modernă și confortabilă</p>
   </section>
+
+  <!-- Delimitare vizuală între marketing și echipa noastră -->
+  <div class="section-divider section-divider--top" aria-hidden="true">
+    <span class="section-divider__line"></span>
+    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__line"></span>
+  </div>
 
   <!-- Barber cards -->
   <section id="frizeri" class="team" #team aria-labelledby="team-title">
@@ -38,7 +47,8 @@
         @for (barber of barbers(); track barber.id) {
           <app-barber-card
             [barber]="barber"
-            [isLastVisit]="barber.id === lastVisitBarberId()"
+            [isLastVisit]="!isStaff() && barber.id === lastVisitBarberId()"
+            [showBooking]="!isStaff()"
           />
         } @empty {
           <p class="empty-state">Momentan nu există frizeri disponibili.</p>
@@ -46,6 +56,13 @@
       }
     </div>
   </section>
+
+  <!-- Delimitare vizuală între echipa noastră și despre noi -->
+  <div class="section-divider section-divider--middle" aria-hidden="true">
+    <span class="section-divider__line"></span>
+    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__line"></span>
+  </div>
 
   <!-- About section -->
   <section id="despre" class="about-banner" aria-labelledby="about-title">
@@ -63,15 +80,15 @@
         relaxată, vibe bun, discuții ca între prieteni și aceeași atenție la detalii la fiecare
         vizită.
       </p>
-
-      <p class="about-banner__text">
-        Aici nu e vorba doar de tuns — e vorba de stil, atitudine și încredere. Lucrăm modern, curat
-        și precis: fade-uri impecabile, linii exacte și barbă sculptată. Nu grăbim niciodată
-        lucrurile, pentru că fiecare client primește timpul și atenția cuvenită alături de un
-        barber care îi înțelege stilul și livrează un look impecabil, fără compromisuri.
-      </p>
     </div>
   </section>
+
+  <!-- Delimitare vizuală între despre noi și locație/contact -->
+  <div class="section-divider section-divider--bottom" aria-hidden="true">
+    <span class="section-divider__line"></span>
+    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__line"></span>
+  </div>
 
   <!-- Working hours, contact & map -->
   <section id="locatie" class="location-section" aria-label="Program, date de contact și locație">

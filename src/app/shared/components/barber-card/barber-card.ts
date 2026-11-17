@@ -17,6 +17,7 @@ import { Barber } from '../../models/barber.model';
 export class BarberCard {
   readonly barber = input.required<Barber>();
   readonly isLastVisit = input(false);
+  readonly showBooking = input(true);
 
   // null = modal closed; number = active photo index
   readonly activePhotoIndex = signal<number | null>(null);
@@ -44,6 +45,20 @@ export class BarberCard {
   onArrowKey(delta: number): void {
     if (this.activePhotoIndex() !== null) {
       this.stepPhoto(delta);
+    }
+  }
+
+  onPhotoError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('gangstyle.jpg')) {
+      img.src = '/images/gangstyle.jpg';
+    }
+  }
+
+  onThumbError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    if (img && !img.src.includes('salon.jpg')) {
+      img.src = '/images/salon.jpg';
     }
   }
 }

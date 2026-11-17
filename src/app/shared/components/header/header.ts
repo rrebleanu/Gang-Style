@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -20,6 +20,10 @@ export class HeaderComponent {
   // mobile menu state (only visible below 700px)
   readonly menuOpen = signal(false);
 
+  readonly isBarber = computed(() => {
+    return this.authService.isBarber() || this.authService.isAdmin();
+  });
+
   toggleMenu(): void {
     this.menuOpen.update((open) => !open);
   }
@@ -27,6 +31,12 @@ export class HeaderComponent {
   // called on every link click, so the menu closes after navigation
   closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  getAccountLabel(role?: string): string {
+    if (role === 'ADMIN' || role === 'ROLE_ADMIN') return 'Admin';
+    if (role === 'BARBER' || role === 'ROLE_BARBER') return 'Agenda Mea';
+    return 'Contul Meu';
   }
 
   logout(): void {

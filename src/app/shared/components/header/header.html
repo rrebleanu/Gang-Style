@@ -9,12 +9,12 @@
   <div class="mobile-bar-controls">
     @if (authService.currentUser(); as user) {
       <a
-        [routerLink]="user.role === 'ADMIN' ? '/admin' : '/dashboard'"
+        [routerLink]="authService.isAdmin(user) ? '/admin' : '/dashboard'"
         class="mobile-account-pill mobile-account-pill--logged"
         routerLinkActive="active"
         (click)="closeMenu()"
       >
-        {{ user.role === 'ADMIN' ? 'Admin' : 'Contul Meu' }}
+        {{ getAccountLabel(user.role) }}
       </a>
     } @else {
       <a
@@ -71,12 +71,12 @@
     <div class="nav-actions">
       @if (authService.currentUser(); as user) {
         <a
-          [routerLink]="user.role === 'ADMIN' ? '/admin' : '/dashboard'"
+          [routerLink]="authService.isAdmin(user) ? '/admin' : '/dashboard'"
           class="nav-login nav-user-link"
           routerLinkActive="active"
           (click)="closeMenu()"
         >
-          {{ user.role === 'ADMIN' ? 'Admin' : 'Contul Meu' }}
+          {{ getAccountLabel(user.role) }}
         </a>
         <button type="button" class="nav-login nav-logout" (click)="logout()">
           Ieșire
@@ -86,7 +86,9 @@
           Contul Meu
         </a>
       }
-      <a routerLink="/" fragment="frizeri" class="nav-btn" (click)="scrollTo('frizeri')">Programare</a>
+      @if (!isBarber()) {
+        <a routerLink="/" fragment="frizeri" class="nav-btn" (click)="scrollTo('frizeri')">Programare</a>
+      }
     </div>
   </div>
 </nav>

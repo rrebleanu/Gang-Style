@@ -13,6 +13,7 @@ import {
 
 export type PortalFilterTab = 'UPCOMING' | 'HISTORY' | 'ALL';
 export type DashboardViewMode = 'CLIENT' | 'BARBER';
+export type BarberTimeFilter = 'TODAY' | 'TOMORROW' | 'MONTH' | 'ALL';
 
 export interface WorkingDayOption {
   iso: string;
@@ -45,12 +46,11 @@ export class Portal implements OnInit {
   // Shared feedback banner message
   readonly feedbackMessage = signal<string | null>(null);
 
-  // ===========================================================================
-  // 1. CLIENT DASHBOARD STATE & COMPUTED SIGNALS
-  // ===========================================================================
+  // Client dashboard state and computed signals
   readonly appointments = signal<AppointmentRecord[]>([]);
   readonly activeTab = signal<PortalFilterTab>('UPCOMING');
   readonly appointmentToCancel = signal<AppointmentRecord | null>(null);
+  readonly appointmentToDelete = signal<AppointmentRecord | null>(null);
 
   readonly upcomingAppointments = computed<AppointmentRecord[]>(() =>
     this.appointments()
@@ -90,18 +90,42 @@ export class Portal implements OnInit {
     return { name: 'Filip', slug: 'filip' };
   });
 
-  // ===========================================================================
-  // 2. BARBER DASHBOARD STATE & COMPUTED SIGNALS (FILIP & SEBI)
-  // ===========================================================================
+  // Barber dashboard state and computed signals
   readonly barbers = signal<Barber[]>([]);
   readonly selectedBarberSlug = signal<'filip' | 'sebi'>('filip');
   readonly barberAppointments = signal<AppointmentRecord[]>([]);
   readonly workingDays = signal<WorkingDayOption[]>([]);
 
-  // Barber table filters
+  // Barber table time filters
+  readonly barberTimeFilter = signal<BarberTimeFilter>('TODAY');
   readonly barberDateFilter = signal<string>('ALL'); // 'ALL' or YYYY-MM-DD
   readonly barberSourceFilter = signal<'ALL' | 'ONLINE' | 'PHONE'>('ALL');
   readonly barberSearchQuery = signal<string>('');
+
+  readonly todayIso = computed<string>(() => {
+    const days = this.workingDays();
+    if (days.length > 0) return days[0].iso;
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
+  readonly tomorrowIso = computed<string>(() => {
+    const days = this.workingDays();
+    if (days.length > 1) return days[1].iso;
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
+  readonly currentMonthPrefix = computed<string>(() => {
+    return this.todayIso().slice(0, 7);
+  });
 
   // Barber modals state
   readonly phoneModalOpen = signal(false);
@@ -111,6 +135,7 @@ export class Portal implements OnInit {
   readonly serviceModalOpen = signal(false);
   readonly editingServiceId = signal<string | null>(null);
   readonly serviceFormSubmitted = signal(false);
+  readonly serviceToDelete = signal<ServiceItem | null>(null);
 
   // Active barber profile object
   readonly currentBarber = computed<Barber | null>(() => {
@@ -121,23 +146,34 @@ export class Portal implements OnInit {
   // Services for the currently selected barber (CRUD-enabled)
   readonly barberServices = signal<ServiceItem[]>([]);
 
-  // Filtered appointments for the barber table (by day + source + name/phone search)
+  // Filtered appointments for the barber table (STRICTLY real clients, numbered chronologically)
   readonly filteredBarberAppointments = computed<AppointmentRecord[]>(() => {
-    const dateFilter = this.barberDateFilter();
-    const sourceFilter = this.barberSourceFilter();
+    const timeFilter = this.barberTimeFilter();
+    const today = this.todayIso();
+    const tomorrow = this.tomorrowIso();
+    const month = this.currentMonthPrefix();
     const query = this.barberSearchQuery().trim().toLowerCase();
 
     return this.barberAppointments()
       .filter((apt) => {
-        if (dateFilter !== 'ALL' && apt.dateIso !== dateFilter) {
+        // Exclude blocked intervals and cancelled appointments - only real clients appear
+        if (apt.source === 'BLOCKED' || apt.status === 'CANCELLED') {
           return false;
         }
-        if (sourceFilter === 'ONLINE' && (apt.source ?? 'ONLINE') !== 'ONLINE') {
+
+        // Apply time filter
+        if (timeFilter === 'TODAY' && apt.dateIso !== today) {
           return false;
         }
-        if (sourceFilter === 'PHONE' && apt.source !== 'PHONE') {
+        if (timeFilter === 'TOMORROW' && apt.dateIso !== tomorrow) {
           return false;
         }
+        if (timeFilter === 'MONTH' && !apt.dateIso.startsWith(month)) {
+          return false;
+        }
+        // 'ALL' includes all active real clients
+
+        // Search query
         if (query) {
           const fullName = `${apt.clientLastName} ${apt.clientFirstName}`.toLowerCase();
           const phone = apt.clientPhone.replace(/\s+/g, '').toLowerCase();
@@ -219,7 +255,7 @@ export class Portal implements OnInit {
       ).length
   );
 
-  // Reactive form for "+ Adaugă Programare (Telefonică)"
+  // Reactive form for manual/phone bookings
   readonly phoneBookingForm = this.fb.nonNullable.group({
     serviceId: ['', [Validators.required]],
     dateIso: ['', [Validators.required]],
@@ -229,10 +265,10 @@ export class Portal implements OnInit {
     notes: [''],
   });
 
-  // Available slots for the selected service & date inside the Phone Booking Modal
+  // Available slots for the selected service and date inside the phone booking modal
   readonly phoneModalSlots = signal<TimeSlot[]>([]);
 
-  // Reactive form for "Blochează Interval / Zi liberă"
+  // Reactive form for blocking an interval or full day off
   readonly blockIntervalForm = this.fb.nonNullable.group({
     blockType: ['INTERVAL' as 'INTERVAL' | 'FULL_DAY'],
     dateIso: ['', [Validators.required]],
@@ -244,8 +280,8 @@ export class Portal implements OnInit {
   // Reactive form for Barber Services & Prices CRUD
   readonly barberServiceForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]],
-    durationMinutes: [45, [Validators.required, Validators.min(15)]],
-    priceRon: [60, [Validators.required, Validators.min(10)]],
+    durationMinutes: [45, [Validators.required, Validators.min(5)]],
+    priceRon: [60, [Validators.required, Validators.min(5)]],
   });
 
   ngOnInit(): void {
@@ -262,14 +298,14 @@ export class Portal implements OnInit {
     this.workingDays.set(days);
 
     // Set view strictly based on logged-in user's role
-    if (user?.role === 'BARBER') {
+    if (this.authService.isBarber(user)) {
       this.viewMode.set('BARBER');
-      if (user.email.includes('sebi')) {
+      if (user && user.email.includes('sebi')) {
         this.selectedBarberSlug.set('sebi');
       } else {
         this.selectedBarberSlug.set('filip');
       }
-    } else if (user?.role === 'ADMIN') {
+    } else if (this.authService.isAdmin(user)) {
       this.viewMode.set('BARBER');
       this.selectedBarberSlug.set('filip');
     } else {
@@ -295,7 +331,7 @@ export class Portal implements OnInit {
 
   // Switches between Client view and Barber view (allowed only for ADMIN)
   setViewMode(mode: DashboardViewMode, barberSlug?: 'filip' | 'sebi'): void {
-    if (this.authService.currentUser()?.role !== 'ADMIN') {
+    if (!this.authService.isAdmin()) {
       return;
     }
     this.viewMode.set(mode);
@@ -310,9 +346,7 @@ export class Portal implements OnInit {
     this.refreshAllData();
   }
 
-  // ===========================================================================
-  // CLIENT ACTIONS
-  // ===========================================================================
+  // Client actions
   setTab(tab: PortalFilterTab): void {
     this.activeTab.set(tab);
   }
@@ -397,9 +431,11 @@ export class Portal implements OnInit {
     });
   }
 
-  // ===========================================================================
-  // BARBER DASHBOARD ACTIONS
-  // ===========================================================================
+  // Barber dashboard actions
+  setBarberTimeFilter(filter: BarberTimeFilter): void {
+    this.barberTimeFilter.set(filter);
+  }
+
   setBarberDateFilter(dateIso: string): void {
     this.barberDateFilter.set(dateIso);
   }
@@ -456,7 +492,7 @@ export class Portal implements OnInit {
     );
   }
 
-  // Opens "+ Adaugă Programare (Telefonică)" modal
+  // Opens the manual/phone booking modal
   openPhoneBookingModal(): void {
     const services = this.barberServices();
     const days = this.workingDays();
@@ -534,7 +570,7 @@ export class Portal implements OnInit {
 
     const nameParts = val.clientName.trim().split(/\s+/);
     const lastName = nameParts[0] ?? 'Client';
-    const firstName = nameParts.slice(1).join(' ') || 'Telefonic';
+    const firstName = nameParts.slice(1).join(' ') || '';
 
     this.catalogService.createAppointment({
       barberSlug: barber.slug,
@@ -551,20 +587,20 @@ export class Portal implements OnInit {
       endTime: slot.endTime,
       clientFirstName: firstName,
       clientLastName: lastName,
-      clientEmail: 'telefon@gangstyle.ro',
+      clientEmail: 'manual@gangstyle.ro',
       clientPhone: val.clientPhone.trim(),
-      notes: val.notes.trim() || 'Programare telefonică',
+      notes: val.notes.trim(),
       source: 'PHONE',
     });
 
     this.phoneModalOpen.set(false);
     this.refreshAllData();
     this.showFeedback(
-      `Programarea telefonică pentru ${val.clientName} (${slot.label}) a fost adăugată și ora a fost ocupată pe site!`
+      `Programarea manuală pentru ${val.clientName} (${slot.label}) a fost adăugată și ora a fost ocupată pe site!`
     );
   }
 
-  // Opens "Blochează Interval / Zi liberă" modal
+  // Opens the block interval / day off modal
   openBlockModal(): void {
     const days = this.workingDays();
     const defaultDateIso =
@@ -715,23 +751,68 @@ export class Portal implements OnInit {
     }
   }
 
-  deleteBarberService(service: ServiceItem): void {
-    this.catalogService.deleteServiceApi(service.id).subscribe({
+  // Opens confirmation modal before deleting a barber service package.
+  openDeleteBarberServiceModal(service: ServiceItem): void {
+    this.serviceToDelete.set(service);
+  }
+
+  closeDeleteBarberServiceModal(): void {
+    this.serviceToDelete.set(null);
+  }
+
+  // Deletes the selected service package after modal confirmation.
+  confirmDeleteBarberService(): void {
+    const target = this.serviceToDelete();
+    if (!target) {
+      return;
+    }
+
+    this.catalogService.deleteServiceApi(target.id).subscribe({
       next: () => {
+        this.serviceToDelete.set(null);
         this.refreshAllData();
-        this.showFeedback(`Serviciul „${service.name}” a fost șters din baza de date.`);
+        this.showFeedback(`Serviciul „${target.name}” a fost șters din baza de date.`);
       },
       error: () => {
+        this.serviceToDelete.set(null);
         this.showFeedback('Nu am putut șterge serviciul. Verifică serverul.');
       },
     });
   }
 
+  // Opens confirmation modal to delete/cancel appointment from Barber view
+  openDeleteModalForBarber(apt: AppointmentRecord): void {
+    this.appointmentToDelete.set(apt);
+  }
+
+  closeDeleteModal(): void {
+    this.appointmentToDelete.set(null);
+  }
+
+  confirmDeleteAppointment(): void {
+    const target = this.appointmentToDelete();
+    if (!target) {
+      return;
+    }
+
+    const ok = this.catalogService.cancelAppointment(target.id);
+    this.appointmentToDelete.set(null);
+
+    if (ok) {
+      this.refreshAllData();
+      this.showFeedback(
+        `Programarea pentru ${target.clientLastName} ${target.clientFirstName} (${target.startTime} - ${target.endTime}) a fost ștearsă, iar intervalul a fost eliberat.`
+      );
+    }
+  }
+
   closeAllModals(): void {
     this.closeCancelModal();
+    this.closeDeleteModal();
     this.closePhoneBookingModal();
     this.closeBlockModal();
     this.closeBarberServiceModal();
+    this.closeDeleteBarberServiceModal();
   }
 
   logout(): void {

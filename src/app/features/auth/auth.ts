@@ -1,9 +1,9 @@
 import { Component, ElementRef, inject, signal, ViewChild } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { AuthService, UserRole } from '../../core/services/auth.service';
 
-// Login & Registration page (/login).
+// Login and registration component connected to the JWT authentication service.
 @Component({
   selector: 'app-auth',
   imports: [ReactiveFormsModule],
@@ -18,37 +18,31 @@ export class Auth {
   @ViewChild('registerEmailInput') registerEmailInput?: ElementRef<HTMLInputElement>;
   @ViewChild('registerSection') registerSection?: ElementRef<HTMLElement>;
 
-  // Controls whether the Registration section is visible
   readonly showRegister = signal(false);
-
-  // Password visibility toggles
   readonly showLoginPassword = signal(false);
   readonly showRegisterPassword = signal(false);
 
-  // Submission states for validation feedback
   readonly loginSubmitted = signal(false);
   readonly registerSubmitted = signal(false);
   readonly resetSubmitted = signal(false);
+  readonly isSubmitting = signal(false);
 
-  // UI feedback states
   readonly forgotPasswordOpen = signal(false);
   readonly resetSuccessEmail = signal<string | null>(null);
   readonly authSuccessMessage = signal<string | null>(null);
+  readonly authErrorMessage = signal<string | null>(null);
 
-  // Login form
   readonly loginForm = this.fb.nonNullable.group({
     identifier: ['', [Validators.required, Validators.minLength(3)]],
     password: ['', [Validators.required, Validators.minLength(6)]],
     rememberMe: [true],
   });
 
-  // Registration form (email + password so user is logged in immediately)
   readonly registerForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(6)]],
   });
 
-  // Forgot password form
   readonly resetForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
   });
@@ -61,9 +55,9 @@ export class Auth {
     this.showRegisterPassword.update((v) => !v);
   }
 
-  // Reveals the Registration section when user clicks "Nu ai cont? Înregistrează-te"
   openRegisterSection(): void {
     this.showRegister.set(true);
+    this.authErrorMessage.set(null);
 
     setTimeout(() => {
       if (typeof window !== 'undefined' && window.innerWidth <= 700) {
@@ -76,35 +70,63 @@ export class Auth {
     }, 120);
   }
 
+  // Submits login credentials and stores the received JWT token.
   onLoginSubmit(): void {
     this.loginSubmitted.set(true);
+    this.authErrorMessage.set(null);
+
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
     }
 
+    this.isSubmitting.set(true);
     const { identifier, password } = this.loginForm.getRawValue();
-    const user = this.authService.login(identifier, password);
 
-    this.authSuccessMessage.set(`Bine ai revenit, ${user.displayName}!`);
-    this.redirectAfterAuth(user.role);
+    this.authService.loginApi(identifier, password).subscribe({
+      next: (user) => {
+        this.isSubmitting.set(false);
+        this.authSuccessMessage.set(`Bine ai revenit, ${user.displayName}!`);
+        this.redirectAfterAuth(user.role);
+      },
+      error: (err) => {
+        this.isSubmitting.set(false);
+        const msg =
+          err?.error?.message || 'Emailul sau parola introdusă este incorectă.';
+        this.authErrorMessage.set(msg);
+      },
+    });
   }
 
-  // Creates account and automatically logs the user in
+  // Registers a new client account and logs the user in automatically.
   onRegisterSubmit(): void {
     this.registerSubmitted.set(true);
+    this.authErrorMessage.set(null);
+
     if (this.registerForm.invalid) {
       this.registerForm.markAllAsTouched();
       return;
     }
 
+    this.isSubmitting.set(true);
     const { email, password } = this.registerForm.getRawValue();
-    const user = this.authService.registerAndLogin(email, password);
 
-    this.authSuccessMessage.set(
-      `Cont creat cu succes! Ești conectat automat ca ${user.email}.`
-    );
-    this.redirectAfterAuth(user.role);
+    this.authService.registerApi({ email, password }).subscribe({
+      next: (user) => {
+        this.isSubmitting.set(false);
+        this.authSuccessMessage.set(
+          `Cont creat cu succes! Ești conectat automat ca ${user.email}.`
+        );
+        this.redirectAfterAuth(user.role);
+      },
+      error: (err) => {
+        this.isSubmitting.set(false);
+        const msg =
+          err?.error?.message ||
+          'Nu am putut crea contul. Verifică dacă adresa de email este deja folosită.';
+        this.authErrorMessage.set(msg);
+      },
+    });
   }
 
   toggleForgotPassword(): void {
@@ -140,13 +162,9 @@ export class Auth {
     return control.invalid && (control.touched || this.resetSubmitted());
   }
 
-  private redirectAfterAuth(role: 'CLIENT' | 'BARBER' | 'ADMIN'): void {
+  private redirectAfterAuth(_role: UserRole): void {
     setTimeout(() => {
-      if (role === 'ADMIN') {
-        this.router.navigate(['/admin']);
-      } else {
-        this.router.navigate(['/dashboard']);
-      }
-    }, 800);
+      this.router.navigate(['/']);
+    }, 500);
   }
 }

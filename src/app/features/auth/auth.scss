@@ -44,6 +44,12 @@ $success-color: #4cc38a;
   font-size: 0.9rem;
   font-weight: 600;
   text-align: center;
+
+  &--error {
+    background: rgba($error-color, 0.14);
+    border-color: rgba($error-color, 0.5);
+    color: $error-color;
+  }
 }
 
 // Single centered column initially; 2 equal-height columns when Registration is opened

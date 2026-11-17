@@ -82,6 +82,7 @@ $hamburger-delay: 150ms;
     padding-bottom: 4px;
     border-bottom: 2px solid transparent;
     transition: color $transition-fast, border-color $transition-fast;
+    white-space: nowrap;
 
     &:hover {
       color: $color-accent;
@@ -119,6 +120,7 @@ $hamburger-delay: 150ms;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: $radius;
   transition: color $transition-fast, border-color $transition-fast;
+  white-space: nowrap;
 
   &:hover,
   &.active {
@@ -138,6 +140,7 @@ $hamburger-delay: 150ms;
   text-transform: uppercase;
   border-radius: $radius;
   transition: background-color $transition-fast, transform $transition-fast;
+  white-space: nowrap;
 
   &:hover {
     background-color: $color-text;
@@ -145,23 +148,26 @@ $hamburger-delay: 150ms;
   }
 }
 
-// hidden on desktop and tablet
+$bp-header-mobile: 900px;
+
+// hidden on desktop (above 900px)
 .mobile-bar-controls,
 .hamburger {
   display: none;
 }
 
-// tablet: same layout, tighter spacing and smaller text
-@include tablet {
+// Compact desktop navigation for intermediate screens (901px - 1050px)
+@media screen and (min-width: 901px) and (max-width: 1050px) {
   .navbar {
     gap: 1rem;
+    padding: 0 1.5rem;
   }
 
   .nav-links {
-    gap: 0.9rem;
+    gap: 0.85rem;
 
     a {
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       letter-spacing: 0.06em;
     }
   }
@@ -170,45 +176,71 @@ $hamburger-delay: 150ms;
     gap: 0.6rem;
   }
 
-  .nav-btn {
-    padding: 0.45rem 0.75rem;
+  .nav-login {
+    padding: 0.3rem 0.55rem;
     font-size: 0.7rem;
+  }
+
+  .nav-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.72rem;
   }
 }
 
-// mobile: hamburger + vertical dropdown panel
-@include mobile {
+// Mobile and tablet viewports (<= 900px): hamburger + clean top bar + vertical dropdown
+@media screen and (max-width: $bp-header-mobile) {
   .navbar {
     justify-content: space-between;
+    padding: 0 clamp(1rem, 3vw, 2rem);
   }
 
   .mobile-bar-controls {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.75rem;
   }
 
+  // Refined, sleek, delicate pill button for account / agenda
   .mobile-account-pill {
     display: inline-flex;
     align-items: center;
-    padding: 0.35rem 0.65rem;
-    border-radius: $radius;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.24rem 0.6rem;
+    border-radius: 999px;
     border: 1px solid rgba($color-accent, 0.45);
-    background: rgba($color-accent, 0.1);
+    background: rgba($color-accent, 0.08);
     color: $color-accent;
     text-decoration: none;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     white-space: nowrap;
-    max-width: 155px;
+    max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: all $transition-fast;
+
+    &:hover,
+    &:active {
+      background: rgba($color-accent, 0.18);
+      border-color: $color-accent;
+      color: $color-accent-hover;
+    }
 
     &--logged {
-      background: $color-accent;
-      color: $color-bg;
+      background: rgba($color-accent, 0.12);
+      border-color: rgba($color-accent, 0.55);
+      color: $color-accent;
+      font-weight: 600;
+
+      &:hover,
+      &:active {
+        background: rgba($color-accent, 0.22);
+        border-color: $color-accent;
+        color: #ffffff;
+      }
     }
   }
 
@@ -216,8 +248,8 @@ $hamburger-delay: 150ms;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 32px;
-    height: 22px;
+    width: 28px;
+    height: 20px;
     padding: 0;
     background: none;
     border: none;
@@ -226,7 +258,7 @@ $hamburger-delay: 150ms;
     .bar {
       display: block;
       width: 100%;
-      height: 3px;
+      height: 2.5px;
       border-radius: 2px;
       background-color: $color-accent;
       opacity: 0;
@@ -245,7 +277,7 @@ $hamburger-delay: 150ms;
   // bars turn into an X when the menu is open
   .navbar--open .hamburger .bar {
     &:nth-child(1) {
-      transform: translateY(9.5px) rotate(45deg);
+      transform: translateY(8.75px) rotate(45deg);
     }
 
     &:nth-child(2) {
@@ -253,7 +285,7 @@ $hamburger-delay: 150ms;
     }
 
     &:nth-child(3) {
-      transform: translateY(-9.5px) rotate(-45deg);
+      transform: translateY(-8.75px) rotate(-45deg);
     }
   }
 
@@ -266,8 +298,10 @@ $hamburger-delay: 150ms;
     align-items: stretch;
     padding: 1rem clamp(1rem, 4vw, 3rem) 1.5rem;
     background: rgba(12, 12, 12, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid $color-border;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
 
     // closed state: collapsed from the top
     transform: scaleY(0);

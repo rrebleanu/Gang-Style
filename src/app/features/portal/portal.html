@@ -6,14 +6,9 @@
 
       @if (authService.isAdmin()) {
         <div class="mode-switcher" role="tablist" aria-label="Comută panoul (Admin)">
-          <button
-            type="button"
-            class="mode-switcher__btn"
-            [class.mode-switcher__btn--active]="viewMode() === 'CLIENT'"
-            (click)="setViewMode('CLIENT')"
-          >
-            Panou Client
-          </button>
+          <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
+            &larr; Management Salon
+          </a>
           <button
             type="button"
             class="mode-switcher__btn"
@@ -30,9 +25,6 @@
           >
             Dashboard Sebi
           </button>
-          <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
-            Panou Admin &rarr;
-          </a>
         </div>
       }
 

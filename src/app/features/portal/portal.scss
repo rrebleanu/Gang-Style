@@ -2524,22 +2524,6 @@ $warning-color: #f59e0b;
   border-top: 1px solid rgba($color-border, 0.5);
 }
 
-.blacklist-section-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-
 .blocked-clients-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

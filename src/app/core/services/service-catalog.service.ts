@@ -576,6 +576,15 @@ export class ServiceCatalogService {
       cursor = end;
     }
 
+    // Exclude past slots and apply 5-minute lead-time buffer for today.
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (dateIso === todayIso) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const cutoffMinutes = currentMinutes + 5;
+      return slots.filter((slot) => this.parseMinutes(slot.startTime) >= cutoffMinutes);
+    }
+
     return slots;
   }
 

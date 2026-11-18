@@ -104,7 +104,7 @@ export class Booking implements OnInit {
     this.route.paramMap.subscribe((params) => {
       const slug = params.get('slug') ?? '';
       this.activeSlug.set(slug);
-      const days = this.generateWorkingDays(7, slug);
+      const days = this.generateWorkingDays(8, slug);
       this.availableDays.set(days);
       if (days.length > 0) {
         this.selectedDateIso.set(days[0].iso);
@@ -321,7 +321,7 @@ export class Booking implements OnInit {
   }
 
   // Generates upcoming working days based on the selected barber's active schedule and vacation/day-off blocks
-  private generateWorkingDays(count: number, barberSlug?: string): CalendarDayOption[] {
+  private generateWorkingDays(count = 8, barberSlug?: string): CalendarDayOption[] {
     const dayNamesShort = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
     const dayNamesFull = [
       'Duminică',

@@ -205,8 +205,11 @@
                     </span>
                   </button>
                 } @empty {
-                  <div class="booking-empty-services" style="grid-column: 1 / -1;">
-                    {{ currentBarber.name }} nu are program de lucru sau este în zi liberă / concediu la această dată. Te rugăm să alegi altă zi din calendar.
+                  <div class="booking-empty-slots" style="grid-column: 1 / -1;">
+                    <p class="empty-slots-title">Intervale indisponibile pentru această zi</p>
+                    <p class="empty-slots-subtitle">
+                      Nu mai există ore disponibile în această dată (au trecut sau sunt deja ocupate). Te rugăm să alegi o altă zi din calendar.
+                    </p>
                   </div>
                 }
               </div>

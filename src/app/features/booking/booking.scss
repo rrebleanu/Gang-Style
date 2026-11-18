@@ -119,6 +119,38 @@ $error-color: #e5484d;
   color: $color-text;
 }
 
+.barber-banner__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: $color-accent;
+  text-decoration: none;
+  margin-top: 0.15rem;
+  transition: color 0.2s ease;
+
+  .phone-icon {
+    font-size: 0.85rem;
+  }
+
+  &:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+}
+
+.summary-phone-link {
+  color: $color-accent;
+  text-decoration: none;
+  font-weight: 600;
+
+  &:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+}
+
 // 4-step progress bar
 .stepper {
   display: flex;

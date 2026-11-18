@@ -45,6 +45,13 @@
         <div class="barber-banner__info">
           <span class="barber-banner__tag">Programare Online</span>
           <h1 class="barber-banner__name">{{ currentBarber.name }} | Barber</h1>
+          <a
+            [href]="'tel:+40' + (currentBarber.phone || '0770 426 308')"
+            class="barber-banner__phone"
+            title="Apelează frizerul"
+          >
+            <span class="phone-icon">&#9742;</span> {{ currentBarber.phone || '0770 426 308' }}
+          </a>
         </div>
       </header>
 
@@ -409,7 +416,16 @@
             <div class="summary-box">
               <div class="summary-row">
                 <span class="summary-row__label">Frizer</span>
-                <span class="summary-row__value">{{ currentBarber.name }}</span>
+                <span class="summary-row__value">
+                  {{ currentBarber.name }} &middot;
+                  <a
+                    [href]="'tel:+40' + (currentBarber.phone || '0770 426 308')"
+                    class="summary-phone-link"
+                    title="Apelează frizerul"
+                  >
+                    &#9742; {{ currentBarber.phone || '0770 426 308' }}
+                  </a>
+                </span>
               </div>
 
               @if (selectedService(); as srv) {

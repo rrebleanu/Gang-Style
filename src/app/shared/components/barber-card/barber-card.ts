@@ -1,4 +1,4 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Barber } from '../../models/barber.model';
 
@@ -18,6 +18,8 @@ export class BarberCard {
   readonly barber = input.required<Barber>();
   readonly isLastVisit = input(false);
   readonly showBooking = input(true);
+
+  readonly barberPhone = computed<string>(() => this.barber().phone || '0770 426 308');
 
   // null = modal closed; number = active photo index
   readonly activePhotoIndex = signal<number | null>(null);

@@ -1533,6 +1533,67 @@ $warning-color: #f59e0b;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.apt-card__barber-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $color-accent;
+  text-decoration: none;
+  margin-top: 0.2rem;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+}
+
+.cancel-notice-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
+
+  &__text {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #cbd5e1;
+    line-height: 1.4;
+  }
+
+  &__phone {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: $color-accent;
+    font-weight: 700;
+    text-decoration: none;
+    margin-left: 0.25rem;
+    transition: color $transition-fast;
+
+    &:hover {
+      color: #fff;
+      text-decoration: underline;
+    }
+  }
+}
+
+.btn-cancel--locked {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: $color-muted !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: $color-muted !important;
+  }
+}
+
 .apt-card__rule-hint {
   font-size: 0.82rem;
   color: $color-muted;

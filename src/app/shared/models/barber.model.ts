@@ -4,6 +4,7 @@ export interface Barber {
   slug: string; // used in the direct link, e.g. /filip
   name: string;
   bio: string; // one short sentence shown on the card
+  phone?: string;
   photoUrl: string; // path inside /public, e.g. images/salon3.jpg
   specialties: string[];
   portfolio: string[]; // small preview images of their work

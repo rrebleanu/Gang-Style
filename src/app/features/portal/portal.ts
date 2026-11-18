@@ -425,6 +425,12 @@ export class Portal implements OnInit {
     return this.catalogService.canCancelAppointment(apt);
   }
 
+  getBarberPhone(barberSlug?: string): string {
+    const slug = (barberSlug || '').toLowerCase();
+    const found = this.barbers().find((b) => b.slug.toLowerCase() === slug);
+    return found?.phone || '0770 426 308';
+  }
+
   getStatusLabel(apt: AppointmentRecord): string {
     if (apt.status === 'CANCELLED') {
       return 'Anulată';
@@ -477,6 +483,15 @@ export class Portal implements OnInit {
   confirmCancel(): void {
     const target = this.appointmentToCancel();
     if (!target) {
+      return;
+    }
+
+    // Guard: Prevent online cancellation if less than 3 hours remain
+    if (!this.canCancel(target)) {
+      this.closeCancelModal();
+      this.showFeedback(
+        `Pentru anulări cu mai puțin de 3 ore înainte, te rugăm să apelezi frizerul la ${this.getBarberPhone(target.barberSlug)}.`
+      );
       return;
     }
 

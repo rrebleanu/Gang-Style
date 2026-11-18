@@ -17,6 +17,17 @@
         }
       </div>
 
+      <div class="card__phone-row">
+        <a
+          [href]="'tel:+40' + barberPhone()"
+          class="card__phone-link"
+          (click)="$event.stopPropagation()"
+          title="Apelează frizerul"
+        >
+          <span class="phone-icon">&#9742;</span> {{ barberPhone() }}
+        </a>
+      </div>
+
       @if (barber().portfolio.length > 0) {
         <div class="card__gallery-header">
           <button type="button" class="card__gallery-btn" (click)="openGallery(0, $event)">

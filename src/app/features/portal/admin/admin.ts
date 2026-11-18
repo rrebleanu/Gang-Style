@@ -397,11 +397,11 @@ export class Admin implements OnInit {
   }
 
   unblockClient(entry: BlacklistEntry): void {
-    const ok = this.catalogService.removeFromBlacklist(entry.id);
+    const ok = this.catalogService.unblockClient(entry.clientPhone || entry.id);
     if (ok) {
       this.refreshData();
       this.showFeedback(
-        `Clientul ${entry.clientName} a fost scos din Blacklist.`
+        `Clientul ${entry.clientName} a fost deblocat. Are acces din nou la programări online.`
       );
     }
   }

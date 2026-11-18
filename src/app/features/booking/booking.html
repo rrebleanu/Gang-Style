@@ -366,11 +366,31 @@
                 }
               </div>
 
+              <!-- Anti-No-Show Blacklist Shield Warning -->
+              @if (isClientPhoneBlocked()) {
+                <div class="blacklist-shield-card" role="alert">
+                  <div class="blacklist-shield-card__icon">&#9888;</div>
+                  <div class="blacklist-shield-card__content">
+                    <h3 class="blacklist-shield-card__title">Programare indisponibilă online</h3>
+                    <p class="blacklist-shield-card__desc">
+                      Te rugăm să contactezi direct salonul la nr
+                      <a href="tel:0770426308" class="blacklist-shield-card__phone">0770 426 308</a>
+                      pentru o nouă programare.
+                    </p>
+                  </div>
+                </div>
+              }
+
               <div class="step-actions">
                 <button type="button" class="btn-back" (click)="goBack()">
                   &larr; Înapoi
                 </button>
-                <button type="submit" class="btn-next">
+                <button
+                  type="submit"
+                  class="btn-next"
+                  [disabled]="isClientPhoneBlocked()"
+                  [class.btn-next--blocked]="isClientPhoneBlocked()"
+                >
                   Rezumat Programare &rarr;
                 </button>
               </div>

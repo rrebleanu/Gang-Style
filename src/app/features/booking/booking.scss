@@ -1036,3 +1036,60 @@ $error-color: #e5484d;
     transform: rotate(360deg);
   }
 }
+
+// Anti-no-show blacklist shield alert card
+.blacklist-shield-card {
+  margin: 1.25rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-left: 4px solid #ef4444;
+  border-radius: $radius;
+
+  &__icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #ef4444;
+    flex-shrink: 0;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__title {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f87171;
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: #e2e8f0;
+  }
+
+  &__phone {
+    display: inline-block;
+    color: $color-accent;
+    font-weight: 700;
+    text-decoration: underline;
+    margin-left: 0.25rem;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+}
+
+.btn-next--blocked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}

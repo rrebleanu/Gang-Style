@@ -103,6 +103,10 @@ export class Booking implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   });
 
+  // Anti-no-show blacklist shield state
+  readonly isClientPhoneBlocked = signal(false);
+  readonly blockedClientReason = signal<string | null>(null);
+
   // Step 3 reactive form with validators
   readonly clientForm = this.fb.nonNullable.group({
     lastName: ['', [Validators.required, Validators.minLength(2)]],
@@ -118,6 +122,19 @@ export class Booking implements OnInit {
     if (loggedUser?.email.includes('@')) {
       this.clientForm.controls.email.setValue(loggedUser.email);
     }
+
+    // Monitor client phone input to detect 2+ no-shows in real-time
+    this.clientForm.controls.phone.valueChanges.subscribe((rawPhone) => {
+      const digits = (rawPhone || '').replace(/\D/g, '');
+      if (digits.length >= 9) {
+        const check = this.catalogService.isClientBlocked(rawPhone);
+        this.isClientPhoneBlocked.set(check.blocked);
+        this.blockedClientReason.set(check.reason ?? null);
+      } else {
+        this.isClientPhoneBlocked.set(false);
+        this.blockedClientReason.set(null);
+      }
+    });
 
     this.route.paramMap.subscribe((params) => {
       const slug = params.get('slug') ?? '';
@@ -236,6 +253,16 @@ export class Booking implements OnInit {
       this.clientForm.markAllAsTouched();
       return;
     }
+
+    // Guard: Prevent proceeding if client has 2+ no-shows (anti-no-show shield)
+    const phone = this.clientForm.controls.phone.value;
+    const check = this.catalogService.isClientBlocked(phone);
+    if (check.blocked) {
+      this.isClientPhoneBlocked.set(true);
+      this.blockedClientReason.set(check.reason ?? null);
+      return;
+    }
+
     this.currentStep.set(4);
     this.scrollToTop();
   }
@@ -267,6 +294,16 @@ export class Booking implements OnInit {
     }
 
     const formVal = this.clientForm.getRawValue();
+
+    // Guard: Enforce anti-no-show shield (2+ no-shows client must call salon)
+    const blockCheck = this.catalogService.isClientBlocked(formVal.phone);
+    if (blockCheck.blocked) {
+      this.isClientPhoneBlocked.set(true);
+      this.blockedClientReason.set(blockCheck.reason ?? null);
+      this.currentStep.set(3);
+      this.scrollToTop();
+      return;
+    }
 
     // Persist full appointment record and mark slot as occupied
     this.catalogService.createAppointment({

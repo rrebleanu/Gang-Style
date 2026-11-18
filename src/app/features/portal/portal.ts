@@ -12,6 +12,7 @@ import {
   BarberBlockSummary,
   BarberDaySchedule,
   BarberScheduleConfig,
+  BlacklistEntry,
   ServiceItem,
   TimeSlot,
 } from '../../shared/models/service-item.model';
@@ -112,6 +113,12 @@ export class Portal implements OnInit {
   readonly selectedBarberSlug = signal<'filip' | 'sebi'>('filip');
   readonly barberAppointments = signal<AppointmentRecord[]>([]);
   readonly workingDays = signal<WorkingDayOption[]>([]);
+  readonly blacklist = signal<BlacklistEntry[]>([]);
+
+  // Blocked clients with 2+ no-shows
+  readonly blockedClients = computed<BlacklistEntry[]>(() =>
+    this.blacklist().filter((b) => b.noShowCount >= 2)
+  );
 
   // Barber table time filters
   readonly barberTimeFilter = signal<BarberTimeFilter>('TODAY');
@@ -381,6 +388,7 @@ export class Portal implements OnInit {
     const schedule = this.catalogService.getBarberSchedule(slug);
     this.barberScheduleMode.set(schedule.mode);
     this.barberCustomDays.set(schedule.days.map((d) => ({ ...d })));
+    this.blacklist.set(this.catalogService.getBlacklist());
 
     this.catalogService.fetchServicesByBarber(slug).subscribe({
       next: (services) => this.barberServices.set(services),
@@ -522,22 +530,36 @@ export class Portal implements OnInit {
       return;
     }
 
+    let isNowBlocked = false;
+    let currentNoShows = 0;
+
     // If marked as NO_SHOW, also record client in the Blacklist
     if (status === 'NO_SHOW' && apt.source !== 'BLOCKED') {
-      this.catalogService.addToBlacklist({
-        clientName: `${apt.clientLastName} ${apt.clientFirstName}`,
+      const entry = this.catalogService.addToBlacklist({
+        clientName: `${apt.clientLastName} ${apt.clientFirstName}`.trim(),
         clientPhone: apt.clientPhone,
         clientEmail: apt.clientEmail,
         reason: `Neprezentare la ${apt.barberName} pe ${apt.dateLabel} la ${apt.startTime}`,
         addedBy: apt.barberName,
       });
+      currentNoShows = entry.noShowCount;
+      if (currentNoShows >= 2) {
+        isNowBlocked = true;
+      }
     }
 
     this.refreshAllData();
 
+    if (isNowBlocked) {
+      this.showFeedback(
+        `⚠️ Clientul ${apt.clientLastName} are ${currentNoShows} neprezentări! Programările online au fost blocate automat (trebuie să sune la salon).`
+      );
+      return;
+    }
+
     const labels: Record<AppointmentRecord['status'], string> = {
       COMPLETED: 'marcată ca Finalizată',
-      NO_SHOW: 'marcată ca Neprezentare și adăugată în Blacklist',
+      NO_SHOW: `marcată ca Neprezentare (${currentNoShows}/2 neprezentări)`,
       CANCELLED:
         apt.source === 'BLOCKED'
           ? 'deblocată, iar intervalul este din nou liber pe site'
@@ -548,6 +570,35 @@ export class Portal implements OnInit {
     this.showFeedback(
       `Programarea de la ${apt.startTime} - ${apt.endTime} a fost ${labels[status]}.`
     );
+  }
+
+  // Unblocks a client who was restricted due to 2+ no-shows (e.g., after clarifying by phone)
+  unblockClient(entry: BlacklistEntry): void {
+    const ok = this.catalogService.unblockClient(entry.clientPhone || entry.id);
+    if (ok) {
+      this.refreshAllData();
+      this.showFeedback(
+        `Accesul online pentru ${entry.clientName} (${entry.clientPhone}) a fost deblocat. Clientul se poate programa din nou online.`
+      );
+    }
+  }
+
+  unblockClientByPhone(phone: string, clientName?: string): void {
+    const ok = this.catalogService.unblockClient(phone);
+    if (ok) {
+      this.refreshAllData();
+      this.showFeedback(
+        `Accesul online pentru ${clientName || phone} a fost deblocat cu succes. Clientul se poate reprograma.`
+      );
+    }
+  }
+
+  isAppointmentClientBlocked(phone: string): boolean {
+    return this.catalogService.isClientBlocked(phone).blocked;
+  }
+
+  getClientNoShows(phone: string): number {
+    return this.catalogService.isClientBlocked(phone).noShowCount;
   }
 
   // Opens the manual/phone booking modal

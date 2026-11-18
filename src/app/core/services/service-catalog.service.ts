@@ -12,6 +12,19 @@ import {
   TimeSlot,
 } from '../../shared/models/service-item.model';
 
+// Normalizes Romanian phone numbers to 10 digits starting with 0 (e.g. +40 770 426 308 -> 0770426308)
+export function normalizePhoneNumber(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('40') && digits.length === 11) {
+    return '0' + digits.slice(2);
+  }
+  if (digits.length === 9 && !digits.startsWith('0')) {
+    return '0' + digits;
+  }
+  return digits;
+}
+
 export interface ServicePackageApiPayload {
   barberSlug: string;
   name: string;
@@ -334,13 +347,16 @@ export class ServiceCatalogService {
     addedBy?: string;
   }): BlacklistEntry {
     const list = this.getBlacklist();
-    const cleanPhone = payload.clientPhone.replace(/\s+/g, '');
+    const cleanPhone = normalizePhoneNumber(payload.clientPhone);
     const existing = list.find(
-      (b) => b.clientPhone.replace(/\s+/g, '') === cleanPhone
+      (b) => normalizePhoneNumber(b.clientPhone) === cleanPhone
     );
 
     if (existing) {
-      existing.noShowCount += 1;
+      existing.noShowCount = Math.max(
+        existing.noShowCount + 1,
+        payload.noShowCount ?? 1
+      );
       existing.reason = payload.reason.trim() || existing.reason;
       this.saveBlacklist(list);
       return existing;
@@ -362,14 +378,95 @@ export class ServiceCatalogService {
     return entry;
   }
 
-  removeFromBlacklist(id: string): boolean {
-    const list = this.getBlacklist();
-    const filtered = list.filter((b) => b.id !== id);
-    if (filtered.length === list.length) {
-      return false;
+  // Checks whether a client is blocked from online booking (2 or more no-shows or active blacklist)
+  isClientBlocked(phone: string): {
+    blocked: boolean;
+    noShowCount: number;
+    reason?: string;
+  } {
+    const clean = normalizePhoneNumber(phone);
+    if (!clean || clean.length < 9) {
+      return { blocked: false, noShowCount: 0 };
     }
-    this.saveBlacklist(filtered);
-    return true;
+
+    const blacklist = this.getBlacklist();
+    const entry = blacklist.find(
+      (b) => normalizePhoneNumber(b.clientPhone) === clean
+    );
+
+    const all = this.getAllAppointments();
+    const noShowApts = all.filter(
+      (a) =>
+        normalizePhoneNumber(a.clientPhone) === clean &&
+        a.status === 'NO_SHOW'
+    );
+
+    const totalNoShows = Math.max(entry?.noShowCount ?? 0, noShowApts.length);
+
+    // If client has 2 or more no-shows, online booking is strictly blocked
+    if ((entry && entry.noShowCount >= 2) || totalNoShows >= 2) {
+      return {
+        blocked: true,
+        noShowCount: totalNoShows,
+        reason:
+          entry?.reason ||
+          `${totalNoShows} neprezentări la programare fără anulare prealabilă`,
+      };
+    }
+
+    return {
+      blocked: false,
+      noShowCount: totalNoShows,
+    };
+  }
+
+  // Unblocks a client so they can book online again (called when they clarify the situation by phone)
+  unblockClient(phoneOrId: string): boolean {
+    const clean = normalizePhoneNumber(phoneOrId);
+    let modified = false;
+
+    // 1. Remove from blacklist storage
+    const blacklist = this.getBlacklist();
+    const filtered = blacklist.filter((b) => {
+      const match =
+        b.id === phoneOrId ||
+        (clean.length >= 9 && normalizePhoneNumber(b.clientPhone) === clean);
+      if (match) {
+        modified = true;
+      }
+      return !match;
+    });
+
+    if (modified) {
+      this.saveBlacklist(filtered);
+    }
+
+    // 2. Clear NO_SHOW status on past appointments for this client phone so penalty count is reset
+    if (clean.length >= 9) {
+      const all = this.getAllAppointments();
+      let aptModified = false;
+      for (const apt of all) {
+        if (
+          normalizePhoneNumber(apt.clientPhone) === clean &&
+          apt.status === 'NO_SHOW'
+        ) {
+          apt.status = 'CANCELLED';
+          apt.notes =
+            (apt.notes ? apt.notes + ' | ' : '') + 'Deblocat telefonic de salon';
+          aptModified = true;
+          modified = true;
+        }
+      }
+      if (aptModified) {
+        this.saveAppointments(all);
+      }
+    }
+
+    return modified;
+  }
+
+  removeFromBlacklist(id: string): boolean {
+    return this.unblockClient(id);
   }
 
   private saveServices(list: ServiceItem[]): void {
@@ -596,8 +693,15 @@ export class ServiceCatalogService {
   ): AppointmentRecord {
     const bookingSource = payload.source ?? 'ONLINE';
 
-    // Enforce 30-day rolling booking horizon limit for online client bookings
+    // Enforce 30-day rolling booking horizon and anti-no-show blacklist shield for online client bookings
     if (bookingSource === 'ONLINE') {
+      const blockCheck = this.isClientBlocked(payload.clientPhone);
+      if (blockCheck.blocked) {
+        throw new Error(
+          'Te rugăm să contactezi direct salonul la nr 0770426308 pentru o nouă programare.'
+        );
+      }
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 

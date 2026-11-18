@@ -217,6 +217,41 @@
                         &#9742; +40 {{ apt.clientPhone }}
                       </a>
                     </div>
+
+                    <div class="client-card__actions">
+                      @if (apt.status === 'CONFIRMED') {
+                        <button
+                          type="button"
+                          class="card-status-btn card-status-btn--done"
+                          title="Marchează programarea ca finalizată"
+                          (click)="setBarberAppointmentStatus(apt, 'COMPLETED')"
+                        >
+                          &#10003; Finalizat
+                        </button>
+                        <button
+                          type="button"
+                          class="card-status-btn card-status-btn--noshow"
+                          title="Marchează clientul ca neprezentat (No-Show)"
+                          (click)="setBarberAppointmentStatus(apt, 'NO_SHOW')"
+                        >
+                          &#9888; Neprezentat
+                        </button>
+                      } @else if (apt.status === 'NO_SHOW') {
+                        <span class="card-tag card-tag--noshow">&#9888; Neprezentare</span>
+                        @if (isAppointmentClientBlocked(apt.clientPhone)) {
+                          <button
+                            type="button"
+                            class="card-status-btn card-status-btn--unblock"
+                            title="Deblochează accesul online dacă clientul a sunat"
+                            (click)="unblockClientByPhone(apt.clientPhone, apt.clientLastName + ' ' + apt.clientFirstName)"
+                          >
+                            &#128275; Deblochează
+                          </button>
+                        }
+                      } @else if (apt.status === 'COMPLETED') {
+                        <span class="card-tag card-tag--done">&#10003; Finalizată</span>
+                      }
+                    </div>
                   </div>
                 </div>
               }
@@ -490,6 +525,66 @@
               </div>
             }
           </div>
+        </section>
+
+        <!-- Blocked clients (Anti-No-Show Blacklist) management -->
+        <section class="barber-blacklist-section" aria-labelledby="barber-blacklist-heading">
+          <div class="appointments-header">
+            <div>
+              <div class="blacklist-section-badge">
+                <span class="blacklist-section-badge__icon">&#128737;</span>
+                <span class="blacklist-section-badge__text">Anti-No-Show Shield</span>
+              </div>
+              <h2 id="barber-blacklist-heading" class="appointments-header__title">
+                Clienți Blocați pentru Neprezentări
+              </h2>
+              <p class="appointments-header__subtitle">
+                Clienții care au 2 sau mai multe neprezentări sunt restricționați automat de la rezervările online și îndrumați să contacteze salonul la <strong>0770 426 308</strong>. Dacă vorbesc cu tine telefonic, le poți debloca accesul instant cu un singur click.
+              </p>
+            </div>
+          </div>
+
+          @if (blockedClients().length > 0) {
+            <div class="blocked-clients-grid">
+              @for (client of blockedClients(); track client.id) {
+                <div class="blocked-client-card">
+                  <div class="blocked-client-card__head">
+                    <div class="blocked-client-card__identity">
+                      <span class="blocked-client-card__icon">&#9888;</span>
+                      <div>
+                        <strong class="blocked-client-card__name">{{ client.clientName }}</strong>
+                        <span class="blocked-client-card__badge">{{ client.noShowCount }} Neprezentări</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn-unblock-gold"
+                      title="Deblochează accesul online pentru client"
+                      (click)="unblockClient(client)"
+                    >
+                      &#128275; Deblochează Acces Online
+                    </button>
+                  </div>
+
+                  <div class="blocked-client-card__details">
+                    <a [href]="'tel:+40' + client.clientPhone" class="blocked-client-card__phone">
+                      &#9742; +40 {{ client.clientPhone }}
+                    </a>
+                    @if (client.reason) {
+                      <p class="blocked-client-card__reason">{{ client.reason }}</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="empty-blacklist-box">
+              <span class="empty-blacklist-box__icon">&#10003;</span>
+              <p class="empty-blacklist-box__text">
+                Niciun client blocat în acest moment. Toți clienții salonului au acces la programările online.
+              </p>
+            </div>
+          }
         </section>
       }
     }

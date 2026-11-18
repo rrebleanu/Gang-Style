@@ -1,8 +1,9 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { BarberService } from '../../core/services/barber.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
 import { TwoFactorModal } from '../../shared/components/two-factor-modal/two-factor-modal';
 import { Barber } from '../../shared/models/barber.model';
@@ -42,7 +43,18 @@ export class Portal implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly catalogService = inject(ServiceCatalogService);
   private readonly barberService = inject(BarberService);
+  readonly notificationService = inject(NotificationService);
   readonly authService = inject(AuthService);
+
+  constructor() {
+    // Automatically re-sync appointment data when a new booking notification arrives
+    effect(() => {
+      const toast = this.notificationService.activeToast();
+      if (toast && toast.barberSlug === this.selectedBarberSlug()) {
+        this.refreshAllData();
+      }
+    });
+  }
 
   // Active dashboard view mode: 'CLIENT' or 'BARBER'
   readonly viewMode = signal<DashboardViewMode>('CLIENT');
@@ -340,6 +352,7 @@ export class Portal implements OnInit {
     // Set view strictly based on logged-in user's role
     if (this.authService.isBarber(user)) {
       this.viewMode.set('BARBER');
+      this.notificationService.requestNotificationPermission();
       if (user && user.email.includes('sebi')) {
         this.selectedBarberSlug.set('sebi');
       } else {
@@ -347,6 +360,7 @@ export class Portal implements OnInit {
       }
     } else if (this.authService.isAdmin(user)) {
       this.viewMode.set('BARBER');
+      this.notificationService.requestNotificationPermission();
       this.selectedBarberSlug.set('filip');
     } else {
       this.viewMode.set('CLIENT');
@@ -359,6 +373,7 @@ export class Portal implements OnInit {
     const user = this.authService.currentUser();
     const email = user?.email ?? 'demo@gangstyle.ro';
     const slug = this.selectedBarberSlug();
+    this.notificationService.setMonitoredBarber(slug);
     this.appointments.set(this.catalogService.getAppointmentsByEmail(email));
     this.barberAppointments.set(this.catalogService.getAppointmentsByBarber(slug));
     this.barberActiveBlocks.set(this.catalogService.getActiveBlocksForBarber(slug));

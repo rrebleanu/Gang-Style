@@ -56,6 +56,33 @@
       </div>
     }
 
+    <!-- Real-time In-App Notification Toast for New Bookings -->
+    @if (notificationService.activeToast(); as toast) {
+      <aside class="in-app-toast" role="status" aria-live="assertive">
+        <div class="in-app-toast__badge">💈</div>
+        <div class="in-app-toast__content">
+          <div class="in-app-toast__header">
+            <span class="in-app-toast__tag">GANG STYLE &middot; ȚI-A MAI INTRAT O PROGRAMARE!</span>
+            <span class="in-app-toast__time">{{ toast.timeLabel }}</span>
+          </div>
+          <div class="in-app-toast__client">
+            <strong>{{ toast.clientName }}</strong> &middot; {{ toast.serviceName }}
+          </div>
+          <div class="in-app-toast__meta">
+            {{ toast.dateLabel }} &middot; Frizer: <strong>{{ toast.barberName }}</strong>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="in-app-toast__close"
+          aria-label="Închide"
+          (click)="notificationService.dismissToast()"
+        >
+          &times;
+        </button>
+      </aside>
+    }
+
     <!-- Barber dashboard view -->
     @if (viewMode() === 'BARBER') {
       @if (currentBarber(); as barber) {

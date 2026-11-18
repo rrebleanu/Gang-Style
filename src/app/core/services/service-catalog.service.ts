@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { forkJoin, Observable, catchError, of, tap, throwError, timeout } from 'rxjs';
+import { NotificationService } from './notification.service';
 import {
   AppointmentRecord,
   BarberBlockSummary,
@@ -23,6 +24,7 @@ export interface ServicePackageApiPayload {
 @Injectable({ providedIn: 'root' })
 export class ServiceCatalogService {
   private readonly http = inject(HttpClient);
+  private readonly notificationService = inject(NotificationService);
   private readonly servicesApiUrl = ServiceCatalogService.resolveApiUrl();
   private readonly storageKey = 'gangstyle_appointments_v3';
 
@@ -612,6 +614,7 @@ export class ServiceCatalogService {
     const all = this.getAllAppointments();
     all.unshift(record);
     this.saveAppointments(all);
+    this.notificationService.broadcastNewAppointment(record);
 
     return record;
   }

@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -12,11 +14,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 
-/**
- * Filter that intercepts every HTTP request, checks for 'Authorization: Bearer <token>',
- * validates the JWT, and populates Spring's SecurityContextHolder.
- */
+// Filter that validates Bearer JWTs and populates Spring SecurityContextHolder.
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -36,23 +37,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        // 1. Check if the Authorization header contains a Bearer token
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7).trim();
 
-            // 2. Validate token signature and expiration
             if (jwtUtil.validateToken(token)) {
                 String email = jwtUtil.extractEmail(token);
 
-                // 3. If not already authenticated in this thread, populate SecurityContext
                 if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                    // Pre-auth tokens only receive ROLE_PRE_AUTH until 2FA code verification succeeds
+                    Collection<? extends GrantedAuthority> authorities = jwtUtil.isPreAuthToken(token)
+                            ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_PRE_AUTH"))
+                            : userDetails.getAuthorities();
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
                                     null,
-                                    userDetails.getAuthorities()
+                                    authorities
                             );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
@@ -61,7 +64,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // 4. Continue the filter chain
         filterChain.doFilter(request, response);
     }
 }

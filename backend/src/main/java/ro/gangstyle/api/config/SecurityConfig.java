@@ -63,8 +63,11 @@ public class SecurityConfig {
                         // Public authentication and read endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/2fa/verify", "/auth/2fa/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/barbers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
+                        // 2FA configuration restricted to fully authenticated accounts
+                        .requestMatchers("/api/auth/2fa/**", "/auth/2fa/**").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         // Service management restricted to staff roles
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/services/**").hasAnyRole("BARBER", "ADMIN")

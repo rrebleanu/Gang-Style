@@ -46,6 +46,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ApiErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex, HttpServletRequest request) {
+        log.warn("Rate limit exceeded on {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse error = new ApiErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
         // Silently return 404 for missing static resources like favicon.ico without logging full stacktrace

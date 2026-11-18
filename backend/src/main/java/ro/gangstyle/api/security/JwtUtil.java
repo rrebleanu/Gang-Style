@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class JwtUtil {
 
+    private static final long PRE_AUTH_EXPIRATION_MS = 300_000L; // 5 minutes for 2FA verification
+
     private final SecretKey key;
     private final long expirationMs;
     private final Set<String> invalidatedTokens = ConcurrentHashMap.newKeySet();
@@ -29,7 +31,7 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    // Creates a signed JWT containing user email as subject and role as claim.
+    // Creates a full signed JWT containing user email as subject and role as claim.
     public String generateToken(User user) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
@@ -38,6 +40,23 @@ public class JwtUtil {
                 .subject(user.getEmail())
                 .claim("role", user.getRole())
                 .claim("displayName", user.getDisplayName())
+                .claim("preAuth", false)
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(key)
+                .compact();
+    }
+
+    // Creates a temporary pre-authentication token for users who still need to verify their 2FA code.
+    public String generatePreAuthToken(User user) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + PRE_AUTH_EXPIRATION_MS);
+
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claim("role", "ROLE_PRE_AUTH")
+                .claim("displayName", user.getDisplayName())
+                .claim("preAuth", true)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -52,7 +71,19 @@ public class JwtUtil {
         return getClaims(token).get("role", String.class);
     }
 
-    // Marks a token as revoked on logout.
+    // Checks if the token represents an incomplete 2FA login state.
+    public boolean isPreAuthToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+            Boolean preAuth = claims.get("preAuth", Boolean.class);
+            String role = claims.get("role", String.class);
+            return Boolean.TRUE.equals(preAuth) || "ROLE_PRE_AUTH".equals(role);
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    // Marks a token as revoked on logout or after 2FA exchange.
     public void invalidateToken(String token) {
         if (token != null && !token.isBlank()) {
             invalidatedTokens.add(token.trim());

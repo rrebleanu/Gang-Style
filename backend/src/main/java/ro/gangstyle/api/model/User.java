@@ -18,6 +18,8 @@ public class User {
     private String displayName;
     private String phone;
     private String role; // CLIENT, BARBER, ADMIN
+    private boolean twoFactorEnabled = false;
+    private String twoFactorSecret;
     private Instant createdAt = Instant.now();
 
     public User() {}
@@ -57,6 +59,12 @@ public class User {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public boolean isTwoFactorEnabled() { return twoFactorEnabled; }
+    public void setTwoFactorEnabled(boolean twoFactorEnabled) { this.twoFactorEnabled = twoFactorEnabled; }
+
+    public String getTwoFactorSecret() { return twoFactorSecret; }
+    public void setTwoFactorSecret(String twoFactorSecret) { this.twoFactorSecret = twoFactorSecret; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

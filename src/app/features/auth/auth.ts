@@ -86,6 +86,10 @@ export class Auth {
     this.authService.loginApi(identifier, password).subscribe({
       next: (user) => {
         this.isSubmitting.set(false);
+        if (user.requiresTwoFactor || user.role === 'ROLE_PRE_AUTH' || user.role === 'PRE_AUTH') {
+          this.router.navigate(['/verify-2fa']);
+          return;
+        }
         this.authSuccessMessage.set(`Bine ai revenit, ${user.displayName}!`);
         this.redirectAfterAuth(user.role);
       },

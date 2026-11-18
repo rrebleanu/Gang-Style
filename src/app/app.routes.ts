@@ -31,10 +31,15 @@ export const routes: Routes = [
       import('./features/public/contact/contact').then((m) => m.Contact),
   },
 
-  // Authentication page
+  // Authentication pages
   {
     path: 'login',
     loadComponent: () => import('./features/auth/auth').then((m) => m.Auth),
+  },
+  {
+    path: 'verify-2fa',
+    loadComponent: () =>
+      import('./features/auth/verify-2fa/verify-2fa').then((m) => m.VerifyTwoFactor),
   },
 
   // Protected routes (Barber, Client & Admin)

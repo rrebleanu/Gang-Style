@@ -93,6 +93,32 @@ $warning-color: #f59e0b;
   }
 }
 
+.portal-top__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.btn-2fa-top {
+  background: rgba($color-accent, 0.12);
+  border: 1px solid rgba($color-accent, 0.4);
+  color: $color-accent;
+  padding: 0.45rem 0.85rem;
+  border-radius: $radius;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: rgba($color-accent, 0.25);
+    border-color: $color-accent;
+  }
+}
+
 .btn-logout-top {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.18);

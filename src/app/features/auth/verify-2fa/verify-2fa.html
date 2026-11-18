@@ -1,0 +1,66 @@
+<main class="verify-page">
+  @if (successMessage(); as msg) {
+    <div class="verify-banner" role="status">
+      &#10003; {{ msg }}
+    </div>
+  }
+
+  @if (errorMessage(); as errMsg) {
+    <div class="verify-banner verify-banner--error" role="alert">
+      &#9888; {{ errMsg }}
+    </div>
+  }
+
+  <section class="verify-card" aria-labelledby="verify-title">
+    <div class="verify-card__badge">PASUL 2 DIN 2 &middot; SECURITATE 2FA</div>
+    <h1 id="verify-title" class="verify-card__title">Verificare în Doi Pași</h1>
+    <p class="verify-card__subtitle">
+      Deschide aplicația <strong>Google Authenticator</strong> pe telefon și introdu codul din 6 cifre
+      pentru contul
+      <strong>{{ authService.pendingTwoFactorUser()?.email || 'selectat' }}</strong>.
+    </p>
+
+    <form [formGroup]="verifyForm" (ngSubmit)="onVerifySubmit()" class="verify-form" novalidate>
+      <div class="verify-field">
+        <label for="totp-code" class="verify-field__label">
+          Cod TOTP din 6 cifre <span class="required">*</span>
+        </label>
+        <input
+          id="totp-code"
+          type="text"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          maxlength="6"
+          placeholder="000000"
+          formControlName="code"
+          (input)="onCodeInput($event)"
+          class="verify-field__input"
+          [class.verify-field__input--invalid]="hasCodeError()"
+        />
+        @if (hasCodeError()) {
+          <p class="verify-field__error">
+            Te rugăm să introduci codul format din exact 6 cifre.
+          </p>
+        }
+      </div>
+
+      <div class="verify-actions">
+        <button
+          type="submit"
+          class="btn-verify"
+          [disabled]="isSubmitting()"
+        >
+          {{ isSubmitting() ? 'Se verifică...' : 'Verifică și Conectează-te' }}
+        </button>
+
+        <button
+          type="button"
+          class="btn-back"
+          (click)="backToLogin()"
+        >
+          &larr; Înapoi la Autentificare
+        </button>
+      </div>
+    </form>
+  </section>
+</main>

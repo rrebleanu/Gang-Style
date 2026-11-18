@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { ServiceCatalogService } from '../../../core/services/service-catalog.service';
+import { TwoFactorModal } from '../../../shared/components/two-factor-modal/two-factor-modal';
 import {
   AppointmentRecord,
   BlacklistEntry,
@@ -17,7 +18,7 @@ export type AdminBarberFilter = 'ALL' | 'filip' | 'sebi';
 // 3. Global Salon KPIs
 @Component({
   selector: 'app-admin',
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule, TwoFactorModal],
   templateUrl: './admin.html',
   styleUrl: './admin.scss',
   host: {
@@ -51,6 +52,7 @@ export class Admin implements OnInit {
   // Blacklist modal state
   readonly blacklistModalOpen = signal(false);
   readonly blacklistFormSubmitted = signal(false);
+  readonly twoFactorModalOpen = signal(false);
 
   // Helper date generators for filtering
   private toIsoDate(d: Date): string {
@@ -409,6 +411,19 @@ export class Admin implements OnInit {
     this.closeDeleteServiceModal();
     this.closeBlacklistModal();
     this.closeDeleteModal();
+    this.twoFactorModalOpen.set(false);
+  }
+
+  openTwoFactorModal(): void {
+    this.twoFactorModalOpen.set(true);
+  }
+
+  closeTwoFactorModal(): void {
+    this.twoFactorModalOpen.set(false);
+  }
+
+  onTwoFactorStatusChanged(msg: string): void {
+    this.showFeedback(msg);
   }
 
   logout(): void {

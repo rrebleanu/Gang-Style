@@ -1,0 +1,140 @@
+@if (isOpen()) {
+  <div class="tfa-backdrop" (click)="close()">
+    <div
+      class="tfa-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tfa-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="tfa-modal__head">
+        <div>
+          <span class="tfa-modal__tag">Protecție Cont &middot; Autentificare în Doi Pași</span>
+          <h3 id="tfa-modal-title" class="tfa-modal__title">
+            Siguranță Cont (Cod de pe Telefon)
+          </h3>
+        </div>
+        <button
+          type="button"
+          class="tfa-modal__close"
+          aria-label="Închide fereastra"
+          (click)="close()"
+        >
+          &#10005;
+        </button>
+      </div>
+
+      @if (errorMessage(); as errMsg) {
+        <div class="tfa-error" role="alert">
+          &#9888; {{ errMsg }}
+        </div>
+      }
+
+      @if (isLoading()) {
+        <div class="tfa-loading">
+          Se încarcă configurarea de securitate...
+        </div>
+      } @else if (twoFactorEnabled()) {
+        <div class="tfa-active-box">
+          <div class="tfa-active-badge">
+            &#10003; Autentificarea în 2 Pași este ACTIVĂ pe acest cont
+          </div>
+          <p class="tfa-desc">
+            La fiecare conectare nouă ți se va solicita codul din 6 cifre din aplicația
+            <strong>Google Authenticator</strong>. Dacă dorești să o dezactivezi, introdu codul
+            curent mai jos:
+          </p>
+
+          <form [formGroup]="codeForm" (ngSubmit)="submitDisable()" class="tfa-form" novalidate>
+            <label for="disable-totp-code" class="tfa-label">
+              Codul actual din 6 cifre (pentru dezactivare)
+            </label>
+            <input
+              id="disable-totp-code"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="000000"
+              formControlName="code"
+              (input)="onCodeInput($event)"
+              class="tfa-code-input"
+            />
+
+            <div class="tfa-actions">
+              <button type="button" class="btn-tfa-cancel" (click)="close()">
+                Închide
+              </button>
+              <button
+                type="submit"
+                class="btn-tfa-danger"
+                [disabled]="isSubmitting() || codeForm.invalid"
+              >
+                {{ isSubmitting() ? 'Se dezactivează...' : 'Dezactivează Autentificarea în 2 Pași' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      } @else {
+        @if (setupData(); as setup) {
+          <div class="tfa-setup-body">
+            <p class="tfa-desc">
+              <strong>1. Scanează codul QR</strong> cu aplicația
+              <strong>Google Authenticator</strong> (sau introdu cheia manual dacă ești pe telefon):
+            </p>
+
+            <div class="tfa-qr-wrap">
+              <img
+                [src]="setup.qrCodeDataUrl"
+                alt="Cod QR pentru Google Authenticator"
+                class="tfa-qr-img"
+              />
+            </div>
+
+            <div class="tfa-secret-box">
+              <span class="tfa-secret-box__label">Cheie configurare manuală:</span>
+              <div class="tfa-secret-box__row">
+                <code class="tfa-secret-box__code">{{ setup.secret }}</code>
+                <button
+                  type="button"
+                  class="btn-copy-secret"
+                  (click)="copySecretKey()"
+                >
+                  {{ copiedSecret() ? '✓ Copiat' : 'Copiază cheia' }}
+                </button>
+              </div>
+            </div>
+
+            <form [formGroup]="codeForm" (ngSubmit)="submitEnable()" class="tfa-form" novalidate>
+              <label for="enable-totp-code" class="tfa-label">
+                <strong>2. Introdu codul din 6 cifre</strong> generat în aplicație pentru confirmare:
+              </label>
+              <input
+                id="enable-totp-code"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="000000"
+                formControlName="code"
+                (input)="onCodeInput($event)"
+                class="tfa-code-input"
+              />
+
+              <div class="tfa-actions">
+                <button type="button" class="btn-tfa-cancel" (click)="close()">
+                  Anulează
+                </button>
+                <button
+                  type="submit"
+                  class="btn-tfa-confirm"
+                  [disabled]="isSubmitting() || codeForm.invalid"
+                >
+                  {{ isSubmitting() ? 'Se activează...' : 'Activează Autentificarea în 2 Pași' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}

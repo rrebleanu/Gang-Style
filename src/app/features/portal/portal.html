@@ -36,9 +36,16 @@
         </div>
       }
 
-      <button type="button" class="btn-logout-top" (click)="logout()">
-        Deconectare
-      </button>
+      <div class="portal-top__actions">
+        @if (authService.isAdmin()) {
+          <button type="button" class="btn-2fa-top" (click)="openTwoFactorModal()">
+            {{ authService.currentUser()?.twoFactorEnabled ? '✓ Siguranță Cont (Activ)' : 'Siguranță Cont' }}
+          </button>
+        }
+        <button type="button" class="btn-logout-top" (click)="logout()">
+          Deconectare
+        </button>
+      </div>
     </div>
 
     <!-- Shared feedback banner -->
@@ -947,3 +954,9 @@
     </div>
   </div>
 }
+
+<app-two-factor-modal
+  [isOpen]="twoFactorModalOpen()"
+  (closed)="closeTwoFactorModal()"
+  (statusChanged)="onTwoFactorStatusChanged($event)"
+/>

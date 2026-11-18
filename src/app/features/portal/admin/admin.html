@@ -48,6 +48,13 @@
           >
             + Adaugă în Blacklist
           </button>
+          <button
+            type="button"
+            class="btn-outline-gold"
+            (click)="openTwoFactorModal()"
+          >
+            {{ authService.currentUser()?.twoFactorEnabled ? '✓ Siguranță Cont (Activ)' : 'Siguranță Cont' }}
+          </button>
         </div>
       </div>
 
@@ -653,3 +660,9 @@
     </div>
   </div>
 }
+
+<app-two-factor-modal
+  [isOpen]="twoFactorModalOpen()"
+  (closed)="closeTwoFactorModal()"
+  (statusChanged)="onTwoFactorStatusChanged($event)"
+/>

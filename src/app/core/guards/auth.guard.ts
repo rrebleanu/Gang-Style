@@ -2,13 +2,17 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-// Protects routes that require an authenticated user.
+// Protects routes that require a fully authenticated user session.
 export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
   if (authService.isLoggedIn()) {
     return true;
+  }
+
+  if (authService.isPreAuth()) {
+    return router.createUrlTree(['/verify-2fa']);
   }
 
   return router.createUrlTree(['/login']);
@@ -18,6 +22,10 @@ export const authGuard: CanActivateFn = () => {
 export const adminGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
+
+  if (authService.isPreAuth()) {
+    return router.createUrlTree(['/verify-2fa']);
+  }
 
   if (!authService.isLoggedIn()) {
     return router.createUrlTree(['/login']);

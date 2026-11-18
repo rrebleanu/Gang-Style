@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { BarberService } from '../../core/services/barber.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
+import { TwoFactorModal } from '../../shared/components/two-factor-modal/two-factor-modal';
 import { Barber } from '../../shared/models/barber.model';
 import {
   AppointmentRecord,
@@ -26,7 +27,7 @@ export interface WorkingDayOption {
 // 2. Barber Dashboard for Filip & Sebi (table with day filter & search, add phone booking, block interval/day off, status actions)
 @Component({
   selector: 'app-portal',
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule, TwoFactorModal],
   templateUrl: './portal.html',
   styleUrl: './portal.scss',
   host: {
@@ -45,6 +46,7 @@ export class Portal implements OnInit {
 
   // Shared feedback banner message
   readonly feedbackMessage = signal<string | null>(null);
+  readonly twoFactorModalOpen = signal(false);
 
   // Client dashboard state and computed signals
   readonly appointments = signal<AppointmentRecord[]>([]);
@@ -813,6 +815,19 @@ export class Portal implements OnInit {
     this.closeBlockModal();
     this.closeBarberServiceModal();
     this.closeDeleteBarberServiceModal();
+    this.twoFactorModalOpen.set(false);
+  }
+
+  openTwoFactorModal(): void {
+    this.twoFactorModalOpen.set(true);
+  }
+
+  closeTwoFactorModal(): void {
+    this.twoFactorModalOpen.set(false);
+  }
+
+  onTwoFactorStatusChanged(msg: string): void {
+    this.showFeedback(msg);
   }
 
   logout(): void {

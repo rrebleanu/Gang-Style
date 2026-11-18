@@ -1,14 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { catchError, map, Observable, of, throwError, timeout } from 'rxjs';
+import { catchError, map, Observable, of, tap, throwError, timeout } from 'rxjs';
 
 export type UserRole =
   | 'CLIENT'
   | 'BARBER'
   | 'ADMIN'
+  | 'PRE_AUTH'
   | 'ROLE_CLIENT'
   | 'ROLE_BARBER'
-  | 'ROLE_ADMIN';
+  | 'ROLE_ADMIN'
+  | 'ROLE_PRE_AUTH';
 
 export interface AuthUser {
   email: string;
@@ -16,6 +18,8 @@ export interface AuthUser {
   role: UserRole;
   token?: string;
   phone?: string;
+  requiresTwoFactor?: boolean;
+  twoFactorEnabled?: boolean;
 }
 
 export interface AuthResponsePayload {
@@ -24,17 +28,28 @@ export interface AuthResponsePayload {
   displayName: string;
   phone?: string;
   role: UserRole;
+  requiresTwoFactor?: boolean;
+  twoFactorEnabled?: boolean;
 }
 
-// Manages user authentication, JWT token persistence, and role checks.
+export interface TwoFactorSetupPayload {
+  secret: string;
+  otpAuthUri: string;
+  qrCodeDataUrl: string;
+  twoFactorEnabled: boolean;
+}
+
+// Manages user authentication, multi-step 2FA state, JWT persistence, and role checks.
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly authApiUrl = AuthService.resolveApiUrl();
   private readonly storageKey = 'gangstyle_auth_user';
   private readonly tokenKey = 'gangstyle_jwt_token';
+  private readonly pendingTwoFactorKey = 'gangstyle_pending_2fa';
 
   readonly currentUser = signal<AuthUser | null>(this.loadSession());
+  readonly pendingTwoFactorUser = signal<AuthUser | null>(this.loadPendingTwoFactor());
 
   private static resolveApiUrl(): string {
     const host =
@@ -44,16 +59,26 @@ export class AuthService {
     return `http://${host}:8080/api/auth`;
   }
 
-  // Checks if there is an authenticated user session.
+  // Checks if there is a fully authenticated user session.
   isLoggedIn(): boolean {
-    return this.currentUser() !== null;
+    const user = this.currentUser();
+    return user !== null && !user.requiresTwoFactor && user.role !== 'ROLE_PRE_AUTH';
   }
 
-  // Returns the active JWT token for the HTTP interceptor.
+  // Checks if the user is in the intermediate 2FA pre-authentication state.
+  isPreAuth(): boolean {
+    return this.pendingTwoFactorUser() !== null;
+  }
+
+  // Returns the active JWT or temporary pre-auth token for the HTTP interceptor.
   getToken(): string | null {
     const sessionToken = this.currentUser()?.token;
     if (sessionToken) {
       return sessionToken;
+    }
+    const preAuthToken = this.pendingTwoFactorUser()?.token;
+    if (preAuthToken) {
+      return preAuthToken;
     }
     if (typeof window !== 'undefined' && window.localStorage) {
       return window.localStorage.getItem(this.tokenKey);
@@ -75,7 +100,7 @@ export class AuthService {
     return role === 'ADMIN' || role === 'ROLE_ADMIN';
   }
 
-  // Authenticates the user against POST /api/auth/login and stores the JWT session.
+  // Authenticates user credentials and transitions to either pre-auth 2FA or full session.
   loginApi(identifier: string, password: string): Observable<AuthUser> {
     const email = this.normalizeIdentifierToEmail(identifier);
 
@@ -83,7 +108,7 @@ export class AuthService {
       .post<AuthResponsePayload>(`${this.authApiUrl}/login`, { email, password })
       .pipe(
         timeout(2500),
-        map((res) => this.mapAndSaveAuthResponse(res)),
+        map((res) => this.handleLoginTransition(res)),
         catchError((err) => {
           const demoFallbackPass = this.getSeededDemoPassword(email);
           if (err?.status === 401 && demoFallbackPass && password !== demoFallbackPass) {
@@ -92,7 +117,7 @@ export class AuthService {
                 email,
                 password: demoFallbackPass,
               })
-              .pipe(map((res) => this.mapAndSaveAuthResponse(res)));
+              .pipe(map((res) => this.handleLoginTransition(res)));
           }
           if (err?.status === 0 || err?.name === 'TimeoutError') {
             return of(this.login(email, password));
@@ -100,6 +125,73 @@ export class AuthService {
           return throwError(() => err);
         })
       );
+  }
+
+  // Completes the second step of login by verifying the 6-digit TOTP code.
+  verifyTwoFactorApi(code: string): Observable<AuthUser> {
+    const pending = this.pendingTwoFactorUser();
+    const tempToken = pending?.token || '';
+
+    return this.http
+      .post<AuthResponsePayload>(`${this.authApiUrl}/2fa/verify`, {
+        code: code.trim(),
+        tempToken,
+      })
+      .pipe(
+        timeout(3500),
+        map((res) => {
+          this.clearPendingTwoFactor();
+          return this.mapAndSaveAuthResponse(res);
+        })
+      );
+  }
+
+  // Generates a new TOTP secret and QR code for activating 2FA.
+  setupTwoFactorApi(): Observable<TwoFactorSetupPayload> {
+    return this.http
+      .post<TwoFactorSetupPayload>(`${this.authApiUrl}/2fa/setup`, {})
+      .pipe(timeout(3500));
+  }
+
+  // Enables 2FA on the current account after verifying a 6-digit code.
+  enableTwoFactorApi(code: string): Observable<{ message: string; twoFactorEnabled: boolean }> {
+    return this.http
+      .post<{ message: string; twoFactorEnabled: boolean }>(`${this.authApiUrl}/2fa/enable`, {
+        code: code.trim(),
+      })
+      .pipe(
+        timeout(3500),
+        tap(() => this.updateTwoFactorFlag(true))
+      );
+  }
+
+  // Disables 2FA on the current account after verifying a 6-digit code.
+  disableTwoFactorApi(code: string): Observable<{ message: string; twoFactorEnabled: boolean }> {
+    return this.http
+      .post<{ message: string; twoFactorEnabled: boolean }>(`${this.authApiUrl}/2fa/disable`, {
+        code: code.trim(),
+      })
+      .pipe(
+        timeout(3500),
+        tap(() => this.updateTwoFactorFlag(false))
+      );
+  }
+
+  // Fetches the current 2FA status from the backend.
+  getTwoFactorStatusApi(): Observable<{ email: string; role: string; twoFactorEnabled: boolean }> {
+    return this.http
+      .get<{ email: string; role: string; twoFactorEnabled: boolean }>(
+        `${this.authApiUrl}/2fa/status`
+      )
+      .pipe(
+        timeout(3500),
+        tap((status) => this.updateTwoFactorFlag(status.twoFactorEnabled))
+      );
+  }
+
+  // Cancels an incomplete 2FA login flow.
+  cancelPendingTwoFactor(): void {
+    this.clearPendingTwoFactor();
   }
 
   // Registers a new client account via POST /api/auth/register and logs in automatically.
@@ -144,6 +236,8 @@ export class AuthService {
       email: clean,
       displayName,
       role,
+      requiresTwoFactor: false,
+      twoFactorEnabled: false,
     };
 
     this.saveSession(user);
@@ -159,6 +253,8 @@ export class AuthService {
       email: cleanEmail,
       displayName,
       role: 'ROLE_CLIENT',
+      requiresTwoFactor: false,
+      twoFactorEnabled: false,
     };
 
     this.saveSession(user);
@@ -175,10 +271,35 @@ export class AuthService {
     }
 
     this.currentUser.set(null);
+    this.clearPendingTwoFactor();
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.removeItem(this.storageKey);
       window.localStorage.removeItem(this.tokenKey);
     }
+  }
+
+  private handleLoginTransition(res: AuthResponsePayload): AuthUser {
+    if (res.requiresTwoFactor || res.role === 'ROLE_PRE_AUTH' || res.role === 'PRE_AUTH') {
+      const preAuthUser: AuthUser = {
+        email: res.email,
+        displayName: res.displayName,
+        role: 'ROLE_PRE_AUTH',
+        token: res.token,
+        phone: res.phone,
+        requiresTwoFactor: true,
+        twoFactorEnabled: true,
+      };
+      this.currentUser.set(null);
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(this.storageKey);
+        window.localStorage.removeItem(this.tokenKey);
+      }
+      this.savePendingTwoFactor(preAuthUser);
+      return preAuthUser;
+    }
+
+    this.clearPendingTwoFactor();
+    return this.mapAndSaveAuthResponse(res);
   }
 
   private mapAndSaveAuthResponse(res: AuthResponsePayload): AuthUser {
@@ -188,9 +309,19 @@ export class AuthService {
       role: res.role,
       token: res.token,
       phone: res.phone,
+      requiresTwoFactor: false,
+      twoFactorEnabled: Boolean(res.twoFactorEnabled),
     };
     this.saveSession(user);
     return user;
+  }
+
+  private updateTwoFactorFlag(enabled: boolean): void {
+    const current = this.currentUser();
+    if (current) {
+      const updated: AuthUser = { ...current, twoFactorEnabled: enabled };
+      this.saveSession(updated);
+    }
   }
 
   private normalizeIdentifierToEmail(identifier: string): string {
@@ -245,6 +376,32 @@ export class AuthService {
     }
     try {
       const raw = window.localStorage.getItem(this.storageKey);
+      return raw ? (JSON.parse(raw) as AuthUser) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private savePendingTwoFactor(user: AuthUser): void {
+    this.pendingTwoFactorUser.set(user);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem(this.pendingTwoFactorKey, JSON.stringify(user));
+    }
+  }
+
+  private clearPendingTwoFactor(): void {
+    this.pendingTwoFactorUser.set(null);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem(this.pendingTwoFactorKey);
+    }
+  }
+
+  private loadPendingTwoFactor(): AuthUser | null {
+    if (typeof window === 'undefined' || !window.sessionStorage) {
+      return null;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(this.pendingTwoFactorKey);
       return raw ? (JSON.parse(raw) as AuthUser) : null;
     } catch {
       return null;

@@ -594,6 +594,25 @@ export class ServiceCatalogService {
   createAppointment(
     payload: Omit<AppointmentRecord, 'id' | 'startMinutes' | 'endMinutes' | 'status' | 'createdAt'>
   ): AppointmentRecord {
+    const bookingSource = payload.source ?? 'ONLINE';
+
+    // Enforce 30-day rolling booking horizon limit for online client bookings
+    if (bookingSource === 'ONLINE') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const maxDate = new Date(today);
+      maxDate.setDate(maxDate.getDate() + 30);
+      maxDate.setHours(23, 59, 59, 999);
+
+      const [targetYear, targetMonth, targetDay] = payload.dateIso.split('-').map(Number);
+      const targetDate = new Date(targetYear, targetMonth - 1, targetDay, 12, 0, 0, 0);
+
+      if (targetDate < today || targetDate > maxDate) {
+        throw new Error('Programările online sunt permise doar în intervalul de maximum 30 de zile.');
+      }
+    }
+
     const duration = Number(payload.durationMinutes) || Number(payload.slotMinutes) || 30;
     const startMinutes = this.parseMinutes(payload.startTime);
     const endMinutes = startMinutes + duration;
@@ -604,7 +623,7 @@ export class ServiceCatalogService {
       id: 'apt-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       barberSlug: payload.barberSlug.toLowerCase(),
       clientEmail: payload.clientEmail.trim().toLowerCase(),
-      source: payload.source ?? 'ONLINE',
+      source: bookingSource,
       startMinutes,
       endMinutes,
       status: 'CONFIRMED',

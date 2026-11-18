@@ -85,6 +85,24 @@ export class Booking implements OnInit {
     return iso;
   });
 
+  // Strict 30-day rolling booking horizon (today up to 30 calendar days ahead)
+  readonly todayIso = computed<string>(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
+  readonly maxBookingDateIso = computed<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
   // Step 3 reactive form with validators
   readonly clientForm = this.fb.nonNullable.group({
     lastName: ['', [Validators.required, Validators.minLength(2)]],
@@ -177,6 +195,12 @@ export class Booking implements OnInit {
 
   // Step 2 actions
   selectDate(iso: string): void {
+    const minIso = this.todayIso();
+    const maxIso = this.maxBookingDateIso();
+    // Enforce 30-day booking horizon: reject dates in the past or beyond 30 days
+    if (iso < minIso || iso > maxIso) {
+      return;
+    }
     this.selectedDateIso.set(iso);
     this.selectedSlot.set(null);
   }
@@ -232,6 +256,13 @@ export class Booking implements OnInit {
     const dateIso = this.selectedDateIso();
 
     if (!currentBarber || !service || !slot || !dateIso) {
+      return;
+    }
+
+    // Guard: Enforce 30-day rolling booking horizon limit
+    const minIso = this.todayIso();
+    const maxIso = this.maxBookingDateIso();
+    if (dateIso < minIso || dateIso > maxIso) {
       return;
     }
 
@@ -364,9 +395,19 @@ export class Booking implements OnInit {
     const result: CalendarDayOption[] = [];
     const cursor = new Date();
     const cleanSlug = (barberSlug || this.activeSlug() || 'filip').toLowerCase();
+
+    // 30-day maximum horizon date limit for client reservations
+    const maxHorizonDate = new Date();
+    maxHorizonDate.setDate(maxHorizonDate.getDate() + 30);
+    maxHorizonDate.setHours(23, 59, 59, 999);
+
     let safety = 0;
 
-    while (result.length < count && safety < 90) {
+    while (
+      result.length < count &&
+      cursor.getTime() <= maxHorizonDate.getTime() &&
+      safety < 90
+    ) {
       const dayOfWeek = cursor.getDay();
       const yyyy = cursor.getFullYear();
       const mm = String(cursor.getMonth() + 1).padStart(2, '0');

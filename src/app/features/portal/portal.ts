@@ -8,6 +8,9 @@ import { TwoFactorModal } from '../../shared/components/two-factor-modal/two-fac
 import { Barber } from '../../shared/models/barber.model';
 import {
   AppointmentRecord,
+  BarberBlockSummary,
+  BarberDaySchedule,
+  BarberScheduleConfig,
   ServiceItem,
   TimeSlot,
 } from '../../shared/models/service-item.model';
@@ -148,6 +151,40 @@ export class Portal implements OnInit {
   // Services for the currently selected barber (CRUD-enabled)
   readonly barberServices = signal<ServiceItem[]>([]);
 
+  // Barber working schedule (STANDARD vs CUSTOM) and active blocks/vacations
+  readonly barberScheduleMode = signal<'STANDARD' | 'CUSTOM'>('STANDARD');
+  readonly barberCustomDays = signal<BarberDaySchedule[]>([]);
+  readonly barberActiveBlocks = signal<BarberBlockSummary[]>([]);
+  readonly scheduleHourOptions: string[] = [
+    '08:00',
+    '08:30',
+    '09:00',
+    '09:30',
+    '10:00',
+    '10:30',
+    '11:00',
+    '11:30',
+    '12:00',
+    '12:30',
+    '13:00',
+    '13:30',
+    '14:00',
+    '14:30',
+    '15:00',
+    '15:30',
+    '16:00',
+    '16:30',
+    '17:00',
+    '17:30',
+    '18:00',
+    '18:30',
+    '19:00',
+    '19:30',
+    '20:00',
+    '20:30',
+    '21:00',
+  ];
+
   // Filtered appointments for the barber table (STRICTLY real clients, numbered chronologically)
   readonly filteredBarberAppointments = computed<AppointmentRecord[]>(() => {
     const timeFilter = this.barberTimeFilter();
@@ -270,10 +307,11 @@ export class Portal implements OnInit {
   // Available slots for the selected service and date inside the phone booking modal
   readonly phoneModalSlots = signal<TimeSlot[]>([]);
 
-  // Reactive form for blocking an interval or full day off
+  // Reactive form for blocking an interval, full day off, or multi-day vacation
   readonly blockIntervalForm = this.fb.nonNullable.group({
-    blockType: ['INTERVAL' as 'INTERVAL' | 'FULL_DAY'],
+    blockType: ['INTERVAL' as 'INTERVAL' | 'FULL_DAY' | 'VACATION'],
     dateIso: ['', [Validators.required]],
+    endDateIso: [''],
     startTime: ['13:00', [Validators.required]],
     endTime: ['14:00', [Validators.required]],
     reason: ['Pauză de masă / Indisponibil', [Validators.required]],
@@ -320,15 +358,18 @@ export class Portal implements OnInit {
   refreshAllData(): void {
     const user = this.authService.currentUser();
     const email = user?.email ?? 'demo@gangstyle.ro';
+    const slug = this.selectedBarberSlug();
     this.appointments.set(this.catalogService.getAppointmentsByEmail(email));
-    this.barberAppointments.set(
-      this.catalogService.getAppointmentsByBarber(this.selectedBarberSlug())
-    );
-    this.catalogService
-      .fetchServicesByBarber(this.selectedBarberSlug())
-      .subscribe({
-        next: (services) => this.barberServices.set(services),
-      });
+    this.barberAppointments.set(this.catalogService.getAppointmentsByBarber(slug));
+    this.barberActiveBlocks.set(this.catalogService.getActiveBlocksForBarber(slug));
+
+    const schedule = this.catalogService.getBarberSchedule(slug);
+    this.barberScheduleMode.set(schedule.mode);
+    this.barberCustomDays.set(schedule.days.map((d) => ({ ...d })));
+
+    this.catalogService.fetchServicesByBarber(slug).subscribe({
+      next: (services) => this.barberServices.set(services),
+    });
   }
 
   // Switches between Client view and Barber view (allowed only for ADMIN)
@@ -602,17 +643,19 @@ export class Portal implements OnInit {
     );
   }
 
-  // Opens the block interval / day off modal
+  // Opens the block interval / day off / vacation modal
   openBlockModal(): void {
     const days = this.workingDays();
     const defaultDateIso =
       this.barberDateFilter() !== 'ALL'
         ? this.barberDateFilter()
         : (days[0]?.iso ?? '');
+    const defaultEndIso = days[2]?.iso ?? defaultDateIso;
 
     this.blockIntervalForm.reset({
       blockType: 'INTERVAL',
       dateIso: defaultDateIso,
+      endDateIso: defaultEndIso,
       startTime: '13:00',
       endTime: '14:00',
       reason: 'Pauză de masă',
@@ -625,12 +668,20 @@ export class Portal implements OnInit {
     this.blockModalOpen.set(false);
   }
 
-  setBlockType(type: 'INTERVAL' | 'FULL_DAY'): void {
+  setBlockType(type: 'INTERVAL' | 'FULL_DAY' | 'VACATION'): void {
     this.blockIntervalForm.controls.blockType.setValue(type);
+    const currentStartIso = this.blockIntervalForm.controls.dateIso.value;
     if (type === 'FULL_DAY') {
       this.blockIntervalForm.controls.startTime.setValue('10:00');
-      this.blockIntervalForm.controls.endTime.setValue('19:00');
-      this.blockIntervalForm.controls.reason.setValue('Zi liberă / Concediu');
+      this.blockIntervalForm.controls.endTime.setValue('18:00');
+      this.blockIntervalForm.controls.reason.setValue('Zi liberă');
+    } else if (type === 'VACATION') {
+      this.blockIntervalForm.controls.startTime.setValue('00:00');
+      this.blockIntervalForm.controls.endTime.setValue('23:59');
+      if (!this.blockIntervalForm.controls.endDateIso.value) {
+        this.blockIntervalForm.controls.endDateIso.setValue(currentStartIso);
+      }
+      this.blockIntervalForm.controls.reason.setValue('Concediu');
     } else {
       this.blockIntervalForm.controls.startTime.setValue('13:00');
       this.blockIntervalForm.controls.endTime.setValue('14:00');
@@ -651,8 +702,38 @@ export class Portal implements OnInit {
     }
 
     const val = this.blockIntervalForm.getRawValue();
+
+    if (val.blockType === 'VACATION') {
+      const endIso = val.endDateIso || val.dateIso;
+      if (endIso < val.dateIso) {
+        this.showFeedback('Data de sfârșit a concediului trebuie să fie după data de început.');
+        return;
+      }
+
+      const created = this.catalogService.blockVacationRange({
+        barberSlug: barber.slug,
+        barberName: barber.name,
+        barberPhotoUrl: barber.photoUrl,
+        startDateIso: val.dateIso,
+        endDateIso: endIso,
+        reason: val.reason.trim() || 'Concediu',
+      });
+
+      this.blockModalOpen.set(false);
+      this.refreshAllData();
+      this.showFeedback(
+        `Concediul (${this.formatIsoToRoLabel(val.dateIso)} – ${this.formatIsoToRoLabel(endIso)}, ${created.length} zile) a fost blocat pentru ${barber.name}.`
+      );
+      return;
+    }
+
     const startTime = val.blockType === 'FULL_DAY' ? '10:00' : val.startTime;
-    const endTime = val.blockType === 'FULL_DAY' ? '19:00' : val.endTime;
+    const endTime = val.blockType === 'FULL_DAY' ? '18:00' : val.endTime;
+
+    if (val.blockType === 'INTERVAL' && startTime >= endTime) {
+      this.showFeedback('Ora de sfârșit trebuie să fie după ora de început.');
+      return;
+    }
 
     this.catalogService.blockTimeInterval({
       barberSlug: barber.slug,
@@ -663,6 +744,7 @@ export class Portal implements OnInit {
       startTime,
       endTime,
       reason: val.reason.trim(),
+      blockType: val.blockType,
     });
 
     this.blockModalOpen.set(false);
@@ -670,7 +752,102 @@ export class Portal implements OnInit {
     this.showFeedback(
       val.blockType === 'FULL_DAY'
         ? `Ziua (${this.formatIsoToRoLabel(val.dateIso)}) a fost blocată complet pentru ${barber.name}.`
-        : `Intervalul ${startTime} - ${endTime} a fost blocat pentru ${barber.name}.`
+        : `Intervalul ${startTime} - ${endTime} (${this.formatIsoToRoLabel(val.dateIso)}) a fost blocat pentru ${barber.name}.`
+    );
+  }
+
+  removeBarberBlock(block: BarberBlockSummary): void {
+    const ok = this.catalogService.removeBarberBlock(block.id);
+    if (ok) {
+      this.refreshAllData();
+      this.showFeedback(
+        `Blocajul (${block.label} · ${block.timeLabel}) a fost eliminat, iar orele sunt din nou disponibile pentru clienți.`
+      );
+    }
+  }
+
+  // Switches between STANDARD salon schedule and CUSTOM weekly schedule
+  selectScheduleMode(mode: 'STANDARD' | 'CUSTOM'): void {
+    this.barberScheduleMode.set(mode);
+    const slug = this.selectedBarberSlug();
+    const barberName = this.currentBarber()?.name ?? slug;
+
+    const currentDays =
+      this.barberCustomDays().length === 7
+        ? this.barberCustomDays()
+        : this.catalogService.getDefaultDaysSchedule();
+
+    const config: BarberScheduleConfig = {
+      barberSlug: slug,
+      mode,
+      days: currentDays,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.catalogService.saveBarberSchedule(config);
+    if (this.phoneModalOpen()) {
+      this.recomputePhoneModalSlots();
+    }
+
+    if (mode === 'STANDARD') {
+      this.showFeedback(
+        `Programul Standard al Salonului (Luni – Vineri, 10:00 – 18:00) este acum activ pentru ${barberName}.`
+      );
+    } else {
+      this.showFeedback(
+        `Modul „Program Personalizat” a fost selectat pentru ${barberName}. Configurează zilele mai jos și apasă Salvează.`
+      );
+    }
+  }
+
+  toggleDayWorking(dayOfWeek: number): void {
+    this.barberCustomDays.update((days) =>
+      days.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, working: !d.working } : d))
+    );
+  }
+
+  updateDayStartTime(dayOfWeek: number, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+    this.barberCustomDays.update((days) =>
+      days.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, startTime: value } : d))
+    );
+  }
+
+  updateDayEndTime(dayOfWeek: number, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+    this.barberCustomDays.update((days) =>
+      days.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, endTime: value } : d))
+    );
+  }
+
+  saveCustomSchedule(): void {
+    const slug = this.selectedBarberSlug();
+    const barberName = this.currentBarber()?.name ?? slug;
+    const days = this.barberCustomDays();
+
+    for (const day of days) {
+      if (day.working && day.startTime >= day.endTime) {
+        this.showFeedback(
+          `Pentru ${day.dayName}, ora de sfârșit (${day.endTime}) trebuie să fie după ora de început (${day.startTime}).`
+        );
+        return;
+      }
+    }
+
+    this.catalogService.saveBarberSchedule({
+      barberSlug: slug,
+      mode: 'CUSTOM',
+      days,
+      updatedAt: new Date().toISOString(),
+    });
+    this.barberScheduleMode.set('CUSTOM');
+    if (this.phoneModalOpen()) {
+      this.recomputePhoneModalSlots();
+    }
+    this.showFeedback(
+      `Programul personalizat pentru ${barberName} a fost salvat! Intervalele disponibile pentru clienți s-au actualizat.`
     );
   }
 

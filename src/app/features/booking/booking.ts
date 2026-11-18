@@ -101,15 +101,14 @@ export class Booking implements OnInit {
       this.clientForm.controls.email.setValue(loggedUser.email);
     }
 
-    const days = this.generateWorkingDays(7);
-    this.availableDays.set(days);
-    if (days.length > 0) {
-      this.selectedDateIso.set(days[0].iso);
-    }
-
     this.route.paramMap.subscribe((params) => {
       const slug = params.get('slug') ?? '';
       this.activeSlug.set(slug);
+      const days = this.generateWorkingDays(7, slug);
+      this.availableDays.set(days);
+      if (days.length > 0) {
+        this.selectedDateIso.set(days[0].iso);
+      }
       this.loadBarberAndServices(slug);
     });
   }
@@ -162,7 +161,7 @@ export class Booking implements OnInit {
     this.step1Submitted.set(false);
 
     // Reset selected time slot if duration changed
-    if (!previous || previous.slotMinutes !== item.slotMinutes) {
+    if (!previous || previous.durationMinutes !== item.durationMinutes) {
       this.selectedSlot.set(null);
     }
   }
@@ -321,8 +320,8 @@ export class Booking implements OnInit {
     }
   }
 
-  // Generates upcoming salon working days (Tuesday - Saturday)
-  private generateWorkingDays(count: number): CalendarDayOption[] {
+  // Generates upcoming working days based on the selected barber's active schedule and vacation/day-off blocks
+  private generateWorkingDays(count: number, barberSlug?: string): CalendarDayOption[] {
     const dayNamesShort = ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
     const dayNamesFull = [
       'Duminică',
@@ -364,15 +363,17 @@ export class Booking implements OnInit {
 
     const result: CalendarDayOption[] = [];
     const cursor = new Date();
+    const cleanSlug = (barberSlug || this.activeSlug() || 'filip').toLowerCase();
+    let safety = 0;
 
-    while (result.length < count) {
-      const dayOfWeek = cursor.getDay(); // 0 = Sun, 1 = Mon
-      if (dayOfWeek !== 0 && dayOfWeek !== 1) {
-        const yyyy = cursor.getFullYear();
-        const mm = String(cursor.getMonth() + 1).padStart(2, '0');
-        const dd = String(cursor.getDate()).padStart(2, '0');
-        const iso = `${yyyy}-${mm}-${dd}`;
+    while (result.length < count && safety < 90) {
+      const dayOfWeek = cursor.getDay();
+      const yyyy = cursor.getFullYear();
+      const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+      const dd = String(cursor.getDate()).padStart(2, '0');
+      const iso = `${yyyy}-${mm}-${dd}`;
 
+      if (this.catalogService.isDateAvailableForBarber(cleanSlug, iso)) {
         result.push({
           iso,
           dayName: dayNamesShort[dayOfWeek],
@@ -381,6 +382,7 @@ export class Booking implements OnInit {
         });
       }
       cursor.setDate(cursor.getDate() + 1);
+      safety++;
     }
 
     return result;

@@ -91,7 +91,7 @@
                 class="btn-block-time"
                 (click)="openBlockModal()"
               >
-                Blochează Interval / Zi liberă
+                Blochează Interval Timp / Concediu
               </button>
             </div>
           </div>
@@ -208,6 +208,205 @@
                 >
                   + Adaugă Programare
                 </button>
+              </div>
+            </div>
+          }
+        </section>
+
+        <!-- Barber Working Schedule & Active Blocks Section -->
+        <section class="barber-schedule-section" aria-labelledby="barber-schedule-heading">
+          <div class="appointments-header">
+            <div>
+              <h2 id="barber-schedule-heading" class="appointments-header__title">
+                Programul meu de lucru &middot; {{ barber.name }}
+              </h2>
+              <p class="appointments-header__subtitle">
+                Alege programul standard al salonului sau configurează-ți propriul orar săptămânal. Intervalele disponibile pentru clienți se adaptează automat.
+              </p>
+            </div>
+            <button
+              type="button"
+              class="btn-block-time"
+              (click)="openBlockModal()"
+            >
+              Blochează Interval Timp / Concediu
+            </button>
+          </div>
+
+          <div class="schedule-mode-grid">
+            <button
+              type="button"
+              class="schedule-mode-card"
+              [class.schedule-mode-card--active]="barberScheduleMode() === 'STANDARD'"
+              (click)="selectScheduleMode('STANDARD')"
+            >
+              <div class="schedule-mode-card__top">
+                <span
+                  class="schedule-mode-card__check"
+                  [class.schedule-mode-card__check--checked]="barberScheduleMode() === 'STANDARD'"
+                  aria-hidden="true"
+                >
+                  &#10003;
+                </span>
+                <div class="schedule-mode-card__titles">
+                  <span class="schedule-mode-card__badge">Implicit Salon</span>
+                  <h3 class="schedule-mode-card__title">Program Standard Salon</h3>
+                </div>
+              </div>
+              <p class="schedule-mode-card__desc">
+                Luni – Vineri: <strong>10:00 – 18:00</strong> &middot; Sâmbătă &amp; Duminică: <strong>Închis</strong>
+              </p>
+            </button>
+
+            <button
+              type="button"
+              class="schedule-mode-card"
+              [class.schedule-mode-card--active]="barberScheduleMode() === 'CUSTOM'"
+              (click)="selectScheduleMode('CUSTOM')"
+            >
+              <div class="schedule-mode-card__top">
+                <span
+                  class="schedule-mode-card__check"
+                  [class.schedule-mode-card__check--checked]="barberScheduleMode() === 'CUSTOM'"
+                  aria-hidden="true"
+                >
+                  &#10003;
+                </span>
+                <div class="schedule-mode-card__titles">
+                  <span class="schedule-mode-card__badge">Flexibil pe zile</span>
+                  <h3 class="schedule-mode-card__title">Program Personalizat</h3>
+                </div>
+              </div>
+              <p class="schedule-mode-card__desc">
+                Setează orele tale de început și sfârșit sau zilele nelucrătoare pentru fiecare zi din săptămână.
+              </p>
+            </button>
+          </div>
+
+          @if (barberScheduleMode() === 'CUSTOM') {
+            <div class="custom-schedule-panel">
+              <div class="custom-schedule-panel__head">
+                <h3 class="custom-schedule-panel__title">
+                  Configurare Orar Săptămânal &middot; {{ barber.name }}
+                </h3>
+                <button
+                  type="button"
+                  class="btn-add-booking"
+                  (click)="saveCustomSchedule()"
+                >
+                  Salvează Programul Personalizat &#10003;
+                </button>
+              </div>
+
+              <div class="custom-days-list">
+                @for (day of barberCustomDays(); track day.dayOfWeek) {
+                  <div
+                    class="custom-day-row"
+                    [class.custom-day-row--off]="!day.working"
+                  >
+                    <label class="custom-day-row__toggle">
+                      <input
+                        type="checkbox"
+                        class="custom-day-row__checkbox"
+                        [checked]="day.working"
+                        (change)="toggleDayWorking(day.dayOfWeek)"
+                      />
+                      <span class="custom-day-row__box" aria-hidden="true">&#10003;</span>
+                      <span class="custom-day-row__name">{{ day.dayName }}</span>
+                      <span
+                        class="custom-day-row__state"
+                        [class.custom-day-row__state--on]="day.working"
+                      >
+                        {{ day.working ? 'Lucrez' : 'Zi liberă' }}
+                      </span>
+                    </label>
+
+                    @if (day.working) {
+                      <div class="custom-day-row__hours">
+                        <div class="custom-day-row__field">
+                          <span class="custom-day-row__label">De la</span>
+                          <select
+                            class="custom-day-row__select"
+                            [value]="day.startTime"
+                            (change)="updateDayStartTime(day.dayOfWeek, $event)"
+                          >
+                            @for (hr of scheduleHourOptions; track hr) {
+                              <option [value]="hr" [selected]="hr === day.startTime">{{ hr }}</option>
+                            }
+                          </select>
+                        </div>
+
+                        <span class="custom-day-row__sep">&ndash;</span>
+
+                        <div class="custom-day-row__field">
+                          <span class="custom-day-row__label">Până la</span>
+                          <select
+                            class="custom-day-row__select"
+                            [value]="day.endTime"
+                            (change)="updateDayEndTime(day.dayOfWeek, $event)"
+                          >
+                            @for (hr of scheduleHourOptions; track hr) {
+                              <option [value]="hr" [selected]="hr === day.endTime">{{ hr }}</option>
+                            }
+                          </select>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="custom-day-row__closed-note">
+                        Indisponibil pentru programări în această zi
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          @if (barberActiveBlocks().length > 0) {
+            <div class="active-blocks-panel">
+              <div class="active-blocks-panel__head">
+                <h3 class="active-blocks-panel__title">
+                  Pauze, Zile Libere &amp; Concedii Active ({{ barberActiveBlocks().length }})
+                </h3>
+                <span class="active-blocks-panel__hint">
+                  Aceste perioade sunt oprite automat de la programările clienților
+                </span>
+              </div>
+
+              <div class="active-blocks-grid">
+                @for (blk of barberActiveBlocks(); track blk.id) {
+                  <div class="active-block-card">
+                    <div class="active-block-card__info">
+                      <div class="active-block-card__top">
+                        <span
+                          class="source-badge"
+                          [class.source-badge--blocked]="blk.blockType === 'INTERVAL'"
+                          [class.source-badge--phone]="blk.blockType === 'FULL_DAY'"
+                          [class.source-badge--online]="blk.blockType === 'VACATION'"
+                        >
+                          {{
+                            blk.blockType === 'VACATION'
+                              ? 'Concediu'
+                              : blk.blockType === 'FULL_DAY'
+                                ? 'Zi Liberă'
+                                : 'Interval Orar'
+                          }}
+                        </span>
+                        <strong class="active-block-card__time">{{ blk.timeLabel }}</strong>
+                      </div>
+                      <div class="active-block-card__date">{{ blk.label }}</div>
+                      <div class="active-block-card__reason">Motiv: {{ blk.reason }}</div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="tbl-btn tbl-btn--cancel"
+                      (click)="removeBarberBlock(blk)"
+                    >
+                      Deblochează
+                    </button>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -629,7 +828,7 @@
   </div>
 }
 
-<!-- Block interval or day off modal -->
+<!-- Block interval, full day off, or vacation modal -->
 @if (blockModalOpen()) {
   <div
     class="modal-backdrop"
@@ -638,10 +837,10 @@
     aria-labelledby="block-modal-title"
     (click)="closeBlockModal()"
   >
-    <div class="modal-dialog" (click)="$event.stopPropagation()">
+    <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
       <div class="modal-dialog__header">
         <h3 id="block-modal-title" class="modal-dialog__title">
-          Blochează Interval / Zi liberă &middot; {{ currentBarber()?.name }}
+          Blochează Interval Timp / Concediu &middot; {{ currentBarber()?.name }}
         </h3>
         <button
           type="button"
@@ -654,19 +853,19 @@
       </div>
 
       <p class="modal-dialog__text">
-        Orele blocate devin indisponibile pe pagina publică de programări.
+        Perioadele blocate devin automat indisponibile pentru clienți pe pagina publică de programări.
       </p>
 
       <form [formGroup]="blockIntervalForm" (ngSubmit)="submitBlockInterval()" class="modal-form" novalidate>
-        <!-- Toggle: Interval vs Full Day -->
-        <div class="block-type-switch">
+        <!-- 3 simple tabs: Interval orar (Pauză), O zi întreagă liberă, Concediu -->
+        <div class="block-type-switch block-type-switch--three" role="tablist" aria-label="Tip blocaj timp">
           <button
             type="button"
             class="block-type-btn"
             [class.block-type-btn--active]="blockIntervalForm.controls.blockType.value === 'INTERVAL'"
             (click)="setBlockType('INTERVAL')"
           >
-            Interval Orar
+            Interval orar (Pauză)
           </button>
           <button
             type="button"
@@ -674,47 +873,65 @@
             [class.block-type-btn--active]="blockIntervalForm.controls.blockType.value === 'FULL_DAY'"
             (click)="setBlockType('FULL_DAY')"
           >
-            Toată Ziua Liberă
+            O zi întreagă liberă
+          </button>
+          <button
+            type="button"
+            class="block-type-btn"
+            [class.block-type-btn--active]="blockIntervalForm.controls.blockType.value === 'VACATION'"
+            (click)="setBlockType('VACATION')"
+          >
+            Concediu (Perioadă)
           </button>
         </div>
 
-        <div class="modal-field">
-          <label class="modal-field__label">Data *</label>
-          <input
-            type="date"
-            formControlName="dateIso"
-            class="modal-field__input"
-          />
-        </div>
+        @if (blockIntervalForm.controls.blockType.value === 'VACATION') {
+          <div class="modal-form__row">
+            <div class="modal-field">
+              <label class="modal-field__label">De la data *</label>
+              <input
+                type="date"
+                formControlName="dateIso"
+                class="modal-field__input"
+              />
+            </div>
+            <div class="modal-field">
+              <label class="modal-field__label">Până la data *</label>
+              <input
+                type="date"
+                formControlName="endDateIso"
+                [min]="blockIntervalForm.controls.dateIso.value"
+                class="modal-field__input"
+              />
+            </div>
+          </div>
+        } @else {
+          <div class="modal-field">
+            <label class="modal-field__label">Data *</label>
+            <input
+              type="date"
+              formControlName="dateIso"
+              class="modal-field__input"
+            />
+          </div>
+        }
 
         @if (blockIntervalForm.controls.blockType.value === 'INTERVAL') {
           <div class="modal-form__row">
             <div class="modal-field">
               <label class="modal-field__label">Ora de început *</label>
               <select formControlName="startTime" class="modal-field__input">
-                <option value="10:00">10:00</option>
-                <option value="11:00">11:00</option>
-                <option value="12:00">12:00</option>
-                <option value="13:00">13:00</option>
-                <option value="14:00">14:00</option>
-                <option value="15:00">15:00</option>
-                <option value="16:00">16:00</option>
-                <option value="17:00">17:00</option>
-                <option value="18:00">18:00</option>
+                @for (hr of scheduleHourOptions; track hr) {
+                  <option [value]="hr">{{ hr }}</option>
+                }
               </select>
             </div>
             <div class="modal-field">
               <label class="modal-field__label">Ora de sfârșit *</label>
               <select formControlName="endTime" class="modal-field__input">
-                <option value="11:00">11:00</option>
-                <option value="12:00">12:00</option>
-                <option value="13:00">13:00</option>
-                <option value="14:00">14:00</option>
-                <option value="15:00">15:00</option>
-                <option value="16:00">16:00</option>
-                <option value="17:00">17:00</option>
-                <option value="18:00">18:00</option>
-                <option value="19:00">19:00</option>
+                @for (hr of scheduleHourOptions; track hr) {
+                  <option [value]="hr">{{ hr }}</option>
+                }
               </select>
             </div>
           </div>
@@ -725,7 +942,7 @@
           <input
             type="text"
             formControlName="reason"
-            placeholder="Ex: Pauză de masă / Concediu"
+            placeholder="Ex: Pauză de masă / Zi liberă / Concediu"
             class="modal-field__input"
           />
         </div>
@@ -739,7 +956,7 @@
             Renunță
           </button>
           <button type="submit" class="btn-add-booking">
-            Confirmă Blocarea
+            Confirmă Blocarea &#10003;
           </button>
         </div>
       </form>

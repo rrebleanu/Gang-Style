@@ -151,7 +151,7 @@
             <!-- Calendar date selector -->
             <div class="calendar-picker">
               <div class="calendar-picker__header">
-                <span class="calendar-picker__label">Selectează ziua (Marți – Sâmbătă)</span>
+                <span class="calendar-picker__label">Selectează ziua (Luni – Vineri)</span>
                 <label class="calendar-picker__input-wrap">
                   <span>Calendar</span>
                   <input
@@ -204,6 +204,10 @@
                       {{ slot.available ? '1 Loc liber' : '0 Locuri libere' }}
                     </span>
                   </button>
+                } @empty {
+                  <div class="booking-empty-services" style="grid-column: 1 / -1;">
+                    {{ currentBarber.name }} nu are program de lucru sau este în zi liberă / concediu la această dată. Te rugăm să alegi altă zi din calendar.
+                  </div>
                 }
               </div>
             </div>

@@ -39,8 +39,41 @@ export interface AppointmentRecord {
   clientPhone: string;
   notes?: string;
   source?: 'ONLINE' | 'PHONE' | 'BLOCKED';
+  blockType?: 'INTERVAL' | 'FULL_DAY' | 'VACATION';
+  vacationGroupId?: string;
+  endDateIso?: string;
+  endDateLabel?: string;
   status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
   createdAt: string;
+}
+
+// Working hours configuration for a single day of the week (0 = Sunday ... 6 = Saturday).
+export interface BarberDaySchedule {
+  dayOfWeek: number;
+  dayName: string;
+  working: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+// Barber schedule profile persisted per barber (standard salon schedule vs custom weekly schedule).
+export interface BarberScheduleConfig {
+  barberSlug: string;
+  mode: 'STANDARD' | 'CUSTOM';
+  days: BarberDaySchedule[];
+  updatedAt: string;
+}
+
+// Grouped view item for active barber time blocks, days off, or vacation ranges.
+export interface BarberBlockSummary {
+  id: string;
+  barberSlug: string;
+  blockType: 'INTERVAL' | 'FULL_DAY' | 'VACATION';
+  dateIso: string;
+  endDateIso?: string;
+  label: string;
+  timeLabel: string;
+  reason: string;
 }
 
 // Anti-No-Show Blacklist record managed by Admin / Barbers.

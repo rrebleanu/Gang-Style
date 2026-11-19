@@ -2,7 +2,11 @@ package ro.gangstyle.api.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Document(collection = "appointments")
 public class Appointment {
@@ -20,12 +24,16 @@ public class Appointment {
     private int slotMinutes;
     private double priceRon;
 
-    private String dateIso; // YYYY-MM-DD
+    private String dateIso;   // YYYY-MM-DD
     private String dateLabel;
     private String startTime; // HH:mm
     private String endTime;   // HH:mm
     private int startMinutes;
     private int endMinutes;
+
+    // Exact LocalDateTime boundaries used for temporal validations, sorting, and 3-hour cancellation rules
+    private LocalDateTime startDateTime;
+    private LocalDateTime endDateTime;
 
     private String clientFirstName;
     private String clientLastName;
@@ -33,8 +41,8 @@ public class Appointment {
     private String clientPhone;
     private String notes;
 
-    private String source = "ONLINE"; // ONLINE, PHONE, BLOCKED
-    private String status = "CONFIRMED"; // CONFIRMED, CANCELLED, COMPLETED, NO_SHOW
+    private String source = "ONLINE";     // ONLINE, PHONE, MANUAL, BLOCKED
+    private String status = "CONFIRMED";  // CONFIRMED, CANCELLED, COMPLETED, NO_SHOW
     private Instant createdAt = Instant.now();
 
     public Appointment() {}
@@ -67,6 +75,31 @@ public class Appointment {
         this.source = source != null ? source : "ONLINE";
         this.status = status != null ? status : "CONFIRMED";
         this.createdAt = createdAt != null ? createdAt : Instant.now();
+
+        // Derive LocalDateTime boundaries from ISO date and HH:mm time strings if valid
+        syncDateTimeFields();
+    }
+
+    /**
+     * Synchronizes startDateTime and endDateTime from dateIso, startTime, and durationMinutes
+     * when loading or constructing appointment records.
+     */
+    public void syncDateTimeFields() {
+        try {
+            if (this.dateIso != null && this.startTime != null) {
+                LocalDate parsedDate = LocalDate.parse(this.dateIso);
+                LocalTime parsedStart = LocalTime.parse(this.startTime);
+                this.startDateTime = LocalDateTime.of(parsedDate, parsedStart);
+
+                if (this.durationMinutes > 0) {
+                    this.endDateTime = this.startDateTime.plusMinutes(this.durationMinutes);
+                } else if (this.endTime != null) {
+                    this.endDateTime = LocalDateTime.of(parsedDate, LocalTime.parse(this.endTime));
+                }
+            }
+        } catch (Exception ignored) {
+            // Keep existing values if date/time strings are in a non-standard format
+        }
     }
 
     public String getId() { return id; }
@@ -113,6 +146,12 @@ public class Appointment {
 
     public int getEndMinutes() { return endMinutes; }
     public void setEndMinutes(int endMinutes) { this.endMinutes = endMinutes; }
+
+    public LocalDateTime getStartDateTime() { return startDateTime; }
+    public void setStartDateTime(LocalDateTime startDateTime) { this.startDateTime = startDateTime; }
+
+    public LocalDateTime getEndDateTime() { return endDateTime; }
+    public void setEndDateTime(LocalDateTime endDateTime) { this.endDateTime = endDateTime; }
 
     public String getClientFirstName() { return clientFirstName; }
     public void setClientFirstName(String clientFirstName) { this.clientFirstName = clientFirstName; }

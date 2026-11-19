@@ -58,6 +58,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(error);
     }
 
+    @ExceptionHandler(AppointmentConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentConflict(AppointmentConflictException ex, HttpServletRequest request) {
+        log.warn("Appointment conflict on {}: {}", request.getRequestURI(), ex.getMessage());
+        ApiErrorResponse error = new ApiErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException ex, HttpServletRequest request) {
         // Silently return 404 for missing static resources like favicon.ico without logging full stacktrace

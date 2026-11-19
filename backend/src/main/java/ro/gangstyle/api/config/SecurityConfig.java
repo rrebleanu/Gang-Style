@@ -66,6 +66,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/2fa/verify", "/auth/2fa/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/barbers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
+                        // Appointments API: personal history & status updates require authentication
+                        .requestMatchers(HttpMethod.GET, "/api/appointments/my").hasAnyRole("CLIENT", "BARBER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/status").hasAnyRole("BARBER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/cancel").hasAnyRole("CLIENT", "BARBER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/appointments/*").hasAnyRole("CLIENT", "BARBER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/appointments").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/appointments/**").permitAll()
                         // 2FA configuration restricted to fully authenticated accounts
                         .requestMatchers("/api/auth/2fa/**", "/auth/2fa/**").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         // Service management restricted to staff roles

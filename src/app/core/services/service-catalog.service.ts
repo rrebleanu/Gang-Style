@@ -6,6 +6,7 @@ import {
   AppointmentRecord,
   BarberBlockSummary,
   BarberDaySchedule,
+  BarberExtraAvailability,
   BarberScheduleConfig,
   BlacklistEntry,
   ServiceItem,
@@ -51,6 +52,7 @@ export class ServiceCatalogService {
   private readonly servicesStorageKey = 'gangstyle_services_v2';
   private readonly blacklistStorageKey = 'gangstyle_blacklist_v1';
   private readonly scheduleStorageKey = 'gangstyle_barber_schedules_v2';
+  private readonly extraAvailabilityStorageKey = 'gangstyle_barber_extra_availability_v1';
 
   private readonly defaultServices: ServiceItem[] = [
     // Filip packages
@@ -145,13 +147,13 @@ export class ServiceCatalogService {
 
   // Creates a new service package via POST /api/services (protected by JWT).
   createServiceApi(payload: {
-    barberTarget: 'filip' | 'sebi' | 'both';
+    barberTarget: string;
     name: string;
     durationMinutes: number;
     priceRon: number;
   }): Observable<ServiceItem[]> {
     const slotMinutes = Number(payload.durationMinutes);
-    const targets: ('filip' | 'sebi')[] =
+    const targets: string[] =
       payload.barberTarget === 'both' ? ['filip', 'sebi'] : [payload.barberTarget];
 
     const requests = targets.map((slug) => {
@@ -252,16 +254,16 @@ export class ServiceCatalogService {
     );
   }
 
-  // CRUD Create: Adds a new service package for Filip, Sebi, or both barbers
+  // CRUD Create: Adds a new service package for a specific barber or all barbers
   addServicePackage(payload: {
-    barberTarget: 'filip' | 'sebi' | 'both';
+    barberTarget: string;
     name: string;
     durationMinutes: number;
     priceRon: number;
   }): ServiceItem[] {
     const all = this.getAllServices();
     const slotMinutes = Number(payload.durationMinutes);
-    const targets: ('filip' | 'sebi')[] =
+    const targets: string[] =
       payload.barberTarget === 'both' ? ['filip', 'sebi'] : [payload.barberTarget];
 
     const created: ServiceItem[] = targets.map((slug) => ({
@@ -528,6 +530,7 @@ export class ServiceCatalogService {
   }
 
   // Resolves effective working status and hours for a barber on a given YYYY-MM-DD date.
+  // Merges the recurring schedule (Standard or Custom) with any date-specific extra availability overrides.
   getEffectiveDayHours(
     barberSlug: string,
     dateIso: string
@@ -536,28 +539,128 @@ export class ServiceCatalogService {
     if (!yyyy || !mm || !dd) {
       return { working: false, startTime: '10:00', endTime: '18:00' };
     }
+    const cleanSlug = barberSlug.trim().toLowerCase();
     const dayOfWeek = new Date(yyyy, mm - 1, dd).getDay();
-    const schedule = this.getBarberSchedule(barberSlug);
+    const schedule = this.getBarberSchedule(cleanSlug);
+
+    let baseWorking = false;
+    let baseStart = '10:00';
+    let baseEnd = '18:00';
 
     if (schedule.mode === 'STANDARD') {
-      const isSalonOpen = dayOfWeek >= 1 && dayOfWeek <= 5;
+      baseWorking = dayOfWeek >= 1 && dayOfWeek <= 5;
+    } else {
+      const dayConfig = schedule.days.find((d) => d.dayOfWeek === dayOfWeek);
+      if (dayConfig && dayConfig.working) {
+        baseWorking = true;
+        baseStart = dayConfig.startTime || '10:00';
+        baseEnd = dayConfig.endTime || '18:00';
+      }
+    }
+
+    // Check if the barber added a one-off extra working day or extended hours for this specific date
+    const extraForDate = this.getAllExtraAvailabilities().filter(
+      (e) => e.barberSlug === cleanSlug && e.dateIso === dateIso
+    );
+
+    if (extraForDate.length === 0) {
       return {
-        working: isSalonOpen,
-        startTime: '10:00',
-        endTime: '18:00',
+        working: baseWorking,
+        startTime: baseStart,
+        endTime: baseEnd,
       };
     }
 
-    const dayConfig = schedule.days.find((d) => d.dayOfWeek === dayOfWeek);
-    if (!dayConfig || !dayConfig.working) {
-      return { working: false, startTime: '10:00', endTime: '18:00' };
+    // Combine recurring hours (if working day) with extra availability intervals
+    let minStartMin = baseWorking ? this.parseMinutes(baseStart) : 24 * 60;
+    let maxEndMin = baseWorking ? this.parseMinutes(baseEnd) : 0;
+
+    for (const extra of extraForDate) {
+      const eStart = this.parseMinutes(extra.startTime);
+      const eEnd = this.parseMinutes(extra.endTime);
+      if (eStart < eEnd) {
+        minStartMin = Math.min(minStartMin, eStart);
+        maxEndMin = Math.max(maxEndMin, eEnd);
+      }
+    }
+
+    if (minStartMin >= maxEndMin) {
+      return { working: baseWorking, startTime: baseStart, endTime: baseEnd };
     }
 
     return {
       working: true,
-      startTime: dayConfig.startTime || '10:00',
-      endTime: dayConfig.endTime || '18:00',
+      startTime: this.formatMinutes(minStartMin),
+      endTime: this.formatMinutes(maxEndMin),
     };
+  }
+
+  // Adds a date-specific extra working day or extended shift without changing the recurring schedule.
+  addExtraAvailability(params: {
+    barberSlug: string;
+    dateIso: string;
+    dateLabel: string;
+    startTime: string;
+    endTime: string;
+    note: string;
+  }): BarberExtraAvailability {
+    const cleanSlug = params.barberSlug.trim().toLowerCase();
+    const all = this.getAllExtraAvailabilities().filter(
+      (e) => !(e.barberSlug === cleanSlug && e.dateIso === params.dateIso)
+    );
+
+    const record: BarberExtraAvailability = {
+      id: 'ext-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      barberSlug: cleanSlug,
+      dateIso: params.dateIso,
+      dateLabel: params.dateLabel,
+      startTime: params.startTime,
+      endTime: params.endTime,
+      note: params.note.trim() || 'Program suplimentar',
+      createdAt: new Date().toISOString(),
+    };
+
+    all.push(record);
+    this.saveExtraAvailabilities(all);
+    return record;
+  }
+
+  // Returns active extra working days/hours for a barber from today onwards.
+  getExtraAvailabilityForBarber(barberSlug: string): BarberExtraAvailability[] {
+    const clean = barberSlug.trim().toLowerCase();
+    const todayIso = this.toIsoDate(new Date());
+    return this.getAllExtraAvailabilities()
+      .filter((e) => e.barberSlug === clean && e.dateIso >= todayIso)
+      .sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+  }
+
+  // Removes a previously added extra working day or interval.
+  removeExtraAvailability(id: string): boolean {
+    const all = this.getAllExtraAvailabilities();
+    const filtered = all.filter((e) => e.id !== id);
+    if (filtered.length === all.length) {
+      return false;
+    }
+    this.saveExtraAvailabilities(filtered);
+    return true;
+  }
+
+  private getAllExtraAvailabilities(): BarberExtraAvailability[] {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return [];
+    }
+    try {
+      const raw = window.localStorage.getItem(this.extraAvailabilityStorageKey);
+      return raw ? (JSON.parse(raw) as BarberExtraAvailability[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveExtraAvailabilities(list: BarberExtraAvailability[]): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(this.extraAvailabilityStorageKey, JSON.stringify(list));
+    }
   }
 
   // Checks if a specific date is available for booking (barber works that day and is not on full-day leave/vacation).
@@ -693,7 +796,7 @@ export class ServiceCatalogService {
   ): AppointmentRecord {
     const bookingSource = payload.source ?? 'ONLINE';
 
-    // Enforce 30-day rolling booking horizon and anti-no-show blacklist shield for online client bookings
+    // Enforce 14-day rolling booking horizon (2 weeks) and anti-no-show blacklist shield for online client bookings
     if (bookingSource === 'ONLINE') {
       const blockCheck = this.isClientBlocked(payload.clientPhone);
       if (blockCheck.blocked) {
@@ -706,14 +809,14 @@ export class ServiceCatalogService {
       today.setHours(0, 0, 0, 0);
 
       const maxDate = new Date(today);
-      maxDate.setDate(maxDate.getDate() + 30);
+      maxDate.setDate(maxDate.getDate() + 14);
       maxDate.setHours(23, 59, 59, 999);
 
       const [targetYear, targetMonth, targetDay] = payload.dateIso.split('-').map(Number);
       const targetDate = new Date(targetYear, targetMonth - 1, targetDay, 12, 0, 0, 0);
 
       if (targetDate < today || targetDate > maxDate) {
-        throw new Error('Programările online sunt permise doar în intervalul de maximum 30 de zile.');
+        throw new Error('Programările online sunt permise doar în intervalul de maximum 14 zile (2 săptămâni).');
       }
     }
 
@@ -925,14 +1028,19 @@ export class ServiceCatalogService {
     return changed;
   }
 
-  // Returns appointments for the logged-in client (excludes barber blocked intervals)
-  getAppointmentsByEmail(email: string): AppointmentRecord[] {
-    const clean = email.trim().toLowerCase();
+  // Returns appointments strictly for the authenticated client (by verified email or phone)
+  getAppointmentsByEmail(email: string, phone?: string): AppointmentRecord[] {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone ? normalizePhoneNumber(phone) : '';
+    if (!cleanEmail && !cleanPhone) {
+      return [];
+    }
     const all = this.getAllAppointments().filter((a) => a.source !== 'BLOCKED');
-    const matched = all.filter(
-      (a) => a.clientEmail === clean || a.clientEmail === 'demo@gangstyle.ro'
-    );
-    return matched.length > 0 ? matched : all;
+    return all.filter((a) => {
+      const matchEmail = cleanEmail.length > 0 && a.clientEmail?.trim().toLowerCase() === cleanEmail;
+      const matchPhone = cleanPhone.length >= 9 && normalizePhoneNumber(a.clientPhone) === cleanPhone;
+      return matchEmail || matchPhone;
+    });
   }
 
   // Returns all appointments and blocked intervals for a specific barber
@@ -955,6 +1063,106 @@ export class ServiceCatalogService {
     target.status = status;
     this.saveAppointments(all);
     return true;
+  }
+
+  // Updates an existing appointment's date, time, service, and notes (rescheduling from barber dashboard).
+  updateAppointment(
+    appointmentId: string,
+    changes: {
+      dateIso: string;
+      dateLabel: string;
+      startTime: string;
+      serviceId?: string;
+      serviceName?: string;
+      durationMinutes?: number;
+      priceRon?: number;
+      notes?: string;
+    }
+  ): AppointmentRecord | null {
+    const all = this.getAllAppointments();
+    const target = all.find((a) => a.id === appointmentId);
+    if (!target) {
+      return null;
+    }
+
+    if (changes.serviceName && changes.durationMinutes && changes.priceRon !== undefined) {
+      if (changes.serviceId) {
+        target.serviceId = changes.serviceId;
+      }
+      target.serviceName = changes.serviceName;
+      target.durationMinutes = changes.durationMinutes;
+      target.slotMinutes = changes.durationMinutes;
+      target.priceRon = changes.priceRon;
+    } else if (changes.serviceId && changes.serviceId !== target.serviceId) {
+      const foundSrv = this.getAllServices().find((s: ServiceItem) => s.id === changes.serviceId);
+      if (foundSrv) {
+        target.serviceId = foundSrv.id;
+        target.serviceName = foundSrv.name;
+        target.durationMinutes = foundSrv.durationMinutes;
+        target.slotMinutes = foundSrv.durationMinutes;
+        target.priceRon = foundSrv.priceRon;
+      }
+    }
+
+    const duration = Number(target.durationMinutes) || Number(target.slotMinutes) || 30;
+    const startMinutes = this.parseMinutes(changes.startTime);
+    const endMinutes = startMinutes + duration;
+
+    target.dateIso = changes.dateIso;
+    target.dateLabel = changes.dateLabel;
+    target.startTime = changes.startTime;
+    target.endTime = this.formatMinutes(endMinutes);
+    target.startMinutes = startMinutes;
+    target.endMinutes = endMinutes;
+    if (changes.notes !== undefined) {
+      target.notes = changes.notes.trim();
+    }
+
+    this.saveAppointments(all);
+    return target;
+  }
+
+  // Detects active client appointments that overlap with a proposed time block, full day off, or vacation range.
+  findConflictingAppointmentsForBlock(params: {
+    barberSlug: string;
+    blockType: 'INTERVAL' | 'FULL_DAY' | 'VACATION';
+    dateIso: string;
+    endDateIso?: string;
+    startTime: string;
+    endTime: string;
+  }): AppointmentRecord[] {
+    const cleanSlug = params.barberSlug.trim().toLowerCase();
+    const activeClientAppointments = this.getAllAppointments().filter(
+      (a) =>
+        a.barberSlug === cleanSlug &&
+        a.status === 'CONFIRMED' &&
+        a.source !== 'BLOCKED'
+    );
+
+    if (params.blockType === 'VACATION') {
+      const endIso = params.endDateIso || params.dateIso;
+      return activeClientAppointments
+        .filter((a) => a.dateIso >= params.dateIso && a.dateIso <= endIso)
+        .sort((a, b) => a.dateIso.localeCompare(b.dateIso) || a.startMinutes - b.startMinutes);
+    }
+
+    if (params.blockType === 'FULL_DAY') {
+      return activeClientAppointments
+        .filter((a) => a.dateIso === params.dateIso)
+        .sort((a, b) => a.startMinutes - b.startMinutes);
+    }
+
+    const blockStart = this.parseMinutes(params.startTime);
+    const blockEnd = this.parseMinutes(params.endTime);
+
+    return activeClientAppointments
+      .filter(
+        (a) =>
+          a.dateIso === params.dateIso &&
+          a.startMinutes < blockEnd &&
+          a.endMinutes > blockStart
+      )
+      .sort((a, b) => a.startMinutes - b.startMinutes);
   }
 
   // Returns all stored appointments (seeds realistic initial data on first visit)

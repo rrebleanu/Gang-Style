@@ -82,7 +82,7 @@
             Agenda Salonului &middot; Programări
           </h2>
           <p class="admin-section__subtitle">
-            Gestionează programările clienților în timp real. Apasă pe <strong>✕</strong> pentru a elibera intervalul.
+            Gestionează programările clienților în timp real.
           </p>
         </div>
 
@@ -96,22 +96,16 @@
           >
             Toți Frizerii
           </button>
-          <button
-            type="button"
-            class="barber-tab"
-            [class.barber-tab--active]="barberFilter() === 'filip'"
-            (click)="setBarberFilter('filip')"
-          >
-            Filip
-          </button>
-          <button
-            type="button"
-            class="barber-tab"
-            [class.barber-tab--active]="barberFilter() === 'sebi'"
-            (click)="setBarberFilter('sebi')"
-          >
-            Sebi
-          </button>
+          @for (b of barbers(); track b.id) {
+            <button
+              type="button"
+              class="barber-tab"
+              [class.barber-tab--active]="barberFilter() === b.slug"
+              (click)="setBarberFilter(b.slug)"
+            >
+              {{ b.name }}
+            </button>
+          }
         </div>
       </div>
 
@@ -183,7 +177,7 @@
                   <span class="client-card__num">{{ idx + 1 }}</span>
                   <strong class="client-card__time">{{ apt.startTime }} - {{ apt.endTime }}</strong>
                   <span class="client-card__barber-tag">
-                    {{ apt.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}
+                    {{ apt.barberName || getBarberName(apt.barberSlug) }}
                   </span>
                   @if (adminTimeFilter() === 'MONTH' || adminTimeFilter() === 'ALL') {
                     <span class="client-card__date">{{ apt.dateLabel }}</span>
@@ -236,22 +230,16 @@
           >
             Toți Frizerii
           </button>
-          <button
-            type="button"
-            class="barber-tab"
-            [class.barber-tab--active]="barberFilter() === 'filip'"
-            (click)="setBarberFilter('filip')"
-          >
-            Filip
-          </button>
-          <button
-            type="button"
-            class="barber-tab"
-            [class.barber-tab--active]="barberFilter() === 'sebi'"
-            (click)="setBarberFilter('sebi')"
-          >
-            Sebi
-          </button>
+          @for (b of barbers(); track b.id) {
+            <button
+              type="button"
+              class="barber-tab"
+              [class.barber-tab--active]="barberFilter() === b.slug"
+              (click)="setBarberFilter(b.slug)"
+            >
+              {{ b.name }}
+            </button>
+          }
         </div>
       </div>
 
@@ -288,11 +276,11 @@
                   <td data-label="Frizer">
                     <span class="barber-badge">
                       <img
-                        [src]="srv.barberSlug === 'filip' ? '/images/Filip.jpg' : '/images/Sebi.jpg'"
+                        [src]="getBarberPhoto(srv.barberSlug)"
                         [alt]="srv.barberSlug"
                         class="barber-badge__img"
                       />
-                      <strong>{{ srv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
+                      <strong>{{ getBarberName(srv.barberSlug) }}</strong>
                     </span>
                   </td>
                   <td data-label="Serviciu">
@@ -435,9 +423,10 @@
           <div class="modal-field">
             <label class="modal-field__label">Pentru ce frizer adaugi pachetul? *</label>
             <select formControlName="barberTarget" class="modal-field__input">
-              <option value="both">Ambii Frizeri &middot; Filip &amp; Sebi</option>
-              <option value="filip">Doar Filip</option>
-              <option value="sebi">Doar Sebi</option>
+              <option value="both">Toți Frizerii din Salon</option>
+              @for (b of barbers(); track b.id) {
+                <option [value]="b.slug">Doar {{ b.name }}</option>
+              }
             </select>
           </div>
         }
@@ -597,7 +586,7 @@
       </h3>
       <p class="modal-dialog__text">
         Programarea pentru <strong>{{ target.clientLastName }} {{ target.clientFirstName }}</strong>
-        la <strong>{{ target.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>
+        la <strong>{{ target.barberName || getBarberName(target.barberSlug) }}</strong>
         de la ora <strong>{{ target.startTime }} - {{ target.endTime }}</strong>
         ({{ target.serviceName }}) va fi ștearsă, iar intervalul orar va deveni disponibil pentru alte rezervări.
       </p>
@@ -638,7 +627,7 @@
       <p class="modal-dialog__text">
         Ești sigur că vrei să ștergi pachetul
         <strong>„{{ targetSrv.name }}”</strong> ({{ targetSrv.priceRon }} RON &middot; {{ targetSrv.durationMinutes }} min)
-        pentru <strong>{{ targetSrv.barberSlug === 'filip' ? 'Filip' : 'Sebi' }}</strong>?
+        pentru <strong>{{ getBarberName(targetSrv.barberSlug) }}</strong>?
       </p>
 
       <div class="modal-dialog__actions">

@@ -67,8 +67,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/barbers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/availability/**", "/availability/**").permitAll()
-                        // Appointments API: personal history & status updates require authentication
+                        // Appointments API: personal history, CRUD updates/deletions & status transitions require authentication
                         .requestMatchers(HttpMethod.GET, "/api/appointments/my").hasAnyRole("CLIENT", "BARBER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/appointments/*").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/status").hasAnyRole("BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/cancel").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/appointments/*").hasAnyRole("CLIENT", "BARBER", "ADMIN")

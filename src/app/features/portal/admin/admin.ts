@@ -10,7 +10,10 @@ import {
   ServiceItem,
 } from '../../../shared/models/service-item.model';
 
-export type AdminBarberFilter = 'ALL' | 'filip' | 'sebi';
+import { BarberService } from '../../../core/services/barber.service';
+import { Barber } from '../../../shared/models/barber.model';
+
+export type AdminBarberFilter = 'ALL' | string;
 
 // Admin Dashboard (/admin):
 // 1. Full CRUD on Service Packages & Prices (Create, Read, Update, Delete for Filip & Sebi)
@@ -29,9 +32,11 @@ export class Admin implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly catalogService = inject(ServiceCatalogService);
+  private readonly barberService = inject(BarberService);
   readonly authService = inject(AuthService);
 
   // State signals
+  readonly barbers = signal<Barber[]>([]);
   readonly services = signal<ServiceItem[]>([]);
   readonly isLoadingServices = signal(true);
   readonly servicesError = signal<string | null>(null);
@@ -138,7 +143,7 @@ export class Admin implements OnInit {
 
   // Reactive form for Service Package CRUD
   readonly serviceForm = this.fb.nonNullable.group({
-    barberTarget: ['both' as 'filip' | 'sebi' | 'both', [Validators.required]],
+    barberTarget: ['both', [Validators.required]],
     name: ['', [Validators.required, Validators.minLength(2)]],
     durationMinutes: [45, [Validators.required, Validators.min(5)]],
     priceRon: [60, [Validators.required, Validators.min(5)]],
@@ -150,6 +155,20 @@ export class Admin implements OnInit {
     clientPhone: ['', [Validators.required, Validators.pattern(/^[0-9\s+]{9,14}$/)]],
     reason: ['Neprezentare repetată fără anulare', [Validators.required]],
   });
+
+  getBarberName(slug?: string): string {
+    if (!slug) return '';
+    const clean = slug.trim().toLowerCase();
+    const found = this.barbers().find((b) => b.slug.toLowerCase() === clean);
+    return found ? found.name : slug.charAt(0).toUpperCase() + slug.slice(1);
+  }
+
+  getBarberPhoto(slug?: string): string {
+    if (!slug) return '/images/gangstyle.jpg';
+    const clean = slug.trim().toLowerCase();
+    const found = this.barbers().find((b) => b.slug.toLowerCase() === clean);
+    return found?.photoUrl || '/images/gangstyle.jpg';
+  }
 
   ngOnInit(): void {
     const user = this.authService.currentUser();
@@ -164,6 +183,9 @@ export class Admin implements OnInit {
         return;
       }
     }
+    this.barberService.getAll().subscribe({
+      next: (list) => this.barbers.set(list),
+    });
     this.refreshData();
   }
 
@@ -235,7 +257,7 @@ export class Admin implements OnInit {
     if (service) {
       this.editingServiceId.set(service.id);
       this.serviceForm.reset({
-        barberTarget: service.barberSlug as 'filip' | 'sebi',
+        barberTarget: service.barberSlug,
         name: service.name,
         durationMinutes: service.durationMinutes,
         priceRon: service.priceRon,
@@ -245,7 +267,7 @@ export class Admin implements OnInit {
       const defaultTarget =
         this.barberFilter() === 'ALL' ? 'both' : this.barberFilter();
       this.serviceForm.reset({
-        barberTarget: defaultTarget as 'filip' | 'sebi' | 'both',
+        barberTarget: defaultTarget,
         name: '',
         durationMinutes: 45,
         priceRon: 60,
@@ -272,7 +294,7 @@ export class Admin implements OnInit {
     if (editId) {
       const existing = this.services().find((s) => s.id === editId);
       const barberSlug =
-        existing?.barberSlug ?? (val.barberTarget === 'sebi' ? 'sebi' : 'filip');
+        existing?.barberSlug ?? (val.barberTarget !== 'both' ? val.barberTarget : (this.barbers()[0]?.slug || ''));
 
       this.catalogService
         .updateServiceApi(editId, {

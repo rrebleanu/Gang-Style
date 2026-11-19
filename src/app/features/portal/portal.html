@@ -9,22 +9,16 @@
           <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
             &larr; Management Salon
           </a>
-          <button
-            type="button"
-            class="mode-switcher__btn"
-            [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === 'filip'"
-            (click)="setViewMode('BARBER', 'filip')"
-          >
-            Dashboard Filip
-          </button>
-          <button
-            type="button"
-            class="mode-switcher__btn"
-            [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === 'sebi'"
-            (click)="setViewMode('BARBER', 'sebi')"
-          >
-            Dashboard Sebi
-          </button>
+          @for (b of barbers(); track b.id) {
+            <button
+              type="button"
+              class="mode-switcher__btn"
+              [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === b.slug"
+              (click)="setViewMode('BARBER', b.slug)"
+            >
+              Dashboard {{ b.name }}
+            </button>
+          }
         </div>
       }
 
@@ -48,8 +42,8 @@
       </div>
     }
 
-    <!-- Real-time In-App Notification Toast for New Bookings -->
-    @if (notificationService.activeToast(); as toast) {
+    <!-- Real-time In-App Notification Toast for New Bookings (Strictly for Barber / Admin view) -->
+    @if (viewMode() === 'BARBER' && notificationService.activeToast(); as toast) {
       <aside class="in-app-toast" role="status" aria-live="assertive">
         <div class="in-app-toast__badge">💈</div>
         <div class="in-app-toast__content">
@@ -104,6 +98,13 @@
                 (click)="openPhoneBookingModal()"
               >
                 + Adaugă Programare
+              </button>
+              <button
+                type="button"
+                class="btn-extra-avail"
+                (click)="openExtraAvailabilityModal()"
+              >
+                + Adaugă Zi / Interval Disponibil
               </button>
               <button
                 type="button"
@@ -198,52 +199,34 @@
                   </div>
 
                   <div class="client-card__body">
+                    <!-- 1. Client Name -->
                     <div class="client-card__name">{{ apt.clientLastName }} {{ apt.clientFirstName }}</div>
 
-                    <div class="client-card__meta">
-                      <span class="client-card__service">
-                        <span class="meta-label">Serviciu:</span> {{ apt.serviceName }}
-                      </span>
+                    <!-- 2. Service Name on its own line -->
+                    <div class="client-card__service-line">
+                      <span class="meta-label">Serviciu:</span>
+                      <span class="service-value">{{ apt.serviceName }}</span>
+                    </div>
 
-                      <a [href]="'tel:+40' + apt.clientPhone" class="client-card__phone">
-                        &#9742; +40 {{ apt.clientPhone }}
+                    <!-- 3. Phone (left) and Edit Button (right) on the exact same row -->
+                    <div class="client-card__phone-action-row">
+                      <a [href]="getTelHref(apt.clientPhone)" class="client-card__phone" title="Apelează clientul">
+                        &#9742; {{ formatDisplayPhone(apt.clientPhone) }}
                       </a>
+
+                      <button
+                        type="button"
+                        class="card-edit-btn"
+                        title="Modifică data, ora sau serviciul programării"
+                        (click)="openEditAppointmentModal(apt)"
+                      >
+                        &#9998; Editează
+                      </button>
                     </div>
 
-                    <div class="client-card__actions">
-                      @if (apt.status === 'CONFIRMED') {
-                        <button
-                          type="button"
-                          class="card-status-btn card-status-btn--done"
-                          title="Marchează programarea ca finalizată"
-                          (click)="setBarberAppointmentStatus(apt, 'COMPLETED')"
-                        >
-                          &#10003; Finalizat
-                        </button>
-                        <button
-                          type="button"
-                          class="card-status-btn card-status-btn--noshow"
-                          title="Marchează clientul ca neprezentat (No-Show)"
-                          (click)="setBarberAppointmentStatus(apt, 'NO_SHOW')"
-                        >
-                          &#9888; Neprezentat
-                        </button>
-                      } @else if (apt.status === 'NO_SHOW') {
-                        <span class="card-tag card-tag--noshow">&#9888; Neprezentare</span>
-                        @if (isAppointmentClientBlocked(apt.clientPhone)) {
-                          <button
-                            type="button"
-                            class="card-status-btn card-status-btn--unblock"
-                            title="Deblochează accesul online dacă clientul a sunat"
-                            (click)="unblockClientByPhone(apt.clientPhone, apt.clientLastName + ' ' + apt.clientFirstName)"
-                          >
-                            &#128275; Deblochează
-                          </button>
-                        }
-                      } @else if (apt.status === 'COMPLETED') {
-                        <span class="card-tag card-tag--done">&#10003; Finalizată</span>
-                      }
-                    </div>
+                    @if (apt.notes) {
+                      <div class="client-card__notes">{{ apt.notes }}</div>
+                    }
                   </div>
                 </div>
               }
@@ -278,13 +261,22 @@
                 Alege programul standard al salonului sau configurează-ți propriul orar săptămânal. Intervalele disponibile pentru clienți se adaptează automat.
               </p>
             </div>
-            <button
-              type="button"
-              class="btn-block-time"
-              (click)="openBlockModal()"
-            >
-              Blochează Interval Timp / Concediu
-            </button>
+            <div class="schedule-header-actions">
+              <button
+                type="button"
+                class="btn-extra-avail"
+                (click)="openExtraAvailabilityModal()"
+              >
+                + Adaugă Zi / Interval Disponibil
+              </button>
+              <button
+                type="button"
+                class="btn-block-time"
+                (click)="openBlockModal()"
+              >
+                Blochează Interval Timp / Concediu
+              </button>
+            </div>
           </div>
 
           <div class="schedule-mode-grid">
@@ -416,6 +408,42 @@
             </div>
           }
 
+          @if (barberExtraAvailabilities().length > 0) {
+            <div class="active-blocks-panel active-blocks-panel--extra">
+              <div class="active-blocks-panel__head">
+                <h3 class="active-blocks-panel__title">
+                  Zile &amp; Intervale Disponibile Suplimentar ({{ barberExtraAvailabilities().length }})
+                </h3>
+                <span class="active-blocks-panel__hint">
+                  Zile sau ore adăugate peste programul obișnuit în care clienții se pot programa online
+                </span>
+              </div>
+
+              <div class="active-blocks-grid">
+                @for (ext of barberExtraAvailabilities(); track ext.id) {
+                  <div class="active-block-card active-block-card--extra">
+                    <div class="active-block-card__info">
+                      <div class="active-block-card__top">
+                        <span class="source-badge source-badge--online">Disponibil</span>
+                        <strong class="active-block-card__time">{{ ext.startTime }} - {{ ext.endTime }}</strong>
+                      </div>
+                      <div class="active-block-card__date">{{ ext.dateLabel }}</div>
+                      <div class="active-block-card__reason">{{ ext.note }}</div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="tbl-btn tbl-btn--cancel"
+                      (click)="removeExtraAvailability(ext)"
+                    >
+                      Elimină
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
           @if (barberActiveBlocks().length > 0) {
             <div class="active-blocks-panel">
               <div class="active-blocks-panel__head">
@@ -524,12 +552,19 @@
           <div class="appointments-header">
             <div>
               <h2 id="barber-blacklist-heading" class="appointments-header__title">
-                Clienți Blocați pentru Neprezentări
+                Blocare Clienți Neprezentați la Programare
               </h2>
               <p class="appointments-header__subtitle">
-                Clienții care au 2 sau mai multe neprezentări sunt restricționați automat de la rezervările online și îndrumați să contacteze salonul la <strong>0770 426 308</strong>. Dacă vorbesc cu tine telefonic, le poți debloca accesul instant cu un singur click.
+                Pentru cazurile rare în care un client nu se prezintă la programare, îi poți bloca manual accesul la rezervările online (va fi îndrumat să contacteze salonul la <strong>0770 426 308</strong>). Dacă vorbiți telefonic, îi poți debloca accesul instant cu un singur click.
               </p>
             </div>
+            <button
+              type="button"
+              class="btn-block-time"
+              (click)="openManualBlockClientModal()"
+            >
+              + Blochează Client Neprezentat
+            </button>
           </div>
 
           @if (blockedClients().length > 0) {
@@ -541,7 +576,7 @@
                       <span class="blocked-client-card__icon">&#9888;</span>
                       <div>
                         <strong class="blocked-client-card__name">{{ client.clientName }}</strong>
-                        <span class="blocked-client-card__badge">{{ client.noShowCount }} Neprezentări</span>
+                        <span class="blocked-client-card__badge">Acces Online Restricționat</span>
                       </div>
                     </div>
                     <button
@@ -555,8 +590,8 @@
                   </div>
 
                   <div class="blocked-client-card__details">
-                    <a [href]="'tel:+40' + client.clientPhone" class="blocked-client-card__phone">
-                      &#9742; +40 {{ client.clientPhone }}
+                    <a [href]="getTelHref(client.clientPhone)" class="blocked-client-card__phone">
+                      &#9742; {{ formatDisplayPhone(client.clientPhone) }}
                     </a>
                     @if (client.reason) {
                       <p class="blocked-client-card__reason">{{ client.reason }}</p>
@@ -681,7 +716,7 @@
                       <span class="apt-card__barber-label">Frizer ales</span>
                       <h3 class="apt-card__barber-name">{{ apt.barberName }} | Barber</h3>
                       <a
-                        [href]="'tel:+40' + getBarberPhone(apt.barberSlug)"
+                        [href]="getTelHref(getBarberPhone(apt.barberSlug))"
                         class="apt-card__barber-phone"
                         title="Apelează frizerul"
                       >
@@ -758,7 +793,7 @@
                         <p class="cancel-notice-box__text">
                           Pentru anulări cu mai puțin de 3 ore înainte, te rugăm să apelezi frizerul la
                           <a
-                            [href]="'tel:+40' + getBarberPhone(apt.barberSlug)"
+                            [href]="getTelHref(getBarberPhone(apt.barberSlug))"
                             class="cancel-notice-box__phone"
                             title="Apelează frizerul"
                           >
@@ -1025,6 +1060,7 @@
                 type="date"
                 formControlName="dateIso"
                 class="modal-field__input"
+                (change)="clearBlockConflicts()"
               />
             </div>
             <div class="modal-field">
@@ -1034,6 +1070,7 @@
                 formControlName="endDateIso"
                 [min]="blockIntervalForm.controls.dateIso.value"
                 class="modal-field__input"
+                (change)="clearBlockConflicts()"
               />
             </div>
           </div>
@@ -1044,6 +1081,7 @@
               type="date"
               formControlName="dateIso"
               class="modal-field__input"
+              (change)="clearBlockConflicts()"
             />
           </div>
         }
@@ -1052,7 +1090,7 @@
           <div class="modal-form__row">
             <div class="modal-field">
               <label class="modal-field__label">Ora de început *</label>
-              <select formControlName="startTime" class="modal-field__input">
+              <select formControlName="startTime" class="modal-field__input" (change)="clearBlockConflicts()">
                 @for (hr of scheduleHourOptions; track hr) {
                   <option [value]="hr">{{ hr }}</option>
                 }
@@ -1060,7 +1098,7 @@
             </div>
             <div class="modal-field">
               <label class="modal-field__label">Ora de sfârșit *</label>
-              <select formControlName="endTime" class="modal-field__input">
+              <select formControlName="endTime" class="modal-field__input" (change)="clearBlockConflicts()">
                 @for (hr of scheduleHourOptions; track hr) {
                   <option [value]="hr">{{ hr }}</option>
                 }
@@ -1079,6 +1117,49 @@
           />
         </div>
 
+        @if (blockConflicts().length > 0) {
+          <div class="block-conflict-alert" role="alert">
+            <div class="block-conflict-alert__head">
+              <span class="block-conflict-alert__icon">&#9888;</span>
+              <strong>
+                Atenție: În acest interval există deja {{ blockConflicts().length }}
+                {{ blockConflicts().length === 1 ? 'programare ocupată' : 'programări ocupate' }}!
+              </strong>
+            </div>
+
+            <div class="block-conflict-alert__list">
+              @for (conf of blockConflicts(); track conf.id) {
+                <div class="block-conflict-item">
+                  <div class="block-conflict-item__info">
+                    <strong>{{ conf.clientLastName }} {{ conf.clientFirstName }}</strong>
+                    <span>({{ conf.startTime }} – {{ conf.endTime }} &middot; {{ formatDisplayPhone(conf.clientPhone) }})</span>
+                  </div>
+                  <a [href]="getTelHref(conf.clientPhone)" class="btn-call-conflict">
+                    &#9742; Contactează clientul
+                  </a>
+                </div>
+              }
+            </div>
+
+            <p class="block-conflict-alert__text">
+              Te rugăm să contactezi clientul înainte de a bloca intervalul.
+            </p>
+
+            <div class="block-conflict-alert__actions">
+              <button
+                type="button"
+                class="btn-confirm-block-anyway"
+                (click)="confirmBlockIntervalAnyway()"
+              >
+                Confirmă blocarea oricum pentru alți clienți noi &#10003;
+              </button>
+              <span class="block-conflict-alert__sub">
+                (blochează intervalul pentru restul site-ului, dar păstrează clienții deja programați)
+              </span>
+            </div>
+          </div>
+        }
+
         <div class="modal-dialog__actions">
           <button
             type="button"
@@ -1087,8 +1168,272 @@
           >
             Renunță
           </button>
+          @if (blockConflicts().length === 0) {
+            <button type="submit" class="btn-add-booking">
+              Confirmă Blocarea &#10003;
+            </button>
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Extra Availability (Add working day or extra hours) modal -->
+@if (extraAvailModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="extra-avail-modal-title"
+    (click)="closeExtraAvailabilityModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="extra-avail-modal-title" class="modal-dialog__title">
+          + Adaugă Zi / Interval Disponibil &middot; {{ currentBarber()?.name }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeExtraAvailabilityModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p class="modal-dialog__text">
+        Deschide o zi suplimentară (ex: Sâmbătă sau Duminică) sau adaugă ore peste program pentru o anumită dată, fără a modifica programul tău general.
+      </p>
+
+      <form [formGroup]="extraAvailabilityForm" (ngSubmit)="submitExtraAvailability()" class="modal-form" novalidate>
+        <div class="modal-field">
+          <label class="modal-field__label">Data în care ești disponibil *</label>
+          <input
+            type="date"
+            formControlName="dateIso"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-form__row">
+          <div class="modal-field">
+            <label class="modal-field__label">De la ora *</label>
+            <select formControlName="startTime" class="modal-field__input">
+              @for (hr of scheduleHourOptions; track hr) {
+                <option [value]="hr">{{ hr }}</option>
+              }
+            </select>
+          </div>
+          <div class="modal-field">
+            <label class="modal-field__label">Până la ora *</label>
+            <select formControlName="endTime" class="modal-field__input">
+              @for (hr of scheduleHourOptions; track hr) {
+                <option [value]="hr">{{ hr }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Notă / Detalii</label>
+          <input
+            type="text"
+            formControlName="note"
+            placeholder="Ex: Program suplimentar weekend / Sărbători"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeExtraAvailabilityModal()"
+          >
+            Renunță
+          </button>
           <button type="submit" class="btn-add-booking">
-            Confirmă Blocarea &#10003;
+            Salvează Disponibilitatea &#10003;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Edit / Reschedule existing appointment modal -->
+@if (editAppointmentModalOpen() && editingAppointment(); as editApt) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="edit-apt-modal-title"
+    (click)="closeEditAppointmentModal()"
+  >
+    <div class="modal-dialog modal-dialog--wide" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="edit-apt-modal-title" class="modal-dialog__title">
+          &#9998; Editează Programare &middot; {{ editApt.clientLastName }} {{ editApt.clientFirstName }}
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeEditAppointmentModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p class="modal-dialog__text">
+        Modifică rapid data, ora sau serviciul pentru <strong>{{ editApt.clientLastName }} {{ editApt.clientFirstName }}</strong> ({{ editApt.clientPhone }}).
+      </p>
+
+      <form [formGroup]="editAppointmentForm" (ngSubmit)="submitEditAppointment()" class="modal-form" novalidate>
+        <div class="modal-form__row">
+          <div class="modal-field">
+            <label class="modal-field__label">Pachet Serviciu *</label>
+            <select
+              formControlName="serviceId"
+              class="modal-field__input"
+              (change)="onEditAppointmentChange()"
+            >
+              @for (srv of barberServices(); track srv.id) {
+                <option [value]="srv.id">
+                  {{ srv.name }} ({{ srv.durationMinutes }} min &middot; {{ srv.priceRon }} RON)
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="modal-field">
+            <label class="modal-field__label">Data Programării *</label>
+            <input
+              type="date"
+              formControlName="dateIso"
+              class="modal-field__input"
+              (change)="onEditAppointmentChange()"
+            />
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Alege Noul Interval Orar *</label>
+          <div class="modal-slots-grid">
+            @for (slot of editAppointmentSlots(); track slot.startTime) {
+              <button
+                type="button"
+                class="modal-slot-btn"
+                [class.modal-slot-btn--selected]="editAppointmentForm.controls.startTime.value === slot.startTime"
+                [class.modal-slot-btn--busy]="!slot.available"
+                [disabled]="!slot.available"
+                (click)="selectEditAppointmentSlot(slot)"
+              >
+                <span>{{ slot.startTime }}</span>
+                <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Observații</label>
+          <input
+            type="text"
+            formControlName="notes"
+            placeholder="Notă opțională..."
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeEditAppointmentModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-add-booking">
+            Salvează Modificarea &#10003;
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- Manual block no-show client modal (rare 1% case) -->
+@if (manualBlockClientModalOpen()) {
+  <div
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="manual-block-client-title"
+    (click)="closeManualBlockClientModal()"
+  >
+    <div class="modal-dialog" (click)="$event.stopPropagation()">
+      <div class="modal-dialog__header">
+        <h3 id="manual-block-client-title" class="modal-dialog__title">
+          Blocare Client Neprezentat la Programare
+        </h3>
+        <button
+          type="button"
+          class="modal-close-btn"
+          aria-label="Închide"
+          (click)="closeManualBlockClientModal()"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p class="modal-dialog__text">
+        Clientul adăugat aici nu va mai putea rezerva online pe site și va primi mesajul să sune direct la salon (<strong>0770 426 308</strong>).
+      </p>
+
+      <form [formGroup]="manualBlockClientForm" (ngSubmit)="submitManualBlockClient()" class="modal-form" novalidate>
+        <div class="modal-field">
+          <label class="modal-field__label">Nume și Prenume Client *</label>
+          <input
+            type="text"
+            formControlName="clientName"
+            placeholder="Ex: Ion Popescu"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Număr de Telefon *</label>
+          <input
+            type="tel"
+            formControlName="clientPhone"
+            placeholder="Ex: 0720 000 004"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-field__label">Motiv *</label>
+          <input
+            type="text"
+            formControlName="reason"
+            placeholder="Ex: Neprezentare la programare fără anunțare"
+            class="modal-field__input"
+          />
+        </div>
+
+        <div class="modal-dialog__actions">
+          <button
+            type="button"
+            class="btn-modal-keep"
+            (click)="closeManualBlockClientModal()"
+          >
+            Renunță
+          </button>
+          <button type="submit" class="btn-modal-confirm">
+            Blochează Accesul Online
           </button>
         </div>
       </form>

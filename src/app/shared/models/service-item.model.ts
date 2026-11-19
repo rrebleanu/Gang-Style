@@ -76,6 +76,18 @@ export interface BarberBlockSummary {
   reason: string;
 }
 
+// Date-specific extra working day or extended hours added by a barber without altering their recurring schedule.
+export interface BarberExtraAvailability {
+  id: string;
+  barberSlug: string;
+  dateIso: string;
+  dateLabel: string;
+  startTime: string;
+  endTime: string;
+  note: string;
+  createdAt: string;
+}
+
 // Anti-No-Show Blacklist record managed by Admin / Barbers.
 export interface BlacklistEntry {
   id: string;

@@ -18,6 +18,7 @@ export interface AuthUser {
   role: UserRole;
   token?: string;
   phone?: string;
+  barberSlug?: string;
   requiresTwoFactor?: boolean;
   twoFactorEnabled?: boolean;
 }
@@ -28,6 +29,7 @@ export interface AuthResponsePayload {
   displayName: string;
   phone?: string;
   role: UserRole;
+  barberSlug?: string;
   requiresTwoFactor?: boolean;
   twoFactorEnabled?: boolean;
 }
@@ -98,6 +100,38 @@ export class AuthService {
     const target = user !== undefined ? user : this.currentUser();
     const role = target?.role;
     return role === 'ADMIN' || role === 'ROLE_ADMIN';
+  }
+
+  // Scalably and dynamically resolves the barber slug for ANY logged-in barber (no hardcoded names)
+  getCurrentBarberSlug(user?: AuthUser | null): string {
+    const target = user !== undefined ? user : this.currentUser();
+    if (!target) {
+      return '';
+    }
+    // 1. Explicit barberSlug stored on user profile/token
+    if (target.barberSlug) {
+      return target.barberSlug.trim().toLowerCase();
+    }
+    // 2. Derive primarily from email prefix (e.g. "filip@gangstyle.ro" -> "filip", "sebi@gangstyle.ro" -> "sebi")
+    const emailPrefix = (target.email || '')
+      .split('@')[0]
+      .trim()
+      .toLowerCase();
+    if (emailPrefix) {
+      const cleanSlug = emailPrefix.split(/[._-]/)[0].replace(/[^a-z0-9]/g, '');
+      if (cleanSlug) {
+        return cleanSlug;
+      }
+    }
+    // 3. First word of displayName (e.g. "Filip Frizer" -> "filip", "Sebi Frizer" -> "sebi")
+    if (target.displayName && target.displayName.trim().length > 0) {
+      const firstWord = target.displayName.trim().split(/\s+/)[0].toLowerCase();
+      const clean = firstWord.replace(/[^a-z0-9]/g, '');
+      if (clean) {
+        return clean;
+      }
+    }
+    return '';
   }
 
   // Authenticates user credentials and transitions to either pre-auth 2FA or full session.

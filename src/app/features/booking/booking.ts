@@ -85,7 +85,7 @@ export class Booking implements OnInit {
     return iso;
   });
 
-  // Strict 30-day rolling booking horizon (today up to 30 calendar days ahead)
+  // Strict 14-day rolling booking horizon (today up to 14 calendar days / 2 weeks ahead)
   readonly todayIso = computed<string>(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -96,7 +96,7 @@ export class Booking implements OnInit {
 
   readonly maxBookingDateIso = computed<string>(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 30);
+    d.setDate(d.getDate() + 14);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
@@ -214,7 +214,7 @@ export class Booking implements OnInit {
   selectDate(iso: string): void {
     const minIso = this.todayIso();
     const maxIso = this.maxBookingDateIso();
-    // Enforce 30-day booking horizon: reject dates in the past or beyond 30 days
+    // Enforce 14-day booking horizon: reject dates in the past or beyond 14 days (2 weeks)
     if (iso < minIso || iso > maxIso) {
       return;
     }
@@ -286,7 +286,7 @@ export class Booking implements OnInit {
       return;
     }
 
-    // Guard: Enforce 30-day rolling booking horizon limit
+    // Guard: Enforce 14-day rolling booking horizon limit (2 weeks)
     const minIso = this.todayIso();
     const maxIso = this.maxBookingDateIso();
     if (dateIso < minIso || dateIso > maxIso) {
@@ -431,11 +431,11 @@ export class Booking implements OnInit {
 
     const result: CalendarDayOption[] = [];
     const cursor = new Date();
-    const cleanSlug = (barberSlug || this.activeSlug() || 'filip').toLowerCase();
+    const cleanSlug = (barberSlug || this.activeSlug() || this.barber()?.slug || '').toLowerCase();
 
-    // 30-day maximum horizon date limit for client reservations
+    // 14-day maximum horizon date limit for client reservations (2 weeks)
     const maxHorizonDate = new Date();
-    maxHorizonDate.setDate(maxHorizonDate.getDate() + 30);
+    maxHorizonDate.setDate(maxHorizonDate.getDate() + 14);
     maxHorizonDate.setHours(23, 59, 59, 999);
 
     let safety = 0;

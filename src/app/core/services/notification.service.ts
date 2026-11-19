@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { AppointmentRecord } from '../../shared/models/service-item.model';
+import { AuthService } from './auth.service';
 
 export interface InAppBookingToast {
   id: string;
@@ -12,9 +13,10 @@ export interface InAppBookingToast {
   barberName: string;
 }
 
-// Handles real-time in-app chime sound, floating toast cards, and native device push notifications.
+// Handles real-time in-app chime sound, floating toast cards, and native device push notifications strictly for Barbers and Admins.
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
+  private readonly authService = inject(AuthService);
   private channel: BroadcastChannel | null = null;
   private autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -24,8 +26,8 @@ export class NotificationService {
   // Permission status: 'granted' | 'denied' | 'default' | 'unsupported'
   readonly permissionStatus = signal<'granted' | 'denied' | 'default' | 'unsupported'>('default');
 
-  // Active barber slug currently monitored by this dashboard session
-  readonly monitoredBarberSlug = signal<string>('filip');
+  // Active barber slug currently monitored by this dashboard session (empty by default for non-barbers)
+  readonly monitoredBarberSlug = signal<string>('');
 
   constructor() {
     this.initPermissionState();
@@ -37,8 +39,20 @@ export class NotificationService {
     this.monitoredBarberSlug.set(slug.trim().toLowerCase());
   }
 
-  // Requests native browser/phone notification permission from the barber.
+  // Clears the monitored barber slug and dismisses any active toast (e.g. when logging out or switching to client mode)
+  clearMonitoredBarber(): void {
+    this.monitoredBarberSlug.set('');
+    this.dismissToast();
+  }
+
+  // Requests native browser/phone notification permission strictly for barbers and admins.
   async requestNotificationPermission(): Promise<boolean> {
+    const user = this.authService.currentUser();
+    // Security check: Clients, guests, or unauthenticated users are strictly barred from receiving barber booking notifications
+    if (!user || (!this.authService.isBarber(user) && !this.authService.isAdmin(user))) {
+      return false;
+    }
+
     if (typeof window === 'undefined' || !('Notification' in window)) {
       this.permissionStatus.set('unsupported');
       return false;
@@ -167,10 +181,32 @@ export class NotificationService {
     }
   }
 
+  // Checks whether the current user session is authorized to receive alerts for the specified barber appointment.
+  private isNotificationPermitted(payload: InAppBookingToast, isTest = false): boolean {
+    if (isTest) {
+      return true;
+    }
+
+    const user = this.authService.currentUser();
+    // Strictly block clients, guests, or unauthenticated users from receiving barber alerts
+    if (!user || (!this.authService.isBarber(user) && !this.authService.isAdmin(user))) {
+      return false;
+    }
+
+    // Admins can receive alerts for the currently monitored barber slug (or any barber if not set)
+    if (this.authService.isAdmin(user)) {
+      const monitored = this.monitoredBarberSlug();
+      return !monitored || monitored === payload.barberSlug;
+    }
+
+    // Generic barber check for ANY barber role in the salon (scalable architecture, 0 hardcoded names)
+    const userBarberSlug = this.authService.getCurrentBarberSlug(user);
+    return payload.barberSlug === userBarberSlug;
+  }
+
   private handleIncomingNotification(payload: InAppBookingToast, isTest = false): void {
-    const currentSlug = this.monitoredBarberSlug();
-    // Only notify if notification belongs to the active barber or is an explicit test
-    if (!isTest && payload.barberSlug !== currentSlug) {
+    // Enforce strict role and barber ownership checks before triggering any sound, vibration, or toast
+    if (!this.isNotificationPermitted(payload, isTest)) {
       return;
     }
 

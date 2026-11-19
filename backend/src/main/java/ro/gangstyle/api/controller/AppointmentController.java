@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import ro.gangstyle.api.dto.AppointmentRequestDto;
 import ro.gangstyle.api.dto.AppointmentResponseDto;
 import ro.gangstyle.api.dto.AppointmentStatusUpdateDto;
+import ro.gangstyle.api.dto.AppointmentUpdateDto;
 import ro.gangstyle.api.service.AppointmentService;
 
 import java.util.List;
@@ -80,8 +81,40 @@ public class AppointmentController {
     }
 
     /**
+     * GET /api/appointments/{id}
+     * Retrieves a single appointment by ID with Anti-IDOR ownership verification.
+     * Regular clients can only access their own bookings; staff can access any booking.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<AppointmentResponseDto> getAppointmentById(
+            @PathVariable String id,
+            Authentication authentication) {
+
+        String requesterEmail = extractEmail(authentication);
+        boolean isStaff = hasStaffAuthority(authentication);
+        return ResponseEntity.ok(appointmentService.getAppointmentById(id, requesterEmail, isStaff));
+    }
+
+    /**
+     * PUT /api/appointments/{id}
+     * Modifies or reschedules an existing appointment (date, startTime, serviceId, notes, or status).
+     * Enforces Anti-IDOR ownership check (403 Forbidden if a client attempts to edit another user's appointment),
+     * the 3-hour notice rule for clients, and self-excluding time-slot overlap validation (409 Conflict).
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<AppointmentResponseDto> updateAppointment(
+            @PathVariable String id,
+            @Valid @RequestBody AppointmentUpdateDto request,
+            Authentication authentication) {
+
+        String requesterEmail = extractEmail(authentication);
+        boolean isStaff = hasStaffAuthority(authentication);
+        return ResponseEntity.ok(appointmentService.updateAppointment(id, request, requesterEmail, isStaff));
+    }
+
+    /**
      * PATCH /api/appointments/{id}/cancel
-     * Cancels an appointment (enforces the 3-hour notice rule for clients).
+     * Cancels an appointment (enforces Anti-IDOR ownership check and the 3-hour notice rule for clients).
      */
     @PatchMapping("/{id}/cancel")
     public ResponseEntity<AppointmentResponseDto> cancelAppointmentPatch(

@@ -246,10 +246,32 @@ public class AvailabilityService {
             int newEndMinutes,
             String barberName) {
 
+        assertSlotAvailable(barberSlug, dateIso, newStartMinutes, newEndMinutes, barberName, null);
+    }
+
+    /**
+     * Save-time and update-time verification: checks that the requested [newStartMinutes, newEndMinutes)
+     * interval does not intersect any other active appointment or blocked interval on the given date.
+     * When rescheduling an existing appointment via PUT, its own ID is passed as excludeAppointmentId
+     * so it never conflicts with its previous time slot.
+     */
+    public void assertSlotAvailable(
+            String barberSlug,
+            String dateIso,
+            int newStartMinutes,
+            int newEndMinutes,
+            String barberName,
+            String excludeAppointmentId) {
+
         List<Appointment> existingOnDate = appointmentRepository.findByBarberSlugAndDateIso(barberSlug, dateIso);
 
         for (Appointment existing : existingOnDate) {
             if ("CANCELLED".equalsIgnoreCase(existing.getStatus())) {
+                continue;
+            }
+
+            // Skip self when updating/rescheduling an existing appointment via PUT /api/appointments/{id}
+            if (excludeAppointmentId != null && excludeAppointmentId.equals(existing.getId())) {
                 continue;
             }
 

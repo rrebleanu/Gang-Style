@@ -2,9 +2,11 @@ package ro.gangstyle.api.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import ro.gangstyle.api.dto.AppointmentRequestDto;
 import ro.gangstyle.api.dto.AppointmentResponseDto;
+import ro.gangstyle.api.dto.AppointmentUpdateDto;
 import ro.gangstyle.api.exception.AppointmentConflictException;
 import ro.gangstyle.api.exception.ResourceNotFoundException;
 import ro.gangstyle.api.model.Appointment;
@@ -247,35 +249,212 @@ public class AppointmentService {
     }
 
     /**
-     * Cancels an existing appointment. Enforces the 3-hour cutoff rule when invoked by a regular client,
-     * while allowing barbers and administrators to cancel at any time.
+     * Retrieves a single appointment by its ID while enforcing Anti-IDOR ownership verification.
+     * Regular clients can only inspect their own appointments; barbers and administrators can inspect any appointment.
+     */
+    public AppointmentResponseDto getAppointmentById(String id, String requesterEmail, boolean isStaff) {
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Programarea cu ID-ul specificat nu a fost găsită."));
+
+        // Anti-IDOR check: prevent a client from reading another client's appointment details by guessing the ID
+        verifyAppointmentOwnership(appointment, requesterEmail, isStaff, "vizualiza");
+
+        return AppointmentResponseDto.fromEntity(appointment);
+    }
+
+    /**
+     * Full update (PUT) of an existing appointment: supports rescheduling (date, startTime),
+     * changing the service package (which dynamically recalculates endTime and duration),
+     * updating client contact details/notes, and optional status changes by staff.
+     *
+     * Security & Business Rules enforced:
+     * 1. Anti-IDOR ownership check: regular clients can only modify appointments that belong to them (HTTP 403 otherwise).
+     * 2. 3-hour cutoff rule: regular clients cannot modify an appointment less than 3 hours before it starts.
+     * 3. 14-day (2-week) booking horizon & working hours validation for client rescheduling.
+     * 4. Self-excluding anti-overlap check: ensures the new time slot does not collide with any other active appointment.
+     */
+    public AppointmentResponseDto updateAppointment(
+            String id,
+            AppointmentUpdateDto request,
+            String requesterEmail,
+            boolean isStaff) {
+
+        Appointment appointment = appointmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Programarea nu a fost găsită."));
+
+        // 1. Anti-IDOR Ownership Verification
+        verifyAppointmentOwnership(appointment, requesterEmail, isStaff, "modifica");
+
+        // 2. If invoked by a regular client, enforce lifecycle state and the 3-hour cutoff notice rule
+        if (!isStaff) {
+            if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
+                throw new IllegalArgumentException("Nu poți modifica o programare care a fost deja anulată.");
+            }
+            if ("COMPLETED".equalsIgnoreCase(appointment.getStatus()) || "NO_SHOW".equalsIgnoreCase(appointment.getStatus())) {
+                throw new IllegalArgumentException("Nu poți modifica o programare deja încheiată.");
+            }
+            enforceThreeHourCutoff(appointment, "modificări");
+        }
+
+        // 3. Resolve barber (keep current barber unless a new barberSlug is explicitly provided)
+        String targetBarberSlug = (request.getBarberSlug() != null && !request.getBarberSlug().isBlank())
+                ? request.getBarberSlug().trim().toLowerCase()
+                : appointment.getBarberSlug();
+
+        Barber barber = barberRepository.findBySlug(targetBarberSlug)
+                .orElseThrow(() -> new ResourceNotFoundException("Frizerul selectat nu a fost găsit: " + targetBarberSlug));
+
+        // 4. Resolve service package and duration (recalculate duration if serviceId or durationMinutes changed)
+        String serviceId = (request.getServiceId() != null && !request.getServiceId().isBlank())
+                ? request.getServiceId().trim()
+                : appointment.getServiceId();
+        String serviceName = appointment.getServiceName();
+        int durationMinutes = appointment.getDurationMinutes() > 0 ? appointment.getDurationMinutes() : 30;
+        int slotMinutes = appointment.getSlotMinutes() > 0 ? appointment.getSlotMinutes() : durationMinutes;
+        double priceRon = appointment.getPriceRon();
+
+        if (request.getServiceId() != null && !request.getServiceId().isBlank()) {
+            Optional<ServicePackage> serviceOpt = servicePackageRepository.findById(serviceId);
+            if (serviceOpt.isPresent()) {
+                ServicePackage srv = serviceOpt.get();
+                serviceName = srv.getName();
+                durationMinutes = srv.getDurationMinutes();
+                slotMinutes = srv.getSlotMinutes() > 0 ? srv.getSlotMinutes() : durationMinutes;
+                priceRon = srv.getPriceRon();
+            } else if (request.getServiceName() != null && request.getDurationMinutes() != null && request.getPriceRon() != null) {
+                serviceName = request.getServiceName().trim();
+                durationMinutes = request.getDurationMinutes();
+                slotMinutes = durationMinutes;
+                priceRon = request.getPriceRon();
+            }
+        } else {
+            if (request.getServiceName() != null && !request.getServiceName().isBlank()) {
+                serviceName = request.getServiceName().trim();
+            }
+            if (request.getDurationMinutes() != null && request.getDurationMinutes() > 0) {
+                durationMinutes = request.getDurationMinutes();
+                slotMinutes = durationMinutes;
+            }
+            if (request.getPriceRon() != null && request.getPriceRon() >= 0) {
+                priceRon = request.getPriceRon();
+            }
+        }
+
+        if (durationMinutes <= 0 || durationMinutes > 240) {
+            throw new IllegalArgumentException("Durata serviciului trebuie să fie între 15 și 240 de minute.");
+        }
+
+        // 5. Resolve target date and start time
+        String targetDateIso = (request.getDateIso() != null && !request.getDateIso().isBlank())
+                ? request.getDateIso().trim()
+                : appointment.getDateIso();
+        String targetStartTimeStr = (request.getStartTime() != null && !request.getStartTime().isBlank())
+                ? request.getStartTime().trim()
+                : appointment.getStartTime();
+
+        LocalDate appointmentDate;
+        LocalTime startLocalTime;
+        try {
+            appointmentDate = LocalDate.parse(targetDateIso);
+            startLocalTime = LocalTime.parse(targetStartTimeStr, TIME_FORMATTER);
+        } catch (DateTimeParseException ex) {
+            throw new IllegalArgumentException("Formatul datei (YYYY-MM-DD) sau al orei (HH:mm) este invalid.");
+        }
+
+        LocalDateTime startDateTime = LocalDateTime.of(appointmentDate, startLocalTime);
+        LocalDateTime endDateTime = startDateTime.plusMinutes(durationMinutes);
+        LocalTime endLocalTime = endDateTime.toLocalTime();
+
+        int newStartMinutes = startLocalTime.getHour() * 60 + startLocalTime.getMinute();
+        int newEndMinutes = newStartMinutes + durationMinutes;
+
+        // 6. If a regular client is rescheduling to a new date or time, validate temporal constraints (14-day horizon, salon hours)
+        boolean timeOrDateChanged = !targetDateIso.equals(appointment.getDateIso())
+                || !targetStartTimeStr.equals(appointment.getStartTime())
+                || !targetBarberSlug.equalsIgnoreCase(appointment.getBarberSlug());
+
+        if (!isStaff && timeOrDateChanged) {
+            validateTemporalConstraints(appointmentDate, startLocalTime, endLocalTime, startDateTime);
+        }
+
+        // 7. Self-excluding anti-overlap validation:
+        // Pass appointment.getId() so the existing slot of this appointment does not conflict with itself
+        availabilityService.assertSlotAvailable(
+                barber.getSlug(),
+                appointmentDate.toString(),
+                newStartMinutes,
+                newEndMinutes,
+                barber.getName(),
+                appointment.getId()
+        );
+
+        // 8. Apply updated fields to the appointment entity
+        appointment.setBarberSlug(barber.getSlug());
+        appointment.setBarberName(barber.getName());
+        appointment.setBarberPhotoUrl(barber.getPhotoUrl());
+        appointment.setServiceId(serviceId);
+        appointment.setServiceName(serviceName);
+        appointment.setDurationMinutes(durationMinutes);
+        appointment.setSlotMinutes(slotMinutes);
+        appointment.setPriceRon(priceRon);
+        appointment.setDateIso(appointmentDate.toString());
+
+        String dateLabel = (request.getDateLabel() != null && !request.getDateLabel().isBlank() && !timeOrDateChanged)
+                ? request.getDateLabel().trim()
+                : formatRomanianDateLabel(appointmentDate);
+        appointment.setDateLabel(dateLabel);
+
+        appointment.setStartTime(startLocalTime.format(TIME_FORMATTER));
+        appointment.setEndTime(endLocalTime.format(TIME_FORMATTER));
+        appointment.setStartMinutes(newStartMinutes);
+        appointment.setEndMinutes(newEndMinutes);
+        appointment.setStartDateTime(startDateTime);
+        appointment.setEndDateTime(endDateTime);
+
+        if (request.getClientFirstName() != null && !request.getClientFirstName().isBlank()) {
+            appointment.setClientFirstName(request.getClientFirstName().trim());
+        }
+        if (request.getClientLastName() != null && !request.getClientLastName().isBlank()) {
+            appointment.setClientLastName(request.getClientLastName().trim());
+        }
+        if (request.getClientPhone() != null && !request.getClientPhone().isBlank()) {
+            appointment.setClientPhone(request.getClientPhone().trim());
+        }
+        if (request.getNotes() != null) {
+            appointment.setNotes(request.getNotes().trim());
+        }
+
+        // Only staff members (BARBER / ADMIN) can directly override lifecycle status via PUT
+        if (isStaff && request.getStatus() != null && !request.getStatus().isBlank()) {
+            appointment.setStatus(normalizeStatus(request.getStatus()));
+        }
+
+        Appointment updated = appointmentRepository.save(appointment);
+        log.info("Updated appointment [{}] by {} (staff={}) -> {} {}-{}",
+                updated.getId(), requesterEmail, isStaff, updated.getDateIso(), updated.getStartTime(), updated.getEndTime());
+
+        return AppointmentResponseDto.fromEntity(updated);
+    }
+
+    /**
+     * Cancels an existing appointment (via PATCH /{id}/cancel or DELETE /{id}).
+     * Enforces Anti-IDOR ownership verification (throws HTTP 403 Forbidden if a client attempts to cancel
+     * another user's booking) and enforces the 3-hour cutoff rule for regular clients.
      */
     public AppointmentResponseDto cancelAppointment(String id, String requesterEmail, boolean isStaff) {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea nu a fost găsită."));
 
+        // 1. Anti-IDOR Ownership Verification (throws AccessDeniedException -> 403 Forbidden on mismatch)
+        verifyAppointmentOwnership(appointment, requesterEmail, isStaff, "anula");
+
         if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new IllegalArgumentException("Această programare este deja anulată.");
         }
 
-        // If the requester is a regular client, verify ownership and enforce the 3-hour cutoff rule
+        // 2. If the requester is a regular client, enforce the 3-hour notice cutoff rule
         if (!isStaff) {
-            if (requesterEmail != null && appointment.getClientEmail() != null
-                    && !appointment.getClientEmail().isBlank()
-                    && !requesterEmail.equalsIgnoreCase(appointment.getClientEmail().trim())) {
-                throw new IllegalArgumentException("Nu ai permisiunea de a anula programarea altui client.");
-            }
-
-            appointment.syncDateTimeFields();
-            LocalDateTime startDateTime = appointment.getStartDateTime();
-            if (startDateTime != null) {
-                long minutesUntilStart = Duration.between(LocalDateTime.now(), startDateTime).toMinutes();
-                if (minutesUntilStart < CANCELLATION_CUTOFF_HOURS * 60) {
-                    throw new IllegalArgumentException(
-                            "Pentru anulări cu mai puțin de 3 ore înainte, te rugăm să apelezi frizerul la: 0770 426 308"
-                    );
-                }
-            }
+            enforceThreeHourCutoff(appointment, "anulări");
         }
 
         appointment.setStatus("CANCELLED");
@@ -293,7 +472,8 @@ public class AppointmentService {
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea cu ID-ul specificat nu există."));
 
-        appointment.setStatus(newStatus.trim().toUpperCase());
+        String normalizedStatus = normalizeStatus(newStatus);
+        appointment.setStatus(normalizedStatus);
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Updated appointment [{}] status to {}", id, saved.getStatus());
 
@@ -301,9 +481,94 @@ public class AppointmentService {
     }
 
     /**
+     * Anti-IDOR (Insecure Direct Object Reference) Ownership Guard:
+     * Ensures that a regular client (non-staff) can only view, modify, or cancel an appointment
+     * that actually belongs to them. Ownership is verified by matching the authenticated user's
+     * email against appointment.clientEmail, or by matching their registered phone number against
+     * appointment.clientPhone (for phone bookings linked to their account).
+     *
+     * Throws Spring Security's AccessDeniedException (mapped to HTTP 403 Forbidden) if ownership fails.
+     */
+    private void verifyAppointmentOwnership(
+            Appointment appointment,
+            String requesterEmail,
+            boolean isStaff,
+            String actionVerbRo) {
+
+        if (isStaff) {
+            // Staff members (BARBER and ADMIN) are authorized to manage salon appointments
+            return;
+        }
+
+        if (requesterEmail == null || requesterEmail.isBlank()) {
+            throw new AccessDeniedException(
+                    "Autentificare necesară pentru a " + actionVerbRo + " această programare."
+            );
+        }
+
+        String normalizedRequesterEmail = requesterEmail.trim().toLowerCase();
+        String appointmentEmail = appointment.getClientEmail() != null
+                ? appointment.getClientEmail().trim().toLowerCase()
+                : "";
+
+        // Primary ownership check: email match
+        if (!appointmentEmail.isEmpty() && normalizedRequesterEmail.equalsIgnoreCase(appointmentEmail)) {
+            return;
+        }
+
+        // Secondary ownership check: if the appointment was booked by phone or under another email,
+        // check if the authenticated user's account phone number matches the appointment's clientPhone
+        String appointmentPhone = normalizePhone(appointment.getClientPhone());
+        if (!appointmentPhone.isEmpty()) {
+            Optional<User> userOpt = userRepository.findByEmail(normalizedRequesterEmail);
+            if (userOpt.isPresent() && userOpt.get().getPhone() != null) {
+                String userPhone = normalizePhone(userOpt.get().getPhone());
+                if (!userPhone.isEmpty() && userPhone.equals(appointmentPhone)) {
+                    return;
+                }
+            }
+        }
+
+        log.warn("Anti-IDOR blocked attempt by '{}' to {} appointment [{}] owned by '{}'",
+                requesterEmail, actionVerbRo, appointment.getId(), appointmentEmail);
+        throw new AccessDeniedException(
+                "Nu ai permisiunea de a " + actionVerbRo + " programarea altui client."
+        );
+    }
+
+    /**
+     * Enforces the 3-hour cutoff rule for client-initiated cancellations or rescheduling.
+     */
+    private void enforceThreeHourCutoff(Appointment appointment, String actionNounRo) {
+        appointment.syncDateTimeFields();
+        LocalDateTime startDateTime = appointment.getStartDateTime();
+        if (startDateTime != null) {
+            long minutesUntilStart = Duration.between(LocalDateTime.now(), startDateTime).toMinutes();
+            if (minutesUntilStart < CANCELLATION_CUTOFF_HOURS * 60) {
+                throw new IllegalArgumentException(
+                        "Pentru " + actionNounRo + " cu mai puțin de 3 ore înainte, te rugăm să apelezi frizerul la: 0770 426 308"
+                );
+            }
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Statusul programării este obligatoriu.");
+        }
+        String upper = status.trim().toUpperCase();
+        return switch (upper) {
+            case "CONFIRMED", "COMPLETED", "NO_SHOW", "CANCELLED" -> upper;
+            default -> throw new IllegalArgumentException(
+                    "Status invalid: " + status + ". Valori permise: CONFIRMED, COMPLETED, NO_SHOW, CANCELLED."
+            );
+        };
+    }
+
+    /**
      * Validates temporal business rules:
      * 1. Rejects bookings in the past.
-     * 2. Enforces the 30-day rolling booking window for clients.
+     * 2. Enforces the 14-day (2-week) rolling booking window for clients.
      * 3. Ensures the appointment falls on an open day and within salon operating hours.
      */
     private void validateTemporalConstraints(

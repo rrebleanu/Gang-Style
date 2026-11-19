@@ -4,9 +4,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { BarberService } from '../../core/services/barber.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
+import { AppError } from '../../core/errors/app-error.model';
 import { Barber } from '../../shared/models/barber.model';
-import { ServiceItem, TimeSlot } from '../../shared/models/service-item.model';
+import { AppointmentRecord, ServiceItem, TimeSlot } from '../../shared/models/service-item.model';
 
 export interface CalendarDayOption {
   iso: string; // YYYY-MM-DD
@@ -33,6 +35,7 @@ export class Booking implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly barberService = inject(BarberService);
   private readonly catalogService = inject(ServiceCatalogService);
+  private readonly errorHandler = inject(ErrorHandlerService);
   readonly authService = inject(AuthService);
 
   // Active barber and their service packages
@@ -41,6 +44,16 @@ export class Booking implements OnInit {
   readonly activeSlug = signal<string>('');
   readonly isLoadingData = signal(true);
   readonly loadError = signal<string | null>(null);
+  readonly bookingError = signal<AppError | null>(null);
+
+  // Real-time availability slots state fetched from GET /api/availability
+  readonly timeSlots = signal<TimeSlot[]>([]);
+  readonly isLoadingSlots = signal(false);
+  readonly slotsError = signal<AppError | null>(null);
+
+  // Booking HTTP submission state for POST /api/appointments
+  readonly isSubmittingBooking = signal(false);
+  readonly confirmedAppointment = signal<AppointmentRecord | null>(null);
 
   // Wizard step: 1 = Service, 2 = Date & Time, 3 = Personal Details, 4 = Summary
   readonly currentStep = signal<1 | 2 | 3 | 4>(1);
@@ -65,15 +78,15 @@ export class Booking implements OnInit {
   // Step 3 form submission state
   readonly step3Submitted = signal(false);
 
-  // Computed time slots for the selected barber, date, and service
-  readonly timeSlots = computed<TimeSlot[]>(() => {
-    const currentBarber = this.barber();
-    const service = this.selectedService();
-    const dateIso = this.selectedDateIso();
-    if (!currentBarber || !service || !dateIso) {
+  // Extracts structured backend validation field errors (if returned by Spring Boot @Valid)
+  readonly bookingFieldErrors = computed<string[]>(() => {
+    const err = this.bookingError();
+    if (!err?.fieldErrors) {
       return [];
     }
-    return this.catalogService.getSlotsForDate(currentBarber.slug, dateIso, service);
+    return Object.values(err.fieldErrors).filter(
+      (msg): msg is string => typeof msg === 'string' && msg.trim().length > 0
+    );
   });
 
   readonly selectedDayLabel = computed<string>(() => {
@@ -121,6 +134,10 @@ export class Booking implements OnInit {
     const loggedUser = this.authService.currentUser();
     if (loggedUser?.email.includes('@')) {
       this.clientForm.controls.email.setValue(loggedUser.email);
+    }
+    if (loggedUser?.phone) {
+      const cleanPhone = loggedUser.phone.replace(/^\+?40\s?/, '');
+      this.clientForm.controls.phone.setValue(cleanPhone);
     }
 
     // Monitor client phone input to detect 2+ no-shows in real-time
@@ -173,6 +190,7 @@ export class Booking implements OnInit {
           if (matchedService) {
             this.selectedService.set(matchedService);
             this.currentStep.set(2);
+            this.loadRealSlotsForSelectedDate();
           }
         }
       },
@@ -181,12 +199,56 @@ export class Booking implements OnInit {
           this.router.navigate(['/404']);
           return;
         }
-        this.loadError.set(
-          'Nu am putut încărca datele frizerului. Verifică dacă serverul backend este pornit.'
-        );
+        const appErr = this.errorHandler.handleBookingError(err);
+        this.loadError.set(appErr.message);
         this.isLoadingData.set(false);
       },
     });
+  }
+
+  /**
+   * Queries GET /api/availability for the currently selected barber, ISO date, and service duration.
+   * Seeds an immediate local snapshot to avoid UI layout shifts, then replaces it with the
+   * authoritative slot list from the Spring Boot backend and re-validates any selected slot.
+   */
+  loadRealSlotsForSelectedDate(): void {
+    const currentBarber = this.barber();
+    const service = this.selectedService();
+    const dateIso = this.selectedDateIso();
+
+    if (!currentBarber || !service || !dateIso) {
+      this.timeSlots.set([]);
+      return;
+    }
+
+    this.slotsError.set(null);
+    this.isLoadingSlots.set(true);
+
+    // Pre-populate immediate local estimate while the HTTP request is in flight
+    this.timeSlots.set(this.catalogService.getSlotsForDate(currentBarber.slug, dateIso, service));
+
+    this.catalogService
+      .fetchAvailabilitySlotsApi(currentBarber.slug, dateIso, service)
+      .subscribe({
+        next: (slots) => {
+          this.timeSlots.set(slots);
+          this.isLoadingSlots.set(false);
+
+          // If the user's previously selected slot became occupied in the meantime, deselect it
+          const currentSelected = this.selectedSlot();
+          if (currentSelected) {
+            const matching = slots.find((s) => s.startTime === currentSelected.startTime);
+            if (!matching || !matching.available) {
+              this.selectedSlot.set(null);
+            }
+          }
+        },
+        error: (err: unknown) => {
+          this.isLoadingSlots.set(false);
+          const appErr = this.errorHandler.handleBookingError(err);
+          this.slotsError.set(appErr);
+        },
+      });
   }
 
   // Step 1 actions
@@ -199,6 +261,8 @@ export class Booking implements OnInit {
     if (!previous || previous.durationMinutes !== item.durationMinutes) {
       this.selectedSlot.set(null);
     }
+
+    this.loadRealSlotsForSelectedDate();
   }
 
   goToStep2(): void {
@@ -207,6 +271,7 @@ export class Booking implements OnInit {
       return;
     }
     this.currentStep.set(2);
+    this.loadRealSlotsForSelectedDate();
     this.scrollToTop();
   }
 
@@ -220,6 +285,7 @@ export class Booking implements OnInit {
     }
     this.selectedDateIso.set(iso);
     this.selectedSlot.set(null);
+    this.loadRealSlotsForSelectedDate();
   }
 
   onNativeDateChange(event: Event): void {
@@ -263,20 +329,57 @@ export class Booking implements OnInit {
       return;
     }
 
+    this.bookingError.set(null);
     this.currentStep.set(4);
     this.scrollToTop();
   }
 
   goBack(): void {
+    this.bookingError.set(null);
     const step = this.currentStep();
     if (step > 1) {
-      this.currentStep.set((step - 1) as 1 | 2 | 3 | 4);
+      const targetStep = (step - 1) as 1 | 2 | 3 | 4;
+      this.currentStep.set(targetStep);
+      if (targetStep === 2) {
+        this.loadRealSlotsForSelectedDate();
+      }
       this.scrollToTop();
     }
   }
 
-  // Step 4 final confirmation
+  /**
+   * 1-Click recovery handler when a 409 Conflict occurs (slot was booked by another client):
+   * clears the error banner, refreshes real slots from the backend, and returns to Step 2.
+   */
+  returnToSlotSelection(): void {
+    this.bookingError.set(null);
+    this.selectedSlot.set(null);
+    this.currentStep.set(2);
+    this.loadRealSlotsForSelectedDate();
+    this.scrollToTop();
+  }
+
+  /**
+   * 1-Click recovery handler when a 400 Bad Request / validation error occurs on client details:
+   * clears the error banner and returns the user to Step 3 to adjust their form inputs.
+   */
+  returnToPersonalDetails(): void {
+    this.bookingError.set(null);
+    this.currentStep.set(3);
+    this.scrollToTop();
+  }
+
+  /**
+   * Step 4 final confirmation: submits the booking payload to POST /api/appointments.
+   * Handles both successful confirmation and HTTP errors (e.g. 409 Conflict race condition,
+   * 400 Bad Request validation failure, 429 Too Many Requests, 500 Server Error).
+   */
   confirmBooking(): void {
+    if (this.isSubmittingBooking()) {
+      return;
+    }
+
+    this.bookingError.set(null);
     const currentBarber = this.barber();
     const service = this.selectedService();
     const slot = this.selectedSlot();
@@ -290,6 +393,10 @@ export class Booking implements OnInit {
     const minIso = this.todayIso();
     const maxIso = this.maxBookingDateIso();
     if (dateIso < minIso || dateIso > maxIso) {
+      const err = this.errorHandler.handleBookingError(
+        'Data selectată depășește orizontul maxim de 14 zile sau este în trecut.'
+      );
+      this.bookingError.set(err);
       return;
     }
 
@@ -305,34 +412,55 @@ export class Booking implements OnInit {
       return;
     }
 
-    // Persist full appointment record and mark slot as occupied
-    this.catalogService.createAppointment({
-      barberSlug: currentBarber.slug,
-      barberName: currentBarber.name,
-      barberPhotoUrl: currentBarber.photoUrl,
-      serviceId: service.id,
-      serviceName: service.name,
-      durationMinutes: service.durationMinutes,
-      slotMinutes: service.slotMinutes,
-      priceRon: service.priceRon,
-      dateIso,
-      dateLabel: this.selectedDayLabel(),
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      clientFirstName: formVal.firstName.trim(),
-      clientLastName: formVal.lastName.trim(),
-      clientEmail: formVal.email.trim(),
-      clientPhone: formVal.phone.trim(),
-      notes: formVal.notes.trim() || undefined,
-    });
+    this.isSubmittingBooking.set(true);
 
-    // Save last visited barber in localStorage for the "⭐ Ultima vizită" badge on Home
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem('gangstyle_last_barber_id', currentBarber.id);
-    }
+    this.catalogService
+      .createAppointmentApi({
+        barberSlug: currentBarber.slug,
+        barberName: currentBarber.name,
+        barberPhotoUrl: currentBarber.photoUrl,
+        serviceId: service.id,
+        serviceName: service.name,
+        durationMinutes: service.durationMinutes,
+        slotMinutes: service.slotMinutes,
+        priceRon: service.priceRon,
+        dateIso,
+        dateLabel: this.selectedDayLabel(),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        clientFirstName: formVal.firstName.trim(),
+        clientLastName: formVal.lastName.trim(),
+        clientEmail: formVal.email.trim(),
+        clientPhone: formVal.phone.trim(),
+        notes: formVal.notes.trim() || undefined,
+      })
+      .subscribe({
+        next: (createdRecord) => {
+          this.isSubmittingBooking.set(false);
+          this.confirmedAppointment.set(createdRecord);
 
-    this.isConfirmed.set(true);
-    this.scrollToTop();
+          // Save last visited barber in localStorage for the "⭐ Ultima vizită" badge on Home
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('gangstyle_last_barber_id', currentBarber.id);
+          }
+
+          this.isConfirmed.set(true);
+          this.scrollToTop();
+        },
+        error: (err: unknown) => {
+          this.isSubmittingBooking.set(false);
+          const appErr = this.errorHandler.handleBookingError(err);
+          this.bookingError.set(appErr);
+
+          // If the slot was taken in the meantime (HTTP 409 Conflict), refresh real slots immediately
+          if (appErr.status === 409) {
+            this.selectedSlot.set(null);
+            this.loadRealSlotsForSelectedDate();
+          }
+
+          this.scrollToTop();
+        },
+      });
   }
 
   // Share / copy barber link

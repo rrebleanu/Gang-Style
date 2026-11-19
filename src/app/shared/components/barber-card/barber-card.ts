@@ -18,6 +18,7 @@ export class BarberCard {
   readonly barber = input.required<Barber>();
   readonly isLastVisit = input(false);
   readonly showBooking = input(true);
+  readonly isActiveOnScroll = input(false);
 
   readonly barberPhone = computed<string>(() => this.barber().phone || '0770 426 308');
 

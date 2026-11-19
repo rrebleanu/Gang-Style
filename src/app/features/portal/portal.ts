@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { BarberService } from '../../core/services/barber.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
+import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { TwoFactorModal } from '../../shared/components/two-factor-modal/two-factor-modal';
 import { Barber } from '../../shared/models/barber.model';
 import {
@@ -45,6 +46,7 @@ export class Portal implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly catalogService = inject(ServiceCatalogService);
   private readonly barberService = inject(BarberService);
+  private readonly errorHandler = inject(ErrorHandlerService);
   readonly notificationService = inject(NotificationService);
   readonly authService = inject(AuthService);
 
@@ -1344,8 +1346,9 @@ export class Portal implements OnInit {
               `Serviciul „${val.name}” (${val.priceRon} RON) a fost actualizat în baza de date!`
             );
           },
-          error: () => {
-            this.showFeedback('Nu am putut actualiza serviciul. Verifică serverul.');
+          error: (err) => {
+            const appError = this.errorHandler.handleBarberPortalError(err);
+            this.showFeedback(appError.message);
           },
         });
     } else {
@@ -1364,8 +1367,9 @@ export class Portal implements OnInit {
               `Pachetul nou „${val.name}” (${val.priceRon} RON) a fost salvat pentru ${this.currentBarber()?.name}!`
             );
           },
-          error: () => {
-            this.showFeedback('Nu am putut adăuga serviciul. Verifică serverul.');
+          error: (err) => {
+            const appError = this.errorHandler.handleBarberPortalError(err);
+            this.showFeedback(appError.message);
           },
         });
     }
@@ -1393,9 +1397,10 @@ export class Portal implements OnInit {
         this.refreshAllData();
         this.showFeedback(`Serviciul „${target.name}” a fost șters din baza de date.`);
       },
-      error: () => {
+      error: (err) => {
         this.serviceToDelete.set(null);
-        this.showFeedback('Nu am putut șterge serviciul. Verifică serverul.');
+        const appError = this.errorHandler.handleBarberPortalError(err);
+        this.showFeedback(appError.message);
       },
     });
   }

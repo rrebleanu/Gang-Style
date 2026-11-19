@@ -22,7 +22,15 @@
   <!-- Delimitare vizuală între marketing și echipa noastră -->
   <div class="section-divider section-divider--top" aria-hidden="true">
     <span class="section-divider__line"></span>
-    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__scissors">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="3"></circle>
+        <circle cx="6" cy="18" r="3"></circle>
+        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+      </svg>
+    </span>
     <span class="section-divider__line"></span>
   </div>
 
@@ -46,9 +54,11 @@
       } @else {
         @for (barber of barbers(); track barber.id) {
           <app-barber-card
+            [attr.data-barber-id]="barber.id"
             [barber]="barber"
             [isLastVisit]="!isStaff() && barber.id === lastVisitBarberId()"
             [showBooking]="!isStaff()"
+            [isActiveOnScroll]="activeScrollBarberId() === barber.id"
           />
         } @empty {
           <p class="empty-state">Momentan nu există frizeri disponibili.</p>
@@ -60,7 +70,15 @@
   <!-- Delimitare vizuală între echipa noastră și despre noi -->
   <div class="section-divider section-divider--middle" aria-hidden="true">
     <span class="section-divider__line"></span>
-    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__scissors">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="3"></circle>
+        <circle cx="6" cy="18" r="3"></circle>
+        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+      </svg>
+    </span>
     <span class="section-divider__line"></span>
   </div>
 
@@ -86,7 +104,15 @@
   <!-- Delimitare vizuală între despre noi și locație/contact -->
   <div class="section-divider section-divider--bottom" aria-hidden="true">
     <span class="section-divider__line"></span>
-    <span class="section-divider__gem">◆</span>
+    <span class="section-divider__scissors">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="6" cy="6" r="3"></circle>
+        <circle cx="6" cy="18" r="3"></circle>
+        <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+        <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+        <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+      </svg>
+    </span>
     <span class="section-divider__line"></span>
   </div>
 

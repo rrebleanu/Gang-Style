@@ -2,6 +2,7 @@ import { Component, ElementRef, inject, signal, ViewChild } from '@angular/core'
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService, UserRole } from '../../core/services/auth.service';
+import { ErrorHandlerService } from '../../core/services/error-handler.service';
 
 // Login and registration component connected to the JWT authentication service.
 @Component({
@@ -14,6 +15,7 @@ export class Auth {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   readonly authService = inject(AuthService);
+  private readonly errorHandler = inject(ErrorHandlerService);
 
   @ViewChild('registerEmailInput') registerEmailInput?: ElementRef<HTMLInputElement>;
   @ViewChild('registerSection') registerSection?: ElementRef<HTMLElement>;
@@ -95,9 +97,8 @@ export class Auth {
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const msg =
-          err?.error?.message || 'Emailul sau parola introdusă este incorectă.';
-        this.authErrorMessage.set(msg);
+        const appError = this.errorHandler.handleAuthError(err);
+        this.authErrorMessage.set(appError.message);
       },
     });
   }
@@ -125,10 +126,8 @@ export class Auth {
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const msg =
-          err?.error?.message ||
-          'Nu am putut crea contul. Verifică dacă adresa de email este deja folosită.';
-        this.authErrorMessage.set(msg);
+        const appError = this.errorHandler.handleAuthError(err);
+        this.authErrorMessage.set(appError.message);
       },
     });
   }

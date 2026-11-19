@@ -190,13 +190,35 @@
             <!-- Continuous time slots list from morning to evening -->
             <div class="slots-section">
               <div class="slots-section__header">
-                <h3 class="slots-section__subtitle">Intervale Orare ({{ selectedDayLabel() }})</h3>
+                <h3 class="slots-section__subtitle">
+                  Intervale Orare ({{ selectedDayLabel() }})
+                  @if (isLoadingSlots()) {
+                    <span class="slots-section__sync-indicator"> &middot; Se verifică disponibilitatea...</span>
+                  }
+                </h3>
                 @if (selectedService(); as srv) {
                   <span class="slots-section__badge">
                     {{ srv.name }} &middot; {{ srv.durationMinutes }} min
                   </span>
                 }
               </div>
+
+              @if (slotsError(); as slotErr) {
+                <div class="booking-error-card" role="alert">
+                  <div class="booking-error-card__icon">&#9888;</div>
+                  <div class="booking-error-card__content">
+                    <h3 class="booking-error-card__title">{{ slotErr.title }}</h3>
+                    <p class="booking-error-card__desc">{{ slotErr.message }}</p>
+                    <button
+                      type="button"
+                      class="booking-error-card__action-btn"
+                      (click)="loadRealSlotsForSelectedDate()"
+                    >
+                      Reîncearcă încărcarea orelor &#8635;
+                    </button>
+                  </div>
+                </div>
+              }
 
               <div class="slots-grid">
                 @for (slot of timeSlots(); track slot.label) {
@@ -413,6 +435,46 @@
               Verifică detaliile de mai jos înainte de a confirma programarea.
             </p>
 
+            @if (bookingError(); as err) {
+              <div class="booking-error-card" role="alert">
+                <div class="booking-error-card__icon">&#9888;</div>
+                <div class="booking-error-card__content">
+                  <h3 class="booking-error-card__title">{{ err.title }}</h3>
+                  <p class="booking-error-card__desc">{{ err.message }}</p>
+
+                  @if (bookingFieldErrors().length > 0) {
+                    <ul class="booking-error-card__list">
+                      @for (fieldMsg of bookingFieldErrors(); track fieldMsg) {
+                        <li>{{ fieldMsg }}</li>
+                      }
+                    </ul>
+                  }
+
+                  @if (err.actionSuggestion) {
+                    <p class="booking-error-card__hint">{{ err.actionSuggestion }}</p>
+                  }
+
+                  @if (err.status === 409) {
+                    <button
+                      type="button"
+                      class="booking-error-card__action-btn"
+                      (click)="returnToSlotSelection()"
+                    >
+                      Alege altă oră disponibilă &rarr;
+                    </button>
+                  } @else if (err.status === 400 && bookingFieldErrors().length > 0) {
+                    <button
+                      type="button"
+                      class="booking-error-card__action-btn"
+                      (click)="returnToPersonalDetails()"
+                    >
+                      Corectează datele personale &rarr;
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
             <div class="summary-box">
               <div class="summary-row">
                 <span class="summary-row__label">Frizer</span>
@@ -481,11 +543,21 @@
             </p>
 
             <div class="step-actions">
-              <button type="button" class="btn-back" (click)="goBack()">
+              <button
+                type="button"
+                class="btn-back"
+                [disabled]="isSubmittingBooking()"
+                (click)="goBack()"
+              >
                 &larr; Înapoi
               </button>
-              <button type="button" class="btn-next" (click)="confirmBooking()">
-                Confirmă Programarea &#10003;
+              <button
+                type="button"
+                class="btn-next"
+                [disabled]="isSubmittingBooking()"
+                (click)="confirmBooking()"
+              >
+                {{ isSubmittingBooking() ? 'Se confirmă programarea...' : 'Confirmă Programarea &#10003;' }}
               </button>
             </div>
           </section>
@@ -496,14 +568,22 @@
           <div class="confirmed-card__badge">&#10003;</div>
           <h2 class="confirmed-card__title">Programare Confirmată!</h2>
           <p class="confirmed-card__text">
-            Mulțumim, <strong>{{ clientForm.controls.firstName.value }}</strong>! Te așteptăm la
-            <strong>Gang Style</strong> alături de <strong>{{ currentBarber.name }}</strong>,
-            <strong>{{ selectedDayLabel() }}</strong> în intervalul
-            <strong>{{ selectedSlot()?.label }}</strong>.
+            Mulțumim,
+            <strong>{{ confirmedAppointment()?.clientFirstName || clientForm.controls.firstName.value }}</strong>!
+            Te așteptăm la <strong>Gang Style</strong> alături de
+            <strong>{{ confirmedAppointment()?.barberName || currentBarber.name }}</strong>,
+            <strong>{{ confirmedAppointment()?.dateLabel || selectedDayLabel() }}</strong> în intervalul
+            <strong>
+              {{
+                confirmedAppointment()
+                  ? confirmedAppointment()!.startTime + ' - ' + confirmedAppointment()!.endTime
+                  : selectedSlot()?.label
+              }}
+            </strong>.
           </p>
           <p class="confirmed-card__subtext">
             Un e-mail de confirmare a fost trimis la
-            <strong>{{ clientForm.controls.email.value }}</strong>.
+            <strong>{{ confirmedAppointment()?.clientEmail || clientForm.controls.email.value }}</strong>.
           </p>
 
           <div class="confirmed-card__actions">

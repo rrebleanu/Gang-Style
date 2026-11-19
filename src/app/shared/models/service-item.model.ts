@@ -13,7 +13,39 @@ export interface TimeSlot {
   startTime: string;
   endTime: string;
   label: string;
+  durationMinutes?: number;
   available: boolean;
+}
+
+// Response payload returned by GET /api/availability from Spring Boot.
+export interface AvailabilityApiResponse {
+  barberSlug: string;
+  barberName: string;
+  dateIso: string;
+  workingDay: boolean;
+  workingHoursStart: string;
+  workingHoursEnd: string;
+  slotDurationMinutes: number;
+  availableCount: number;
+  slots: TimeSlot[];
+}
+
+// Request payload sent to POST /api/appointments in Spring Boot.
+export interface AppointmentApiRequestPayload {
+  barberSlug: string;
+  serviceId: string;
+  serviceName?: string;
+  durationMinutes?: number;
+  priceRon?: number;
+  dateIso: string;
+  dateLabel?: string;
+  startTime: string;
+  clientFirstName: string;
+  clientLastName: string;
+  clientEmail: string;
+  clientPhone: string;
+  notes?: string;
+  source?: 'ONLINE' | 'PHONE' | 'BLOCKED';
 }
 
 // Full appointment record persisted in storage (and MongoDB later).

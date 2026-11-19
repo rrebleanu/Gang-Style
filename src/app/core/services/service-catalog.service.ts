@@ -1,9 +1,11 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { forkJoin, Observable, catchError, of, tap, throwError, timeout } from 'rxjs';
+import { forkJoin, Observable, catchError, map, of, tap, throwError, timeout } from 'rxjs';
 import { NotificationService } from './notification.service';
 import {
+  AppointmentApiRequestPayload,
   AppointmentRecord,
+  AvailabilityApiResponse,
   BarberBlockSummary,
   BarberDaySchedule,
   BarberExtraAvailability,
@@ -39,15 +41,17 @@ export interface ServicePackageApiPayload {
 export class ServiceCatalogService {
   private readonly http = inject(HttpClient);
   private readonly notificationService = inject(NotificationService);
-  private readonly servicesApiUrl = ServiceCatalogService.resolveApiUrl();
+  private readonly servicesApiUrl = ServiceCatalogService.resolveBaseApiUrl('/api/services');
+  private readonly availabilityApiUrl = ServiceCatalogService.resolveBaseApiUrl('/api/availability');
+  private readonly appointmentsApiUrl = ServiceCatalogService.resolveBaseApiUrl('/api/appointments');
   private readonly storageKey = 'gangstyle_appointments_v3';
 
-  private static resolveApiUrl(): string {
+  private static resolveBaseApiUrl(path: string): string {
     const host =
       typeof window !== 'undefined' && window.location?.hostname
         ? window.location.hostname
         : 'localhost';
-    return `http://${host}:8080/api/services`;
+    return `http://${host}:8080${path}`;
   }
   private readonly servicesStorageKey = 'gangstyle_services_v2';
   private readonly blacklistStorageKey = 'gangstyle_blacklist_v1';
@@ -790,7 +794,261 @@ export class ServiceCatalogService {
     return slots;
   }
 
-  // Creates and persists a full appointment record
+  /**
+   * Fetches real daily availability slots from GET /api/availability on the Spring Boot backend.
+   * Sends the barber's effective working hours and selected service duration, and cross-checks
+   * the returned slots against any local-only barber breaks or blocks so both sources stay synchronized.
+   * Falls back to local calculation only if the backend server is completely unreachable (status 0 / timeout),
+   * while propagating explicit HTTP errors (400, 404, 500) to the component error handler.
+   */
+  fetchAvailabilitySlotsApi(
+    barberSlug: string,
+    dateIso: string,
+    service: ServiceItem
+  ): Observable<TimeSlot[]> {
+    const cleanSlug = barberSlug.trim().toLowerCase();
+    const dayHours = this.getEffectiveDayHours(cleanSlug, dateIso);
+    if (!dayHours.working) {
+      return of([]);
+    }
+
+    const openMinutes = this.parseMinutes(dayHours.startTime);
+    const closeMinutes = this.parseMinutes(dayHours.endTime);
+    if (openMinutes >= closeMinutes) {
+      return of([]);
+    }
+
+    // Check if the barber blocked the entire day or set a vacation locally
+    const localOccupied = this.getOccupiedForDay(cleanSlug, dateIso);
+    const isFullDayBlocked = localOccupied.some(
+      (b) =>
+        b.source === 'BLOCKED' &&
+        (b.blockType === 'FULL_DAY' ||
+          b.blockType === 'VACATION' ||
+          (b.startMinutes <= openMinutes && b.endMinutes >= closeMinutes))
+    );
+    if (isFullDayBlocked) {
+      return of([]);
+    }
+
+    const duration = Math.max(
+      10,
+      Number(service.durationMinutes) || Number(service.slotMinutes) || 30
+    );
+
+    return this.http
+      .get<AvailabilityApiResponse>(this.availabilityApiUrl, {
+        params: {
+          barber: cleanSlug,
+          date: dateIso,
+          serviceId: service.id,
+          durationMinutes: String(duration),
+          startTime: dayHours.startTime,
+          endTime: dayHours.endTime,
+        },
+      })
+      .pipe(
+        timeout(2000),
+        map((response) => {
+          if (!response || !response.workingDay || !Array.isArray(response.slots)) {
+            return [];
+          }
+          const backendSlots: TimeSlot[] = response.slots.map((slot) => ({
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            label: slot.label || `${slot.startTime} - ${slot.endTime}`,
+            durationMinutes: slot.durationMinutes ?? duration,
+            available: Boolean(slot.available),
+          }));
+          return this.mergeBackendSlotsWithLocalObstacles(cleanSlug, dateIso, backendSlots);
+        }),
+        catchError((err) => {
+          // Only fallback to local calculation when backend is offline/unreachable; propagate HTTP errors
+          if (err?.status === 0 || err?.name === 'TimeoutError') {
+            return of(this.getSlotsForDate(barberSlug, dateIso, service));
+          }
+          return throwError(() => err);
+        })
+      );
+  }
+
+  /**
+   * Reconciles slots returned by GET /api/availability with any locally stored appointments
+   * or personal barber breaks so that local blocks hide slots and local client appointments mark slots occupied.
+   */
+  private mergeBackendSlotsWithLocalObstacles(
+    barberSlug: string,
+    dateIso: string,
+    backendSlots: TimeSlot[]
+  ): TimeSlot[] {
+    const localOccupied = this.getOccupiedForDay(barberSlug, dateIso);
+    if (localOccupied.length === 0) {
+      return backendSlots;
+    }
+
+    const reconciled: TimeSlot[] = [];
+    for (const slot of backendSlots) {
+      const slotStart = this.parseMinutes(slot.startTime);
+      const slotEnd = this.parseMinutes(slot.endTime);
+
+      const overlappingLocal = localOccupied.find(
+        (obs) => slotStart < obs.endMinutes && slotEnd > obs.startMinutes
+      );
+
+      if (!overlappingLocal) {
+        reconciled.push(slot);
+      } else if (overlappingLocal.source === 'BLOCKED') {
+        // Personal barber breaks remain hidden from the public client view
+        continue;
+      } else {
+        // Mark slot as occupied if overlapped by an active client booking
+        reconciled.push({
+          ...slot,
+          available: false,
+        });
+      }
+    }
+
+    return reconciled;
+  }
+
+  /**
+   * Submits a new appointment booking to POST /api/appointments on the Spring Boot backend.
+   * Synchronizes the confirmed appointment with local storage and dispatches real-time barber notifications.
+   * Propagates HTTP errors (400 Bad Request, 409 Conflict race condition, 429, 500) directly to the caller
+   * so Angular's ErrorHandlerService can display actionable feedback.
+   */
+  createAppointmentApi(
+    payload: Omit<AppointmentRecord, 'id' | 'startMinutes' | 'endMinutes' | 'status' | 'createdAt'>
+  ): Observable<AppointmentRecord> {
+    const bookingSource = payload.source ?? 'ONLINE';
+
+    // Immediate client-side check against local anti-no-show blacklist
+    if (bookingSource === 'ONLINE') {
+      const blockCheck = this.isClientBlocked(payload.clientPhone);
+      if (blockCheck.blocked) {
+        return throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 400,
+              statusText: 'Bad Request',
+              error: {
+                message:
+                  'Te rugăm să contactezi direct salonul la nr 0770426308 pentru o nouă programare.',
+              },
+            })
+        );
+      }
+    }
+
+    const duration = Number(payload.durationMinutes) || Number(payload.slotMinutes) || 30;
+    const requestBody: AppointmentApiRequestPayload = {
+      barberSlug: payload.barberSlug.trim().toLowerCase(),
+      serviceId: payload.serviceId,
+      serviceName: payload.serviceName,
+      durationMinutes: duration,
+      priceRon: Number(payload.priceRon),
+      dateIso: payload.dateIso,
+      dateLabel: payload.dateLabel,
+      startTime: payload.startTime,
+      clientFirstName: payload.clientFirstName.trim(),
+      clientLastName: payload.clientLastName.trim(),
+      clientEmail: payload.clientEmail.trim().toLowerCase(),
+      clientPhone: payload.clientPhone.trim(),
+      notes: payload.notes?.trim() || undefined,
+      source: bookingSource,
+    };
+
+    return this.http.post<any>(this.appointmentsApiUrl, requestBody).pipe(
+      timeout(3000),
+      map((apiRes) => {
+        const record = this.mapApiResponseToAppointmentRecord(apiRes, payload);
+        this.upsertLocalAppointment(record);
+        this.notificationService.broadcastNewAppointment(record);
+        return record;
+      }),
+      catchError((err) => {
+        // Fallback to local persistence only when backend server is completely unreachable
+        if (err?.status === 0 || err?.name === 'TimeoutError') {
+          try {
+            const localCreated = this.createAppointment(payload);
+            return of(localCreated);
+          } catch (localErr) {
+            return throwError(() => localErr);
+          }
+        }
+        // Re-throw all HTTP status errors (400, 403, 404, 409 Conflict, 429, 500) for UI handling
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /**
+   * Maps a backend AppointmentResponseDto JSON payload into the frontend AppointmentRecord model.
+   */
+  private mapApiResponseToAppointmentRecord(
+    apiRes: any,
+    fallbackPayload: Omit<
+      AppointmentRecord,
+      'id' | 'startMinutes' | 'endMinutes' | 'status' | 'createdAt'
+    >
+  ): AppointmentRecord {
+    const duration =
+      Number(apiRes?.durationMinutes) ||
+      Number(fallbackPayload.durationMinutes) ||
+      Number(fallbackPayload.slotMinutes) ||
+      30;
+    const startTime = apiRes?.startTime || fallbackPayload.startTime;
+    const startMinutes =
+      typeof apiRes?.startMinutes === 'number'
+        ? apiRes.startMinutes
+        : this.parseMinutes(startTime);
+    const endMinutes =
+      typeof apiRes?.endMinutes === 'number' ? apiRes.endMinutes : startMinutes + duration;
+
+    return {
+      id: apiRes?.id || 'apt-' + Date.now(),
+      barberSlug: (apiRes?.barberSlug || fallbackPayload.barberSlug).toLowerCase(),
+      barberName: apiRes?.barberName || fallbackPayload.barberName,
+      barberPhotoUrl: apiRes?.barberPhotoUrl || fallbackPayload.barberPhotoUrl,
+      serviceId: apiRes?.serviceId || fallbackPayload.serviceId,
+      serviceName: apiRes?.serviceName || fallbackPayload.serviceName,
+      durationMinutes: duration,
+      slotMinutes: Number(apiRes?.slotMinutes) || duration,
+      priceRon: Number(apiRes?.priceRon ?? fallbackPayload.priceRon),
+      dateIso: apiRes?.dateIso || fallbackPayload.dateIso,
+      dateLabel: apiRes?.dateLabel || fallbackPayload.dateLabel,
+      startTime,
+      endTime: apiRes?.endTime || this.formatMinutes(endMinutes),
+      startMinutes,
+      endMinutes,
+      clientFirstName: apiRes?.clientFirstName || fallbackPayload.clientFirstName,
+      clientLastName: apiRes?.clientLastName || fallbackPayload.clientLastName,
+      clientEmail: (apiRes?.clientEmail || fallbackPayload.clientEmail || '').trim().toLowerCase(),
+      clientPhone: apiRes?.clientPhone || fallbackPayload.clientPhone,
+      notes: apiRes?.notes || fallbackPayload.notes,
+      source: apiRes?.source || fallbackPayload.source || 'ONLINE',
+      status: apiRes?.status || 'CONFIRMED',
+      createdAt:
+        typeof apiRes?.createdAt === 'string' ? apiRes.createdAt : new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Inserts or updates an appointment record in localStorage so client and barber portals remain synced.
+   */
+  private upsertLocalAppointment(record: AppointmentRecord): void {
+    const all = this.getAllAppointments();
+    const existingIdx = all.findIndex((a) => a.id === record.id);
+    if (existingIdx >= 0) {
+      all[existingIdx] = record;
+    } else {
+      all.unshift(record);
+    }
+    this.saveAppointments(all);
+  }
+
+  // Creates and persists a full appointment record locally (used by staff modals and offline fallback)
   createAppointment(
     payload: Omit<AppointmentRecord, 'id' | 'startMinutes' | 'endMinutes' | 'status' | 'createdAt'>
   ): AppointmentRecord {
@@ -800,9 +1058,14 @@ export class ServiceCatalogService {
     if (bookingSource === 'ONLINE') {
       const blockCheck = this.isClientBlocked(payload.clientPhone);
       if (blockCheck.blocked) {
-        throw new Error(
-          'Te rugăm să contactezi direct salonul la nr 0770426308 pentru o nouă programare.'
-        );
+        throw new HttpErrorResponse({
+          status: 400,
+          statusText: 'Bad Request',
+          error: {
+            message:
+              'Te rugăm să contactezi direct salonul la nr 0770426308 pentru o nouă programare.',
+          },
+        });
       }
 
       const today = new Date();
@@ -816,13 +1079,37 @@ export class ServiceCatalogService {
       const targetDate = new Date(targetYear, targetMonth - 1, targetDay, 12, 0, 0, 0);
 
       if (targetDate < today || targetDate > maxDate) {
-        throw new Error('Programările online sunt permise doar în intervalul de maximum 14 zile (2 săptămâni).');
+        throw new HttpErrorResponse({
+          status: 400,
+          statusText: 'Bad Request',
+          error: {
+            message:
+              'Programările online sunt permise doar în intervalul de maximum 14 zile (2 săptămâni).',
+          },
+        });
       }
     }
 
     const duration = Number(payload.durationMinutes) || Number(payload.slotMinutes) || 30;
     const startMinutes = this.parseMinutes(payload.startTime);
     const endMinutes = startMinutes + duration;
+
+    // Anti-overlap check for online bookings: throw 409 Conflict if the interval is already occupied
+    if (bookingSource === 'ONLINE') {
+      const occupied = this.getOccupiedForDay(payload.barberSlug, payload.dateIso);
+      const conflict = occupied.find(
+        (existing) => startMinutes < existing.endMinutes && endMinutes > existing.startMinutes
+      );
+      if (conflict) {
+        throw new HttpErrorResponse({
+          status: 409,
+          statusText: 'Conflict',
+          error: {
+            message: `Intervalul orar ${payload.startTime} - ${this.formatMinutes(endMinutes)} este deja ocupat. Te rugăm să alegi o altă oră disponibilă.`,
+          },
+        });
+      }
+    }
 
     const record: AppointmentRecord = {
       ...payload,

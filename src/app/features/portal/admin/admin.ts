@@ -11,6 +11,7 @@ import {
 } from '../../../shared/models/service-item.model';
 
 import { BarberService } from '../../../core/services/barber.service';
+import { ErrorHandlerService } from '../../../core/services/error-handler.service';
 import { Barber } from '../../../shared/models/barber.model';
 
 export type AdminBarberFilter = 'ALL' | string;
@@ -33,6 +34,7 @@ export class Admin implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly catalogService = inject(ServiceCatalogService);
   private readonly barberService = inject(BarberService);
+  private readonly errorHandler = inject(ErrorHandlerService);
   readonly authService = inject(AuthService);
 
   // State signals
@@ -368,17 +370,14 @@ export class Admin implements OnInit {
   }
 
   private extractErrorMessage(err: any): string {
-    const apiBody = err?.error;
-    if (apiBody?.fieldErrors) {
-      const firstError = Object.values(apiBody.fieldErrors)[0];
+    const appError = this.errorHandler.handleAdminPortalError(err);
+    if (appError.fieldErrors) {
+      const firstError = Object.values(appError.fieldErrors)[0];
       if (typeof firstError === 'string') {
         return firstError;
       }
     }
-    if (typeof apiBody?.message === 'string' && apiBody.message.trim().length > 0) {
-      return apiBody.message;
-    }
-    return 'Operațiunea nu a putut fi salvată. Verifică conexiunea cu serverul.';
+    return appError.message;
   }
 
   // Blacklist modal & actions

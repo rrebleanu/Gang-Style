@@ -1069,6 +1069,94 @@ $error-color: #e5484d;
   }
 }
 
+// Client Booking Error Card
+.booking-error-card {
+  margin: 1.25rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-left: 4px solid #ef4444;
+  border-radius: $radius;
+
+  &__icon {
+    font-size: 1.4rem;
+    line-height: 1;
+    color: #ef4444;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__title {
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fca5a5;
+  }
+
+  &__desc {
+    margin: 0 0 0.35rem;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: #f1f5f9;
+  }
+
+  &__list {
+    margin: 0.4rem 0 0.5rem 1.1rem;
+    padding: 0;
+    font-size: 0.85rem;
+    color: #fecaca;
+    line-height: 1.45;
+
+    li {
+      margin-bottom: 0.2rem;
+    }
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 0.82rem;
+    color: $color-accent;
+    font-weight: 600;
+  }
+
+  &__action-btn {
+    margin-top: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.95rem;
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: $color-accent;
+    background: rgba(26, 26, 26, 0.75);
+    border: 1px solid rgba($color-accent, 0.65);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: $color-accent;
+      color: #121212;
+      border-color: $color-accent;
+    }
+  }
+}
+
+.slots-section__sync-indicator {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: $color-accent;
+  opacity: 0.85;
+}
+
 // Anti-no-show blacklist shield alert card
 .blacklist-shield-card {
   margin: 1.25rem 0;

@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { ErrorHandlerService } from '../../../core/services/error-handler.service';
 
 // Step-two verification component (/verify-2fa) for TOTP two-factor authentication.
 @Component({
@@ -14,6 +15,7 @@ export class VerifyTwoFactor implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   readonly authService = inject(AuthService);
+  private readonly errorHandler = inject(ErrorHandlerService);
 
   readonly submitted = signal(false);
   readonly isSubmitting = signal(false);
@@ -66,10 +68,8 @@ export class VerifyTwoFactor implements OnInit {
       },
       error: (err) => {
         this.isSubmitting.set(false);
-        const msg =
-          err?.error?.message ||
-          'Codul 2FA introdus este invalid sau a expirat. Încearcă din nou.';
-        this.errorMessage.set(msg);
+        const appError = this.errorHandler.handleAuthError(err);
+        this.errorMessage.set(appError.message);
       },
     });
   }

@@ -40,7 +40,7 @@ public class AppointmentService {
             DateTimeFormatter.ofPattern("EEEE, d MMMM", RO_LOCALE);
 
     // Salon business constraints
-    private static final int MAX_BOOKING_HORIZON_DAYS = 30;
+    private static final int MAX_BOOKING_HORIZON_DAYS = 14;
     private static final int MAX_ALLOWED_NO_SHOWS = 2;
     private static final long CANCELLATION_CUTOFF_HOURS = 3;
     private static final LocalTime SALON_OPEN_TIME = LocalTime.of(9, 0);
@@ -51,16 +51,19 @@ public class AppointmentService {
     private final BarberRepository barberRepository;
     private final ServicePackageRepository servicePackageRepository;
     private final UserRepository userRepository;
+    private final AvailabilityService availabilityService;
 
     public AppointmentService(
             AppointmentRepository appointmentRepository,
             BarberRepository barberRepository,
             ServicePackageRepository servicePackageRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            AvailabilityService availabilityService) {
         this.appointmentRepository = appointmentRepository;
         this.barberRepository = barberRepository;
         this.servicePackageRepository = servicePackageRepository;
         this.userRepository = userRepository;
+        this.availabilityService = availabilityService;
     }
 
     /**
@@ -318,7 +321,7 @@ public class AppointmentService {
 
         if (appointmentDate.isAfter(maxAllowedDate)) {
             throw new IllegalArgumentException(
-                    "Programările online se pot face cu cel mult " + MAX_BOOKING_HORIZON_DAYS + " de zile în avans."
+                    "Programările online se pot face cu cel mult " + MAX_BOOKING_HORIZON_DAYS + " de zile în avans (2 săptămâni)."
             );
         }
 
@@ -334,8 +337,9 @@ public class AppointmentService {
     }
 
     /**
-     * Prevents double-booking by verifying that no active (non-cancelled) appointment
-     * for the same barber and date overlaps with the requested [newStart, newEnd) window.
+     * Prevents double-booking at save time by delegating the half-open interval intersection
+     * check [newStart, newEnd) against all active client appointments and blocked intervals
+     * to AvailabilityService.
      */
     private void validateNoTimeSlotOverlap(
             String barberSlug,
@@ -344,30 +348,7 @@ public class AppointmentService {
             int newEndMinutes,
             String barberName) {
 
-        List<Appointment> existingOnDate = appointmentRepository.findByBarberSlugAndDateIso(barberSlug, dateIso);
-
-        for (Appointment existing : existingOnDate) {
-            if ("CANCELLED".equalsIgnoreCase(existing.getStatus())) {
-                continue;
-            }
-
-            int existingStart = existing.getStartMinutes();
-            int existingEnd = existing.getEndMinutes() > existingStart
-                    ? existing.getEndMinutes()
-                    : existingStart + Math.max(existing.getDurationMinutes(), 30);
-
-            // Half-open interval intersection test: [A_start, A_end) overlaps [B_start, B_end) iff A_start < B_end && A_end > B_start
-            if (newStartMinutes < existingEnd && newEndMinutes > existingStart) {
-                throw new AppointmentConflictException(
-                        String.format(
-                                "Intervalul orar %s - %s este deja ocupat la %s. Te rugăm să alegi alt interval disponibil.",
-                                existing.getStartTime(),
-                                existing.getEndTime(),
-                                barberName
-                        )
-                );
-            }
-        }
+        availabilityService.assertSlotAvailable(barberSlug, dateIso, newStartMinutes, newEndMinutes, barberName);
     }
 
     /**

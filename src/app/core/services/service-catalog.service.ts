@@ -1324,7 +1324,12 @@ export class ServiceCatalogService {
     }
     const all = this.getAllAppointments().filter((a) => a.source !== 'BLOCKED');
     return all.filter((a) => {
-      const matchEmail = cleanEmail.length > 0 && a.clientEmail?.trim().toLowerCase() === cleanEmail;
+      const aEmail = a.clientEmail?.trim().toLowerCase() || '';
+      const matchEmail =
+        cleanEmail.length > 0 &&
+        (aEmail === cleanEmail ||
+          (cleanEmail === 'client@gangstyle.ro' && aEmail === 'demo@gangstyle.ro') ||
+          (cleanEmail === 'demo@gangstyle.ro' && aEmail === 'client@gangstyle.ro'));
       const matchPhone = cleanPhone.length >= 9 && normalizePhoneNumber(a.clientPhone) === cleanPhone;
       return matchEmail || matchPhone;
     });

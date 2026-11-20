@@ -34,18 +34,26 @@ $color-accent: #b39268;
 }
 
 .back-btn {
-  background-color: $color-accent;
-  color: #121212;
+  background: rgba(16, 16, 16, 0.72);
+  background-color: rgba($color-accent, 0.12);
+  border: 1px solid $color-accent;
+  color: $color-accent;
   text-decoration: none;
   padding: 0.75rem 2rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
   transition: all 0.25s ease;
 
-  &:hover {
-    background-color: #ffffff;
+  &:hover,
+  &:active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: #121212;
+    box-shadow: 0 4px 18px rgba($color-accent, 0.45);
     transform: translateY(-2px);
   }
 }

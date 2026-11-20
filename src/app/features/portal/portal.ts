@@ -70,8 +70,13 @@ export class Portal implements OnInit {
   // Client dashboard state and computed signals
   readonly appointments = signal<AppointmentRecord[]>([]);
   readonly activeTab = signal<PortalFilterTab>('UPCOMING');
+  readonly showHistory = signal<boolean>(false);
   readonly appointmentToCancel = signal<AppointmentRecord | null>(null);
   readonly appointmentToDelete = signal<AppointmentRecord | null>(null);
+
+  toggleHistory(): void {
+    this.showHistory.update((open) => !open);
+  }
 
   readonly upcomingAppointments = computed<AppointmentRecord[]>(() =>
     this.appointments()

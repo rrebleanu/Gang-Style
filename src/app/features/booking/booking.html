@@ -269,6 +269,15 @@
           <section class="step-card" aria-labelledby="step3-title">
             <h2 id="step3-title" class="step-card__title">Detalii Personale</h2>
 
+            @if (isReturningClient()) {
+              <div class="returning-client-hint" role="status">
+                <span class="returning-client-hint__badge">&#10003; Date completate</span>
+                <span class="returning-client-hint__text">
+                  Bine ai revenit! Ți-am precompletat datele de contact din ultima vizită.
+                </span>
+              </div>
+            }
+
             <form [formGroup]="clientForm" (ngSubmit)="goToStep4()" class="details-form" novalidate>
               <!-- Last Name -->
               <div class="form-field">

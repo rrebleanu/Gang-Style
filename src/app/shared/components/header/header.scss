@@ -130,8 +130,10 @@ $hamburger-delay: 150ms;
 }
 
 .nav-btn {
-  background-color: $color-accent;
-  color: $color-bg;
+  background: rgba(16, 16, 16, 0.72);
+  background-color: rgba($color-accent, 0.12);
+  border: 1px solid $color-accent;
+  color: $color-accent;
   text-decoration: none;
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
@@ -139,12 +141,23 @@ $hamburger-delay: 150ms;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   border-radius: $radius;
-  transition: background-color $transition-fast, transform $transition-fast;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast,
+    border-color $transition-fast,
+    box-shadow $transition-fast,
+    transform $transition-fast;
   white-space: nowrap;
 
-  &:hover {
-    background-color: $color-text;
-    transform: translateY(-2px);
+  &:hover,
+  &:active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $color-bg;
+    box-shadow: 0 4px 18px rgba($color-accent, 0.45);
+    transform: translateY(-1px);
   }
 }
 
@@ -220,13 +233,15 @@ $bp-header-mobile: 900px;
     max-width: 140px;
     overflow: hidden;
     text-overflow: ellipsis;
+    -webkit-tap-highlight-color: transparent;
     transition: all $transition-fast;
 
     &:hover,
     &:active {
-      background: rgba($color-accent, 0.18);
+      background: $color-accent;
       border-color: $color-accent;
-      color: $color-accent-hover;
+      color: $color-bg;
+      box-shadow: 0 2px 10px rgba($color-accent, 0.4);
     }
 
     &--logged {

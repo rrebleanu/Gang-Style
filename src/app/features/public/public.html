@@ -54,11 +54,9 @@
       } @else {
         @for (barber of barbers(); track barber.id) {
           <app-barber-card
-            [attr.data-barber-id]="barber.id"
             [barber]="barber"
-            [isLastVisit]="!isStaff() && barber.id === lastVisitBarberId()"
+            [isLastVisit]="!isStaff() && (barber.id === lastVisitBarberId() || barber.slug === lastVisitBarberId())"
             [showBooking]="!isStaff()"
-            [isActiveOnScroll]="activeScrollBarberId() === barber.id"
           />
         } @empty {
           <p class="empty-state">Momentan nu există frizeri disponibili.</p>

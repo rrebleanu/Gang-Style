@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { BarberService } from '../../core/services/barber.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ClientStorageService } from '../../core/services/client-storage.service';
 import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
 import { AppError } from '../../core/errors/app-error.model';
@@ -35,6 +36,7 @@ export class Booking implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly barberService = inject(BarberService);
   private readonly catalogService = inject(ServiceCatalogService);
+  private readonly clientStorage = inject(ClientStorageService);
   private readonly errorHandler = inject(ErrorHandlerService);
   readonly authService = inject(AuthService);
 
@@ -120,6 +122,9 @@ export class Booking implements OnInit {
   readonly isClientPhoneBlocked = signal(false);
   readonly blockedClientReason = signal<string | null>(null);
 
+  // Returning client detection (invisible retention)
+  readonly isReturningClient = signal(false);
+
   // Step 3 reactive form with validators
   readonly clientForm = this.fb.nonNullable.group({
     lastName: ['', [Validators.required, Validators.minLength(2)]],
@@ -131,13 +136,48 @@ export class Booking implements OnInit {
   });
 
   ngOnInit(): void {
-    const loggedUser = this.authService.currentUser();
-    if (loggedUser?.email.includes('@')) {
-      this.clientForm.controls.email.setValue(loggedUser.email);
+    // 1. Check for returning client profile saved safely in localStorage
+    const returningClient = this.clientStorage.getClientProfile();
+    if (returningClient) {
+      if (returningClient.lastName && !this.clientForm.controls.lastName.value) {
+        this.clientForm.controls.lastName.setValue(returningClient.lastName);
+      }
+      if (returningClient.firstName && !this.clientForm.controls.firstName.value) {
+        this.clientForm.controls.firstName.setValue(returningClient.firstName);
+      }
+      if (returningClient.email && !this.clientForm.controls.email.value) {
+        this.clientForm.controls.email.setValue(returningClient.email);
+      }
+      if (returningClient.phone && !this.clientForm.controls.phone.value) {
+        const cleanPhone = returningClient.phone.replace(/^\+?40\s?/, '');
+        this.clientForm.controls.phone.setValue(cleanPhone);
+      }
+      this.isReturningClient.set(true);
     }
-    if (loggedUser?.phone) {
-      const cleanPhone = loggedUser.phone.replace(/^\+?40\s?/, '');
-      this.clientForm.controls.phone.setValue(cleanPhone);
+
+    // 2. Logged-in user values take precedence if present
+    const loggedUser = this.authService.currentUser();
+    if (loggedUser) {
+      if (loggedUser.email && loggedUser.email.includes('@')) {
+        this.clientForm.controls.email.setValue(loggedUser.email);
+      }
+      if (loggedUser.phone) {
+        const cleanPhone = loggedUser.phone.replace(/^\+?40\s?/, '');
+        this.clientForm.controls.phone.setValue(cleanPhone);
+      }
+      if (loggedUser.displayName) {
+        const parts = loggedUser.displayName.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          if (!this.clientForm.controls.lastName.value) {
+            this.clientForm.controls.lastName.setValue(parts[0]);
+          }
+          if (!this.clientForm.controls.firstName.value) {
+            this.clientForm.controls.firstName.setValue(parts.slice(1).join(' '));
+          }
+        } else if (parts.length === 1 && !this.clientForm.controls.lastName.value) {
+          this.clientForm.controls.lastName.setValue(parts[0]);
+        }
+      }
     }
 
     // Monitor client phone input to detect 2+ no-shows in real-time
@@ -439,10 +479,15 @@ export class Booking implements OnInit {
           this.isSubmittingBooking.set(false);
           this.confirmedAppointment.set(createdRecord);
 
-          // Save last visited barber in localStorage for the "⭐ Ultima vizită" badge on Home
-          if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('gangstyle_last_barber_id', currentBarber.id);
-          }
+          // Save returning client details in localStorage for invisible retention, prefill, and "Ultima vizită" badge
+          this.clientStorage.saveClientProfile({
+            lastName: formVal.lastName,
+            firstName: formVal.firstName,
+            phone: formVal.phone,
+            email: formVal.email,
+            barberId: currentBarber.id,
+            barberSlug: currentBarber.slug,
+          });
 
           this.isConfirmed.set(true);
           this.scrollToTop();

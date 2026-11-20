@@ -431,7 +431,7 @@ $error-color: #e5484d;
     border-color: rgba($color-accent, 0.6);
   }
 
-  &--active {
+  &:active {
     background: $color-accent;
     border-color: $color-accent;
     color: $color-bg;
@@ -439,6 +439,30 @@ $error-color: #e5484d;
     .day-pill__name,
     .day-pill__num {
       color: $color-bg;
+    }
+  }
+
+  &--active {
+    background: rgba($color-accent, 0.16);
+    border-color: $color-accent;
+    color: $color-accent;
+    box-shadow: 0 0 10px rgba($color-accent, 0.25);
+
+    .day-pill__name,
+    .day-pill__num {
+      color: $color-accent;
+      font-weight: 800;
+    }
+
+    &:active {
+      background: $color-accent;
+      border-color: $color-accent;
+      color: $color-bg;
+
+      .day-pill__name,
+      .day-pill__num {
+        color: $color-bg;
+      }
     }
   }
 }
@@ -570,6 +594,44 @@ $error-color: #e5484d;
 }
 
 // STEP 3: Client personal details form
+.returning-client-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.95rem;
+  background: rgba(28, 28, 28, 0.9);
+  border: 1px solid rgba($color-accent, 0.35);
+  border-radius: $radius;
+  font-size: 0.8rem;
+  color: $color-muted;
+  margin-bottom: -0.25rem;
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    background: rgba($color-accent, 0.15);
+    border: 1px solid rgba($color-accent, 0.45);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: $color-accent;
+    white-space: nowrap;
+  }
+
+  &__text {
+    color: rgba($color-text, 0.88);
+  }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
 .details-form {
   display: flex;
   flex-direction: column;
@@ -811,21 +873,31 @@ $error-color: #e5484d;
   align-items: center;
   justify-content: center;
   padding: 0.85rem 1.5rem;
-  background: $color-accent;
-  border: 1px solid $color-accent;
+  background: rgba($color-accent, 0.12);
+  border: 1px solid rgba($color-accent, 0.75);
   border-radius: $radius;
-  color: $color-bg;
+  color: $color-accent;
   font-family: inherit;
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color $transition-fast, transform $transition-fast;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color $transition-fast,
+    border-color $transition-fast,
+    color $transition-fast,
+    box-shadow $transition-fast,
+    transform $transition-fast;
 
-  &:hover {
-    background: $color-accent-hover;
-    border-color: $color-accent-hover;
+  &:hover,
+  &:active {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $color-bg;
+    box-shadow: 0 4px 20px rgba($color-accent, 0.5);
     transform: translateY(-1px);
   }
 }

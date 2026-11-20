@@ -2,8 +2,8 @@
 @use 'mixins' as *;
 
 // fluid font sizes
-$fs-h1: clamp(0.95rem, 0.8rem + 0.9vw, 1.5rem);
-$fs-subtitle: clamp(0.7rem, 0.65rem + 0.25vw, 0.875rem);
+$fs-h1: clamp(0.86rem, 0.72rem + 1vw, 1.5rem);
+$fs-subtitle: clamp(0.65rem, 0.6rem + 0.25vw, 0.875rem);
 $fs-button: clamp(0.75rem, 0.7rem + 0.2vw, 0.875rem);
 
 // page grid: areas change per breakpoint (same idea as #page-grid in Tackle Hub)
@@ -92,6 +92,11 @@ h1 {
     color: $color-text;
     font-weight: 700;
   }
+
+  @include mobile {
+    font-size: clamp(0.78rem, 3.8vw, 0.96rem);
+    letter-spacing: 0.06em;
+  }
 }
 
 .subtitle {
@@ -100,6 +105,11 @@ h1 {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: $color-accent;
+
+  @include mobile {
+    font-size: clamp(0.62rem, 2.7vw, 0.72rem);
+    letter-spacing: 0.15em;
+  }
 }
 
 .cta-button {
@@ -107,24 +117,28 @@ h1 {
   padding: 0.75rem 1.75rem;
   font-family: inherit;
   font-size: $fs-button;
-  font-weight: 600;
-  letter-spacing: 0.15em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: $color-accent;
-  background: transparent;
+  background: linear-gradient(rgba($color-accent, 0.12), rgba($color-accent, 0.12)), rgba(16, 16, 16, 0.72);
   border: 1px solid $color-accent;
   border-radius: $radius;
   cursor: pointer;
-  transition: background-color $transition-fast, color $transition-fast, transform $transition-fast;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast,
+    box-shadow $transition-fast,
+    transform $transition-fast;
 
-  &:hover {
+  &:hover,
+  &:active {
     background: $color-accent;
     color: $color-bg;
+    box-shadow: 0 4px 20px rgba($color-accent, 0.45);
     transform: translateY(-2px);
-  }
-
-  &:active {
-    transform: translateY(0);
   }
 
   &:focus-visible {
@@ -161,6 +175,14 @@ h1 {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: $color-muted;
+  text-align: center;
+  width: 100%;
+
+  @include mobile {
+    font-size: clamp(0.6rem, 2.65vw, 0.7rem);
+    letter-spacing: 0.11em;
+    white-space: nowrap;
+  }
 }
 
 // Delimitatoare decorative elegante între secțiuni (cu foarfecă din scule frizerie)

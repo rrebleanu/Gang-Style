@@ -1,38 +1,40 @@
 <main class="portal-page">
   <div class="portal-container">
-    <!-- Top bar: Back link + Role-based Switcher (visible only to ADMIN) + Logout -->
-    <div class="portal-top">
-      <a routerLink="/" class="back-link">&larr; Înapoi la pagina principală</a>
+    <!-- Top bar: visible for Admin switcher or Client view -->
+    @if (authService.isAdmin() || viewMode() === 'CLIENT') {
+      <div class="portal-top">
+        <a routerLink="/" class="back-link">&larr; Înapoi la pagina principală</a>
 
-      @if (authService.isAdmin()) {
-        <div class="mode-switcher" role="tablist" aria-label="Comută panoul (Admin)">
-          <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
-            &larr; Management Salon
-          </a>
-          @for (b of barbers(); track b.id) {
-            <button
-              type="button"
-              class="mode-switcher__btn"
-              [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === b.slug"
-              (click)="setViewMode('BARBER', b.slug)"
-            >
-              Dashboard {{ b.name }}
+        @if (authService.isAdmin()) {
+          <div class="mode-switcher" role="tablist" aria-label="Comută panoul (Admin)">
+            <a routerLink="/admin" class="mode-switcher__btn" style="text-decoration: none;">
+              &larr; Management Salon
+            </a>
+            @for (b of barbers(); track b.id) {
+              <button
+                type="button"
+                class="mode-switcher__btn"
+                [class.mode-switcher__btn--active]="viewMode() === 'BARBER' && selectedBarberSlug() === b.slug"
+                (click)="setViewMode('BARBER', b.slug)"
+              >
+                Dashboard {{ b.name }}
+              </button>
+            }
+          </div>
+        }
+
+        <div class="portal-top__actions">
+          @if (authService.isAdmin()) {
+            <button type="button" class="btn-2fa-top" (click)="openTwoFactorModal()">
+              {{ authService.currentUser()?.twoFactorEnabled ? '✓ Siguranță Cont (Activ)' : 'Siguranță Cont' }}
             </button>
           }
-        </div>
-      }
-
-      <div class="portal-top__actions">
-        @if (authService.isAdmin()) {
-          <button type="button" class="btn-2fa-top" (click)="openTwoFactorModal()">
-            {{ authService.currentUser()?.twoFactorEnabled ? '✓ Siguranță Cont (Activ)' : 'Siguranță Cont' }}
+          <button type="button" class="btn-logout-top" (click)="logout()">
+            Deconectare
           </button>
-        }
-        <button type="button" class="btn-logout-top" (click)="logout()">
-          Deconectare
-        </button>
+        </div>
       </div>
-    </div>
+    }
 
     <!-- Shared feedback banner -->
     @if (feedbackMessage(); as msg) {
@@ -72,58 +74,58 @@
     <!-- Barber dashboard view -->
     @if (viewMode() === 'BARBER') {
       @if (currentBarber(); as barber) {
-        <!-- Barber Header & Primary Actions -->
+        <!-- Barber Compact Header & Quick Booking Bar -->
         <header class="barber-dash-header">
           <div class="barber-dash-header__top">
             <div class="barber-dash-header__identity">
-              <img
-                [src]="barber.photoUrl"
-                [alt]="'Frizer ' + barber.name"
-                class="barber-dash-header__avatar"
-              />
-              <div>
-                <span class="profile-banner__tag">Dashboard Frizer &middot; Gang Style</span>
-                <h1 class="profile-banner__title">Agenda mea</h1>
-                <p class="profile-banner__email">
-                  Programări Online &amp; Manuale sincronizate în timp real cu salonul
-                </p>
+              <div class="barber-dash-header__titles">
+                <span class="barber-dash-header__role">Frizer<span class="barber-dash-header__brand"> &middot; Gang Style</span></span>
+                <h1 class="barber-dash-header__name">{{ barber.name }}</h1>
               </div>
             </div>
 
-            <!-- Primary Barber Buttons -->
-            <div class="barber-dash-header__actions">
-              <button
-                type="button"
-                class="btn-add-booking"
-                (click)="openPhoneBookingModal()"
-              >
-                + Adaugă Programare
-              </button>
-              <button
-                type="button"
-                class="btn-extra-avail"
-                (click)="openExtraAvailabilityModal()"
-              >
-                + Adaugă Zi / Interval Disponibil
-              </button>
-              <button
-                type="button"
-                class="btn-block-time"
-                (click)="openBlockModal()"
-              >
-                Blochează Interval Timp / Concediu
-              </button>
+            <div class="barber-dash-header__right">
+              @if (!authService.isAdmin()) {
+                <button
+                  type="button"
+                  class="btn-logout-inline"
+                  title="Deconectare din cont"
+                  (click)="logout()"
+                >
+                  Deconectare
+                </button>
+              }
             </div>
           </div>
-
         </header>
 
         <!-- Main barber appointments section -->
         <section class="barber-table-section" aria-labelledby="schedule-heading">
           <div class="schedule-controls-bar">
-            <div class="schedule-controls-bar__left">
-              <h2 id="schedule-heading" class="schedule-title">Lista Programări</h2>
+            <div class="schedule-controls-bar__head">
+              <div class="schedule-title-wrap">
+                <h2 id="schedule-heading" class="schedule-title">Agenda Mea</h2>
+                <button
+                  type="button"
+                  class="schedule-count-pill"
+                  (click)="setBarberTimeFilter('ALL')"
+                  title="Afișează toate programările viitoare din agendă"
+                >
+                  {{ totalFutureBarberAppointmentsCount() }} {{ totalFutureBarberAppointmentsCount() === 1 ? 'activă' : 'active' }}
+                </button>
+              </div>
+              <button
+                type="button"
+                class="btn-quick-add"
+                (click)="openPhoneBookingModal()"
+                title="Adaugă o programare rapidă"
+              >
+                <span class="btn-quick-add__full">+ Programare</span>
+                <span class="btn-quick-add__short">+ Adaugă</span>
+              </button>
+            </div>
 
+            <div class="schedule-controls-bar__left">
               <!-- Time filter tabs -->
               <div class="time-filter-tabs" role="tablist" aria-label="Filtrează programările după perioadă">
                 <button
@@ -140,15 +142,16 @@
                   [class.time-filter-tab--active]="barberTimeFilter() === 'TOMORROW'"
                   (click)="setBarberTimeFilter('TOMORROW')"
                 >
-                  Ziua următoare
+                  Mâine
                 </button>
                 <button
                   type="button"
                   class="time-filter-tab"
-                  [class.time-filter-tab--active]="barberTimeFilter() === 'MONTH'"
-                  (click)="setBarberTimeFilter('MONTH')"
+                  [class.time-filter-tab--active]="barberTimeFilter() === 'WEEK'"
+                  (click)="setBarberTimeFilter('WEEK')"
                 >
-                  Luna aceasta
+                  <span class="tab-long">Săptămâna aceasta</span>
+                  <span class="tab-short">Săptămână</span>
                 </button>
                 <button
                   type="button"
@@ -178,51 +181,86 @@
             <div class="client-cards-list">
               @for (apt of filteredBarberAppointments(); track apt.id; let idx = $index) {
                 <div class="client-card" [class.client-card--past]="isPast(apt)">
-                  <button
-                    type="button"
-                    class="btn-delete-card"
-                    title="Șterge programarea"
-                    aria-label="Șterge programarea"
-                    (click)="openDeleteModalForBarber(apt)"
-                  >
-                    &#10005;
-                  </button>
-
                   <div class="client-card__header">
                     <div class="client-card__time-box">
                       <span class="client-card__num">{{ idx + 1 }}</span>
                       <strong class="client-card__time">{{ apt.startTime }} - {{ apt.endTime }}</strong>
-                      @if (barberTimeFilter() === 'MONTH' || barberTimeFilter() === 'ALL') {
-                        <span class="client-card__date">{{ apt.dateLabel }}</span>
-                      }
+                    </div>
+
+                    <div class="client-card__header-actions">
+                      <button
+                        type="button"
+                        class="btn-delete-card"
+                        title="Șterge programarea"
+                        aria-label="Șterge programarea"
+                        (click)="openDeleteModalForBarber(apt)"
+                      >
+                        &#10005;
+                      </button>
                     </div>
                   </div>
 
-                  <div class="client-card__body">
-                    <!-- 1. Client Name -->
-                    <div class="client-card__name">{{ apt.clientLastName }} {{ apt.clientFirstName }}</div>
-
-                    <!-- 2. Service Name on its own line -->
-                    <div class="client-card__service-line">
-                      <span class="meta-label">Serviciu:</span>
-                      <span class="service-value">{{ apt.serviceName }}</span>
-                    </div>
-
-                    <!-- 3. Phone (left) and Edit Button (right) on the exact same row -->
-                    <div class="client-card__phone-action-row">
-                      <a [href]="getTelHref(apt.clientPhone)" class="client-card__phone" title="Apelează clientul">
-                        &#9742; {{ formatDisplayPhone(apt.clientPhone) }}
-                      </a>
-
+                  @if (barberTimeFilter() === 'WEEK' || barberTimeFilter() === 'ALL') {
+                    <div class="client-card__date-row">
+                      <span class="client-card__date">{{ apt.dateLabel }}</span>
                       <button
                         type="button"
                         class="card-edit-btn"
                         title="Modifică data, ora sau serviciul programării"
                         (click)="openEditAppointmentModal(apt)"
                       >
-                        &#9998; Editează
+                        <span class="card-edit-btn__icon">&#9998;</span>
+                        <span class="card-edit-btn__label">Editează</span>
                       </button>
                     </div>
+                  } @else {
+                    <div class="client-card__date-row client-card__date-row--no-date">
+                      <button
+                        type="button"
+                        class="card-edit-btn"
+                        title="Modifică data, ora sau serviciul programării"
+                        (click)="openEditAppointmentModal(apt)"
+                      >
+                        <span class="card-edit-btn__icon">&#9998;</span>
+                        <span class="card-edit-btn__label">Editează</span>
+                      </button>
+                    </div>
+                  }
+
+                  <div class="client-card__body">
+                    <!-- 1. Client Name -->
+                    <div class="client-card__name">{{ apt.clientLastName }} {{ apt.clientFirstName }}</div>
+
+                    <!-- 2. Service Name (Full width unconstrained) -->
+                    <div class="client-card__service-line">
+                      <span class="meta-label">Serviciu:</span>
+                      <span class="service-value">{{ apt.serviceName }}</span>
+                    </div>
+
+                    @if (hasValidPhone(apt.clientPhone)) {
+                      <!-- 3. Phone (left) and compact WhatsApp Invite Link Button (right) on bottom row -->
+                      <div class="client-card__phone-action-row">
+                        <a [href]="getTelHref(apt.clientPhone)" class="client-card__phone" title="Apelează clientul">
+                          <span class="phone-icon">&#9742;</span> {{ formatDisplayPhone(apt.clientPhone) }}
+                        </a>
+
+                        <a
+                          [href]="getWhatsAppInviteHref(apt)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="card-whatsapp-btn"
+                          title="Trimite pe WhatsApp mulțumire și linkul tău direct de programare"
+                        >
+                          <svg class="wa-svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              fill="currentColor"
+                              d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.82 14.12c-.24.68-1.41 1.3-1.97 1.38-.51.08-1.16.11-1.87-.12-.44-.14-1-.33-1.72-.64-3.02-1.3-4.99-4.34-5.14-4.54-.15-.2-1.23-1.63-1.23-3.11 0-1.48.77-2.2 1.05-2.5.27-.3.6-.37.8-.37.2 0 .4 0 .58.01.18.01.43-.07.67.51.25.6.84 2.06.92 2.21.07.15.12.33.02.53-.1.2-.15.32-.3.5-.15.17-.31.39-.45.52-.15.15-.3.31-.13.61.17.3.78 1.28 1.67 2.08 1.15 1.02 2.11 1.34 2.41 1.49.3.15.48.13.65-.07.18-.2.75-.87.95-1.17.2-.3.4-.25.68-.15.27.1 1.73.82 2.03.97.3.15.5.22.57.35.08.12.08.72-.16 1.4z"
+                            />
+                          </svg>
+                          <span>Trimite Link</span>
+                        </a>
+                      </div>
+                    }
 
                     @if (apt.notes) {
                       <div class="client-card__notes">{{ apt.notes }}</div>
@@ -232,33 +270,22 @@
               }
             </div>
           } @else {
-            <div class="empty-state">
-              <h3 class="empty-state__title">Nu există programări pentru perioada selectată</h3>
-              <p class="empty-state__text">
-                Nu ai niciun client programat în acest interval.
-              </p>
-              <div class="empty-state__actions">
-                <button
-                  type="button"
-                  class="btn-add-booking"
-                  (click)="openPhoneBookingModal()"
-                >
-                  + Adaugă Programare
-                </button>
-              </div>
+            <div class="agenda-empty-notice">
+              <span class="agenda-empty-notice__icon" aria-hidden="true">&#128197;</span>
+              <span class="agenda-empty-notice__text">Nicio programare viitoare pentru perioada selectată</span>
             </div>
           }
         </section>
 
         <!-- Barber Working Schedule & Active Blocks Section -->
         <section class="barber-schedule-section" aria-labelledby="barber-schedule-heading">
-          <div class="appointments-header">
-            <div>
+          <div class="appointments-header appointments-header--compact">
+            <div class="appointments-header__info">
               <h2 id="barber-schedule-heading" class="appointments-header__title">
-                Programul meu de lucru &middot; {{ barber.name }}
+                Programul de lucru
               </h2>
               <p class="appointments-header__subtitle">
-                Alege programul standard al salonului sau configurează-ți propriul orar săptămânal. Intervalele disponibile pentru clienți se adaptează automat.
+                Alege între orarul standard și cel personalizat sau adaugă excepții de la varianta aleasă.
               </p>
             </div>
             <div class="schedule-header-actions">
@@ -266,74 +293,72 @@
                 type="button"
                 class="btn-extra-avail"
                 (click)="openExtraAvailabilityModal()"
+                title="Adaugă o zi suplimentară de lucru sau orar extins"
               >
-                + Adaugă Zi / Interval Disponibil
+                + Program Extra
               </button>
               <button
                 type="button"
                 class="btn-block-time"
                 (click)="openBlockModal()"
+                title="Blochează un interval, o zi liberă sau concediu"
               >
-                Blochează Interval Timp / Concediu
+                Blochează Orar
               </button>
             </div>
           </div>
 
-          <div class="schedule-mode-grid">
-            <button
-              type="button"
-              class="schedule-mode-card"
-              [class.schedule-mode-card--active]="barberScheduleMode() === 'STANDARD'"
-              (click)="selectScheduleMode('STANDARD')"
-            >
-              <div class="schedule-mode-card__top">
-                <span
-                  class="schedule-mode-card__check"
-                  [class.schedule-mode-card__check--checked]="barberScheduleMode() === 'STANDARD'"
-                  aria-hidden="true"
-                >
-                  &#10003;
+          <div class="schedule-mode-switcher" role="tablist" aria-label="Tip program de lucru">
+            <div class="schedule-mode-switcher__track">
+              <button
+                type="button"
+                role="tab"
+                class="schedule-mode-segment"
+                [class.schedule-mode-segment--active]="barberScheduleMode() === 'STANDARD'"
+                [attr.aria-selected]="barberScheduleMode() === 'STANDARD'"
+                (click)="selectScheduleMode('STANDARD')"
+              >
+                <span class="schedule-mode-segment__dot" aria-hidden="true"></span>
+                <span class="schedule-mode-segment__content">
+                  <span class="schedule-mode-segment__title"><span class="schedule-mode-segment__prefix">Program </span>Standard</span>
+                  <span class="schedule-mode-segment__sub">L–V: 10:00 – 18:00</span>
                 </span>
-                <div class="schedule-mode-card__titles">
-                  <span class="schedule-mode-card__badge">Implicit Salon</span>
-                  <h3 class="schedule-mode-card__title">Program Standard Salon</h3>
-                </div>
-              </div>
-              <p class="schedule-mode-card__desc">
-                Luni – Vineri: <strong>10:00 – 18:00</strong> &middot; Sâmbătă &amp; Duminică: <strong>Închis</strong>
-              </p>
-            </button>
+              </button>
 
-            <button
-              type="button"
-              class="schedule-mode-card"
-              [class.schedule-mode-card--active]="barberScheduleMode() === 'CUSTOM'"
-              (click)="selectScheduleMode('CUSTOM')"
-            >
-              <div class="schedule-mode-card__top">
-                <span
-                  class="schedule-mode-card__check"
-                  [class.schedule-mode-card__check--checked]="barberScheduleMode() === 'CUSTOM'"
-                  aria-hidden="true"
-                >
-                  &#10003;
+              <button
+                type="button"
+                role="tab"
+                class="schedule-mode-segment"
+                [class.schedule-mode-segment--active]="barberScheduleMode() === 'CUSTOM'"
+                [attr.aria-selected]="barberScheduleMode() === 'CUSTOM'"
+                (click)="selectScheduleMode('CUSTOM')"
+              >
+                <span class="schedule-mode-segment__dot" aria-hidden="true"></span>
+                <span class="schedule-mode-segment__content">
+                  <span class="schedule-mode-segment__title"><span class="schedule-mode-segment__prefix">Program </span>Personalizat</span>
+                  <span class="schedule-mode-segment__sub">Flexibil pe zile</span>
                 </span>
-                <div class="schedule-mode-card__titles">
-                  <span class="schedule-mode-card__badge">Flexibil pe zile</span>
-                  <h3 class="schedule-mode-card__title">Program Personalizat</h3>
+              </button>
+            </div>
+
+            <div class="schedule-mode-switcher__summary">
+              @if (barberScheduleMode() === 'STANDARD') {
+                <div class="schedule-mode-summary-row">
+                  <span class="schedule-summary-weekday">Orar activ: <strong><span class="schedule-summary-days-long">Luni – Vineri</span><span class="schedule-summary-days-short">L–V</span> 10:00 – 18:00</strong></span>
+                  <span class="schedule-summary-sep" aria-hidden="true">&middot;</span>
+                  <span class="schedule-summary-weekend">Sâmbătă &amp; Duminică: <strong>Închis</strong></span>
                 </div>
-              </div>
-              <p class="schedule-mode-card__desc">
-                Setează orele tale de început și sfârșit sau zilele nelucrătoare pentru fiecare zi din săptămână.
-              </p>
-            </button>
+              } @else {
+                <span>Mod personalizat activ &mdash; setează mai jos orele sau zilele libere.</span>
+              }
+            </div>
           </div>
 
           @if (barberScheduleMode() === 'CUSTOM') {
             <div class="custom-schedule-panel">
               <div class="custom-schedule-panel__head">
                 <h3 class="custom-schedule-panel__title">
-                  Configurare Orar Săptămânal &middot; {{ barber.name }}
+                  Configurare Orar Săptămânal
                 </h3>
                 <button
                   type="button"
@@ -499,7 +524,7 @@
           <div class="appointments-header">
             <div>
               <h2 id="barber-srv-heading" class="appointments-header__title">
-                Servicii &amp; Prețuri &middot; {{ barber.name }}
+                Servicii &amp; Prețuri
               </h2>
               <p class="appointments-header__subtitle">
                 Modifică prețurile, durata sau adaugă pachete noi. Orice modificare se actualizează instant pe pagina publică de programări.
@@ -532,7 +557,7 @@
                     class="tbl-btn tbl-btn--reset"
                     (click)="openBarberServiceModal(srv)"
                   >
-                    Editează Preț / Durată
+                    Editează
                   </button>
                   <button
                     type="button"
@@ -555,7 +580,7 @@
                 Blocare Clienți Neprezentați la Programare
               </h2>
               <p class="appointments-header__subtitle">
-                Pentru cazurile rare în care un client nu se prezintă la programare, îi poți bloca manual accesul la rezervările online (va fi îndrumat să contacteze salonul la <strong>0770 426 308</strong>). Dacă vorbiți telefonic, îi poți debloca accesul instant cu un singur click.
+                Pentru cazurile rare în care un client nu se prezintă la programare, îi poți bloca manual accesul la rezervările online.
               </p>
             </div>
             <button
@@ -563,7 +588,8 @@
               class="btn-block-time"
               (click)="openManualBlockClientModal()"
             >
-              + Blochează Client Neprezentat
+              <span class="btn-block-time__full">+ Blochează Client Neprezentat</span>
+              <span class="btn-block-time__short">+ Blochează Client</span>
             </button>
           </div>
 
@@ -599,13 +625,6 @@
                   </div>
                 </div>
               }
-            </div>
-          } @else {
-            <div class="empty-blacklist-box">
-              <span class="empty-blacklist-box__icon">&#10003;</span>
-              <p class="empty-blacklist-box__text">
-                Niciun client blocat în acest moment. Toți clienții salonului au acces la programările online.
-              </p>
             </div>
           }
         </section>
@@ -649,11 +668,7 @@
                     <!-- Top Barber Info & Status -->
                     <div class="client-ticket-card__top">
                       <div class="client-ticket-card__barber">
-                        <img
-                          [src]="apt.barberPhotoUrl"
-                          [alt]="'Frizer ' + apt.barberName"
-                          class="client-ticket-card__avatar"
-                        />
+                        <div class="barber-ticket-badge" aria-hidden="true">{{ apt.barberName.charAt(0) }}</div>
                         <div class="client-ticket-card__barber-info">
                           <span class="client-ticket-card__barber-badge">Frizer Ales</span>
                           <h3 class="client-ticket-card__barber-name">{{ apt.barberName }} | Barber</h3>
@@ -801,11 +816,7 @@
                       [class.client-history-card--cancelled]="apt.status === 'CANCELLED'"
                     >
                       <div class="client-history-card__left">
-                        <img
-                          [src]="apt.barberPhotoUrl"
-                          [alt]="apt.barberName"
-                          class="client-history-card__avatar"
-                        />
+                        <div class="barber-history-badge" aria-hidden="true">{{ apt.barberName.charAt(0) }}</div>
                         <div class="client-history-card__meta">
                           <div class="client-history-card__service">
                             <strong>{{ apt.serviceName }}</strong> &middot; {{ apt.barberName }}
@@ -890,6 +901,7 @@
               formControlName="dateIso"
               class="modal-field__input"
               (change)="onPhoneFormSelectionChange()"
+              (input)="onPhoneFormSelectionChange()"
             />
           </div>
         </div>
@@ -897,21 +909,31 @@
         <!-- Available Time Slots Grid -->
         <div class="modal-field">
           <label class="modal-field__label">Alege Intervalul Orar Disponibil *</label>
-          <div class="modal-slots-grid">
-            @for (slot of phoneModalSlots(); track slot.label) {
-              <button
-                type="button"
-                class="modal-slot-btn"
-                [class.modal-slot-btn--selected]="phoneBookingForm.controls.startTime.value === slot.startTime"
-                [class.modal-slot-btn--disabled]="!slot.available"
-                [disabled]="!slot.available"
-                (click)="selectPhoneSlot(slot)"
-              >
-                <span>{{ slot.label }}</span>
-                <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
-              </button>
-            }
-          </div>
+          @if (phoneModalSlots().length > 0) {
+            <div class="modal-slots-grid">
+              @for (slot of phoneModalSlots(); track slot.label) {
+                <button
+                  type="button"
+                  class="modal-slot-btn"
+                  [class.modal-slot-btn--selected]="phoneBookingForm.controls.startTime.value === slot.startTime"
+                  [class.modal-slot-btn--disabled]="!slot.available"
+                  [disabled]="!slot.available"
+                  (click)="selectPhoneSlot(slot)"
+                >
+                  <span>{{ slot.label }}</span>
+                  <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="modal-slots-empty">
+              <span class="modal-slots-empty__icon">&#9888;</span>
+              <div class="modal-slots-empty__text">
+                Nu există intervale orare disponibile pentru această dată.
+                <small>Salonul este închis în această zi, orele de program au trecut sau toate locurile sunt ocupate. Te rugăm să alegi o altă zi lucrătoare.</small>
+              </div>
+            </div>
+          }
           @if (phoneFormSubmitted() && phoneBookingForm.controls.startTime.invalid) {
             <span class="modal-error">Selectează un interval orar disponibil.</span>
           }
@@ -934,16 +956,13 @@
 
           <!-- Client Phone -->
           <div class="modal-field">
-            <label class="modal-field__label">Telefon Client *</label>
+            <label class="modal-field__label">Telefon Client <small style="color: #9ca3af; font-weight: normal;">(Opțional)</small></label>
             <input
               type="tel"
               formControlName="clientPhone"
-              placeholder="Ex: 722 123 456"
+              placeholder="Ex: 722 123 456 (opțional)"
               class="modal-field__input"
             />
-            @if (phoneFormSubmitted() && phoneBookingForm.controls.clientPhone.invalid) {
-              <span class="modal-error">Introdu un număr de telefon valid.</span>
-            }
           </div>
         </div>
 
@@ -1268,7 +1287,7 @@
       </div>
 
       <p class="modal-dialog__text">
-        Modifică rapid data, ora sau serviciul pentru <strong>{{ editApt.clientLastName }} {{ editApt.clientFirstName }}</strong> ({{ editApt.clientPhone }}).
+        Modifică rapid data, ora sau serviciul pentru <strong>{{ editApt.clientLastName }} {{ editApt.clientFirstName }}</strong>@if (hasValidPhone(editApt.clientPhone)) { ({{ formatDisplayPhone(editApt.clientPhone) }})}<span>.</span>
       </p>
 
       <form [formGroup]="editAppointmentForm" (ngSubmit)="submitEditAppointment()" class="modal-form" novalidate>
@@ -1295,27 +1314,38 @@
               formControlName="dateIso"
               class="modal-field__input"
               (change)="onEditAppointmentChange()"
+              (input)="onEditAppointmentChange()"
             />
           </div>
         </div>
 
         <div class="modal-field">
           <label class="modal-field__label">Alege Noul Interval Orar *</label>
-          <div class="modal-slots-grid">
-            @for (slot of editAppointmentSlots(); track slot.startTime) {
-              <button
-                type="button"
-                class="modal-slot-btn"
-                [class.modal-slot-btn--selected]="editAppointmentForm.controls.startTime.value === slot.startTime"
-                [class.modal-slot-btn--busy]="!slot.available"
-                [disabled]="!slot.available"
-                (click)="selectEditAppointmentSlot(slot)"
-              >
-                <span>{{ slot.startTime }}</span>
-                <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
-              </button>
-            }
-          </div>
+          @if (editAppointmentSlots().length > 0) {
+            <div class="modal-slots-grid">
+              @for (slot of editAppointmentSlots(); track slot.startTime) {
+                <button
+                  type="button"
+                  class="modal-slot-btn"
+                  [class.modal-slot-btn--selected]="editAppointmentForm.controls.startTime.value === slot.startTime"
+                  [class.modal-slot-btn--busy]="!slot.available"
+                  [disabled]="!slot.available"
+                  (click)="selectEditAppointmentSlot(slot)"
+                >
+                  <span>{{ slot.startTime }}</span>
+                  <small>{{ slot.available ? 'Liber' : 'Ocupat' }}</small>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="modal-slots-empty">
+              <span class="modal-slots-empty__icon">&#9888;</span>
+              <div class="modal-slots-empty__text">
+                Nu există intervale orare disponibile pentru această dată.
+                <small>Salonul este închis în această zi sau toate orele sunt ocupate.</small>
+              </div>
+            </div>
+          }
         </div>
 
         <div class="modal-field">

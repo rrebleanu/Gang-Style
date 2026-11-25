@@ -46,6 +46,9 @@ export interface AppointmentApiRequestPayload {
   clientPhone: string;
   notes?: string;
   source?: 'ONLINE' | 'PHONE' | 'BLOCKED';
+  referralSource?: string;
+  referralCode?: string;
+  referralLabel?: string;
 }
 
 // Full appointment record persisted in storage (and MongoDB later).
@@ -71,6 +74,9 @@ export interface AppointmentRecord {
   clientPhone: string;
   notes?: string;
   source?: 'ONLINE' | 'PHONE' | 'BLOCKED';
+  referralSource?: string;
+  referralCode?: string;
+  referralLabel?: string;
   blockType?: 'INTERVAL' | 'FULL_DAY' | 'VACATION';
   vacationGroupId?: string;
   endDateIso?: string;

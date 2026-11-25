@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -21,7 +21,7 @@ import {
 
 export type PortalFilterTab = 'UPCOMING' | 'HISTORY' | 'ALL';
 export type DashboardViewMode = 'CLIENT' | 'BARBER';
-export type BarberTimeFilter = 'TODAY' | 'TOMORROW' | 'MONTH' | 'ALL';
+export type BarberTimeFilter = 'TODAY' | 'TOMORROW' | 'WEEK' | 'ALL';
 
 export interface WorkingDayOption {
   iso: string;
@@ -41,7 +41,7 @@ export interface WorkingDayOption {
     '(document:keydown.escape)': 'closeAllModals()',
   },
 })
-export class Portal implements OnInit {
+export class Portal implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly catalogService = inject(ServiceCatalogService);
@@ -49,6 +49,11 @@ export class Portal implements OnInit {
   private readonly errorHandler = inject(ErrorHandlerService);
   readonly notificationService = inject(NotificationService);
   readonly authService = inject(AuthService);
+
+  // Background poller interval and known appointment IDs for instant real-time alerts
+  private pollIntervalId: ReturnType<typeof setInterval> | null = null;
+  private readonly knownAppointmentIds = new Set<string>();
+  readonly currentTimestamp = signal<number>(Date.now());
 
   constructor() {
     // Automatically re-sync appointment data when a new booking notification arrives
@@ -136,8 +141,7 @@ export class Portal implements OnInit {
   readonly barberSearchQuery = signal<string>('');
 
   readonly todayIso = computed<string>(() => {
-    const days = this.workingDays();
-    if (days.length > 0) return days[0].iso;
+    this.currentTimestamp();
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -146,8 +150,7 @@ export class Portal implements OnInit {
   });
 
   readonly tomorrowIso = computed<string>(() => {
-    const days = this.workingDays();
-    if (days.length > 1) return days[1].iso;
+    this.currentTimestamp();
     const d = new Date();
     d.setDate(d.getDate() + 1);
     const yyyy = d.getFullYear();
@@ -156,8 +159,18 @@ export class Portal implements OnInit {
     return `${yyyy}-${mm}-${dd}`;
   });
 
-  readonly currentMonthPrefix = computed<string>(() => {
-    return this.todayIso().slice(0, 7);
+  // End of current calendar week (Sunday) in YYYY-MM-DD
+  readonly currentWeekEndIso = computed<string>(() => {
+    this.currentTimestamp();
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(now.getDate() + daysUntilSunday);
+    const yyyy = endOfWeek.getFullYear();
+    const mm = String(endOfWeek.getMonth() + 1).padStart(2, '0');
+    const dd = String(endOfWeek.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   });
 
   // Barber modals state
@@ -197,7 +210,7 @@ export class Portal implements OnInit {
       return {
         id: 'b-' + slug,
         slug: slug,
-        name: user.displayName || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : 'Frizer'),
+        name: this.authService.sanitizeDisplayName(user.displayName) || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : 'Frizer'),
         bio: 'Frizer profesionist Gang Style',
         photoUrl: '/images/gangstyle.jpg',
         phone: user.phone || '0770 426 308',
@@ -246,39 +259,41 @@ export class Portal implements OnInit {
     '21:00',
   ];
 
-  // Filtered appointments for the barber table (STRICTLY real upcoming clients, past appointments removed dynamically)
+  // Reactive computed list for the barber table: filters by period, search query, and sorts chronologically
   readonly filteredBarberAppointments = computed<AppointmentRecord[]>(() => {
+    // Step 1: Subscribe to live timestamp signal for automatic real-time past-appointment pruning
+    this.currentTimestamp();
     const timeFilter = this.barberTimeFilter();
     const today = this.todayIso();
     const tomorrow = this.tomorrowIso();
-    const month = this.currentMonthPrefix();
+    const weekEnd = this.currentWeekEndIso();
     const query = this.barberSearchQuery().trim().toLowerCase();
 
     return this.barberAppointments()
       .filter((apt) => {
-        // Exclude blocked intervals and cancelled appointments - only real clients appear
+        // Step 2: Filter out non-client entries (blocked breaks) and cancelled bookings
         if (apt.source === 'BLOCKED' || apt.status === 'CANCELLED') {
           return false;
         }
 
-        // Dynamically remove appointments that have already passed the current time strictly when viewing TODAY's agenda
-        if (timeFilter === 'TODAY' && this.isPast(apt)) {
+        // Step 3: Filter out expired past appointments (keep strictly active and upcoming clients)
+        if (this.isPast(apt)) {
           return false;
         }
 
-        // Apply time filter
+        // Step 4: Apply period tab filter (Azi / Mâine / Săptămână / Toate)
         if (timeFilter === 'TODAY' && apt.dateIso !== today) {
           return false;
         }
         if (timeFilter === 'TOMORROW' && apt.dateIso !== tomorrow) {
           return false;
         }
-        if (timeFilter === 'MONTH' && !apt.dateIso.startsWith(month)) {
+        if (timeFilter === 'WEEK' && (apt.dateIso < today || apt.dateIso > weekEnd)) {
           return false;
         }
-        // 'ALL' includes all active upcoming real clients
+        // 'ALL' tab includes all upcoming appointments
 
-        // Search query
+        // Step 5: Multi-attribute live search (matches client name, normalized phone, or service title)
         if (query) {
           const fullName = `${apt.clientLastName} ${apt.clientFirstName}`.toLowerCase();
           const phone = apt.clientPhone.replace(/\s+/g, '').toLowerCase();
@@ -292,6 +307,7 @@ export class Portal implements OnInit {
         }
         return true;
       })
+      // Step 6: Sort chronologically by ISO date first, then by minute-of-day start time
       .sort((a, b) => a.dateIso.localeCompare(b.dateIso) || a.startMinutes - b.startMinutes);
   });
 
@@ -299,10 +315,14 @@ export class Portal implements OnInit {
   readonly barberMultiDayGroups = computed<
     { dateIso: string; dateLabel: string; items: AppointmentRecord[] }[]
   >(() => {
+    this.currentTimestamp();
     const sourceFilter = this.barberSourceFilter();
     const activeList = this.barberAppointments()
       .filter((apt) => {
         if (apt.source === 'BLOCKED' || apt.status === 'CANCELLED') {
+          return false;
+        }
+        if (this.isPast(apt)) {
           return false;
         }
         if (sourceFilter === 'ONLINE' && (apt.source ?? 'ONLINE') !== 'ONLINE') {
@@ -336,6 +356,16 @@ export class Portal implements OnInit {
     return Array.from(groupsMap.values());
   });
 
+  // Total upcoming future appointments across the entire agenda strictly starting after current time
+  // Excludes ongoing haircut ("clientul care il tunde acum") and past appointments.
+  // Constant / fixed total across all day filter tabs.
+  readonly totalFutureBarberAppointmentsCount = computed<number>(() => {
+    this.currentTimestamp();
+    return this.barberAppointments().filter(
+      (apt) => apt.source !== 'BLOCKED' && apt.status !== 'CANCELLED' && this.isFutureAppointment(apt)
+    ).length;
+  });
+
   // Barber stats for the current filter
   readonly barberActiveBookingsCount = computed<number>(
     () =>
@@ -366,7 +396,7 @@ export class Portal implements OnInit {
     dateIso: ['', [Validators.required]],
     startTime: ['', [Validators.required]],
     clientName: ['', [Validators.required, Validators.minLength(2)]],
-    clientPhone: ['', [Validators.required, Validators.pattern(/^[0-9\s+]{9,14}$/)]],
+    clientPhone: [''],
     notes: [''],
   });
 
@@ -452,7 +482,49 @@ export class Portal implements OnInit {
       this.viewMode.set('CLIENT');
     }
 
+    // Seed known appointment IDs to prevent false alarms on page load
+    this.catalogService.getAllAppointments().forEach((apt) => this.knownAppointmentIds.add(apt.id));
+
     this.refreshAllData();
+
+    // Start background poller so real client online bookings trigger instant alerts on barber dashboard & phone
+    this.startAppointmentPoller();
+  }
+
+  ngOnDestroy(): void {
+    this.stopAppointmentPoller();
+  }
+
+  private startAppointmentPoller(): void {
+    if (typeof window === 'undefined') return;
+    this.stopAppointmentPoller();
+
+    // Poll every 6 seconds for newly arrived client online bookings & real-time clock advancement
+    this.pollIntervalId = setInterval(() => {
+      this.currentTimestamp.set(Date.now());
+      if (this.viewMode() !== 'BARBER') return;
+      const slug = this.selectedBarberSlug();
+      if (!slug) return;
+
+      const currentList = this.catalogService.getAppointmentsByBarber(slug);
+      for (const apt of currentList) {
+        if (!this.knownAppointmentIds.has(apt.id)) {
+          this.knownAppointmentIds.add(apt.id);
+          // Strictly trigger notifications ONLY for ONLINE bookings from clients, NEVER for manual PHONE entries
+          if (!apt.source || apt.source === 'ONLINE') {
+            this.notificationService.broadcastNewAppointment(apt);
+            this.refreshAllData();
+          }
+        }
+      }
+    }, 6000);
+  }
+
+  private stopAppointmentPoller(): void {
+    if (this.pollIntervalId) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+    }
   }
 
   refreshAllData(): void {
@@ -503,7 +575,17 @@ export class Portal implements OnInit {
   }
 
   isPast(apt: AppointmentRecord): boolean {
+    this.currentTimestamp();
     return this.catalogService.isPastAppointment(apt);
+  }
+
+  isFutureAppointment(apt: AppointmentRecord): boolean {
+    this.currentTimestamp();
+    if (!apt || !apt.dateIso || !apt.startTime) return false;
+    const [yyyy, mm, dd] = apt.dateIso.split('-').map(Number);
+    const [hh, min] = apt.startTime.split(':').map(Number);
+    const aptStart = new Date(yyyy, mm - 1, dd, hh, min, 0);
+    return !isNaN(aptStart.getTime()) && aptStart.getTime() > Date.now();
   }
 
   canCancel(apt: AppointmentRecord): boolean {
@@ -517,12 +599,25 @@ export class Portal implements OnInit {
   }
 
   /**
+   * Returns true only when the appointment has an actual phone number entered
+   * (excluding empty strings or the 'Fără număr' placeholder).
+   */
+  hasValidPhone(phone: string | null | undefined): boolean {
+    if (!phone) return false;
+    const trimmed = phone.trim();
+    if (!trimmed || trimmed === 'Fără număr') return false;
+    const digits = trimmed.replace(/[^0-9]/g, '');
+    return digits.length > 0;
+  }
+
+  /**
    * Formats a client's phone number cleanly with a single leading 0 (e.g. "0770 426 308"),
    * eliminating redundant "+40 0..." double-zero artifacts.
    */
   formatDisplayPhone(phone: string | null | undefined): string {
-    if (!phone) return '';
+    if (!phone || phone.trim() === 'Fără număr') return 'Fără număr';
     let cleaned = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
+    if (!cleaned) return 'Fără număr';
     if (cleaned.startsWith('+400')) {
       cleaned = cleaned.substring(3); // strips +40, keeps single 0
     } else if (cleaned.startsWith('+40')) {
@@ -551,6 +646,50 @@ export class Portal implements OnInit {
       cleaned = '+40' + cleaned;
     }
     return 'tel:' + cleaned;
+  }
+
+  /**
+   * Builds a dynamic WhatsApp direct chat URL (wa.me) addressed to the client's phone number,
+   * pre-populated with a modern, polite, personalized thank-you message and the barber's direct online booking link.
+   */
+  getWhatsAppInviteHref(apt: AppointmentRecord): string {
+    let digits = (apt.clientPhone || '').replace(/\D/g, '');
+    if (digits.startsWith('0040')) {
+      digits = '40' + digits.substring(4);
+    } else if (digits.startsWith('400') && digits.length === 12) {
+      digits = '40' + digits.substring(3);
+    } else if (digits.startsWith('0')) {
+      digits = '40' + digits.substring(1);
+    } else if (digits.length > 0 && !digits.startsWith('40')) {
+      digits = '40' + digits;
+    }
+
+    // Determine clean client first name (prenume), capitalized without errors
+    let rawFirst = (apt.clientFirstName || '').trim();
+    if (!rawFirst && apt.clientLastName) {
+      const parts = apt.clientLastName.trim().split(/\s+/);
+      rawFirst = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    }
+    const token = rawFirst.split(/\s+/)[0] || '';
+    const firstName = token ? token.charAt(0).toUpperCase() + token.slice(1) : '';
+    const greeting = firstName ? `Salut, ${firstName}!` : 'Salut!';
+
+    const barber = this.currentBarber();
+    const barberSlug = (apt.barberSlug || barber?.slug || 'filip').trim().toLowerCase();
+    const barberName = (apt.barberName || barber?.name || 'Filip').trim();
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'https://gangstyle.ro';
+    const bookingUrl = `${origin}/${barberSlug}`;
+
+    const message =
+      `${greeting} Mulțumesc pentru vizită la Gang Style, sper că ți-a plăcut cum a ieșit tunsoarea, mi-a făcut plăcere! 💈\n\n` +
+      `Îți las aici linkul meu direct: următoarele programări le poți face oricând online pe site, și tot pe acesta îl poți trimite mai departe dacă te întreabă prietenii unde te-ai tuns:\n\n` +
+      `✂️ Frizerul meu: ${barberName} (Gang Style)\n` +
+      `🔗 Link acces programare: ${bookingUrl}`;
+
+    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
   }
 
   getStatusLabel(apt: AppointmentRecord): string {
@@ -741,12 +880,13 @@ export class Portal implements OnInit {
   // Opens the manual/phone booking modal
   openPhoneBookingModal(): void {
     const services = this.barberServices();
-    const days = this.workingDays();
     const defaultServiceId = services[0]?.id ?? '';
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const defaultDateIso =
       this.barberDateFilter() !== 'ALL'
         ? this.barberDateFilter()
-        : (days[0]?.iso ?? '');
+        : todayIso;
 
     this.phoneBookingForm.reset({
       serviceId: defaultServiceId,
@@ -777,24 +917,115 @@ export class Portal implements OnInit {
     this.phoneBookingForm.controls.startTime.setValue(slot.startTime);
   }
 
+  private generateBarberManualSlots(
+    dateIso: string,
+    service?: ServiceItem,
+    excludeAppointmentId?: string
+  ): TimeSlot[] {
+    const barberSlug = this.selectedBarberSlug();
+    const duration = Math.max(10, service?.durationMinutes ?? 30);
+    const dayHours = this.catalogService.getEffectiveDayHours(barberSlug, dateIso);
+
+    // Opening time: use barber's schedule start time (default 10:00 or 09:00)
+    let openMinutes = dayHours.working
+      ? this.catalogService.parseMinutes(dayHours.startTime)
+      : 10 * 60;
+    if (isNaN(openMinutes) || openMinutes <= 0) {
+      openMinutes = 10 * 60;
+    }
+
+    // Extended evening limit for barber manual bookings: up to 22:00 (1320 minutes)
+    const barberMaxEveningMinutes = 22 * 60; // 22:00
+    const scheduledCloseMinutes = dayHours.working
+      ? this.catalogService.parseMinutes(dayHours.endTime)
+      : 18 * 60;
+    const closeMinutes = Math.max(scheduledCloseMinutes, barberMaxEveningMinutes);
+
+    const occupied = this.catalogService
+      .getOccupiedForDay(barberSlug, dateIso)
+      .filter((o) => o.id !== excludeAppointmentId);
+
+    // If day is covered by a full-day off or vacation block, no slots appear
+    const isFullDayBlocked = occupied.some(
+      (b) =>
+        b.source === 'BLOCKED' &&
+        (b.blockType === 'FULL_DAY' ||
+          b.blockType === 'VACATION' ||
+          (b.startMinutes <= openMinutes && b.endMinutes >= closeMinutes))
+    );
+    if (isFullDayBlocked) {
+      return [];
+    }
+
+    const slots: TimeSlot[] = [];
+    let cursor = openMinutes;
+    while (cursor + duration <= closeMinutes) {
+      const end = cursor + duration;
+
+      // If an interval overlaps with a barber blocked break or vacation, omit it completely so it never appears in the modal
+      const overlappingBlock = occupied.find(
+        (o) => o.source === 'BLOCKED' && cursor < o.endMinutes && end > o.startMinutes
+      );
+      if (overlappingBlock) {
+        cursor = Math.max(cursor + 5, overlappingBlock.endMinutes);
+        continue;
+      }
+
+      const isTaken = occupied.some((o) => cursor < o.endMinutes && end > o.startMinutes);
+      const start = this.catalogService.formatMinutes(cursor);
+      const finish = this.catalogService.formatMinutes(end);
+
+      slots.push({
+        startTime: start,
+        endTime: finish,
+        label: `${start} - ${finish}`,
+        available: !isTaken,
+      });
+
+      cursor += duration;
+    }
+
+    // Dynamic filtering for current day: strictly exclude all slots that have already passed in real-time
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (dateIso === todayIso) {
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      return slots.filter(
+        (s) => this.catalogService.parseMinutes(s.startTime) >= currentMinutes
+      );
+    }
+
+    return slots;
+  }
+
   private recomputePhoneModalSlots(): void {
     const { serviceId, dateIso } = this.phoneBookingForm.getRawValue();
-    const service = this.barberServices().find((s) => s.id === serviceId);
-    if (!service || !dateIso) {
+    let service = this.barberServices().find((s) => s.id === serviceId);
+    if (!service) {
+      const fallbackServices = this.catalogService.getByBarberSlug(this.selectedBarberSlug());
+      service = fallbackServices[0];
+      if (service) {
+        this.phoneBookingForm.controls.serviceId.setValue(service.id);
+      }
+    }
+
+    if (!dateIso || !service) {
       this.phoneModalSlots.set([]);
+      this.phoneBookingForm.controls.startTime.setValue('');
       return;
     }
-    const slots = this.catalogService.getSlotsForDate(
-      this.selectedBarberSlug(),
-      dateIso,
-      service
-    );
+
+    // Generate manual slots for barber: starts from opening and allows evening bookings up to 22:00,
+    // with automatic removal of past hours for today.
+    const slots = this.generateBarberManualSlots(dateIso, service);
     this.phoneModalSlots.set(slots);
 
     // Pre-select first available slot for speed
     const firstFree = slots.find((s) => s.available);
     if (firstFree && !this.phoneBookingForm.controls.startTime.value) {
       this.phoneBookingForm.controls.startTime.setValue(firstFree.startTime);
+    } else if (!firstFree) {
+      this.phoneBookingForm.controls.startTime.setValue('');
     }
   }
 
@@ -807,7 +1038,11 @@ export class Portal implements OnInit {
 
     const barber = this.currentBarber();
     const val = this.phoneBookingForm.getRawValue();
-    const service = this.barberServices().find((s) => s.id === val.serviceId);
+    let service = this.barberServices().find((s) => s.id === val.serviceId);
+    if (!service) {
+      const fallbackServices = this.catalogService.getByBarberSlug(this.selectedBarberSlug());
+      service = fallbackServices[0];
+    }
     const slot = this.phoneModalSlots().find((s) => s.startTime === val.startTime);
 
     if (!barber || !service || !slot) {
@@ -817,8 +1052,10 @@ export class Portal implements OnInit {
     const nameParts = val.clientName.trim().split(/\s+/);
     const lastName = nameParts[0] ?? 'Client';
     const firstName = nameParts.slice(1).join(' ') || '';
+    const rawPhone = val.clientPhone ? val.clientPhone.trim() : '';
+    const cleanPhone = rawPhone.length > 0 ? rawPhone : 'Fără număr';
 
-    this.catalogService.createAppointment({
+    const created = this.catalogService.createAppointment({
       barberSlug: barber.slug,
       barberName: barber.name,
       barberPhotoUrl: barber.photoUrl,
@@ -834,10 +1071,14 @@ export class Portal implements OnInit {
       clientFirstName: firstName,
       clientLastName: lastName,
       clientEmail: 'manual@gangstyle.ro',
-      clientPhone: val.clientPhone.trim(),
+      clientPhone: cleanPhone,
       notes: val.notes.trim(),
       source: 'PHONE',
     });
+
+    if (created && created.id) {
+      this.knownAppointmentIds.add(created.id);
+    }
 
     this.phoneModalOpen.set(false);
     this.refreshAllData();
@@ -1123,12 +1364,10 @@ export class Portal implements OnInit {
       return;
     }
 
-    // Mark current appointment's own slot as available when editing on the same date
-    const rawSlots = this.catalogService.getSlotsForDate(
-      this.selectedBarberSlug(),
-      dateIso,
-      service
-    );
+    // Attempt to get standard schedule slots; if empty (weekend, custom hours, or outside schedule),
+    // always fall back to full working slots so the barber can edit and reschedule without any restrictions!
+    const rawSlots = this.generateBarberManualSlots(dateIso, service, currentApt.id);
+
     const adjustedSlots = rawSlots.map((slot) => {
       if (dateIso === currentApt.dateIso && slot.startTime === currentApt.startTime) {
         return { ...slot, available: true };
@@ -1542,20 +1781,18 @@ export class Portal implements OnInit {
     const result: WorkingDayOption[] = [];
     const cursor = new Date();
 
-    while (result.length < count) {
+    for (let i = 0; i < count; i++) {
       const dayOfWeek = cursor.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 1) {
-        const yyyy = cursor.getFullYear();
-        const mm = String(cursor.getMonth() + 1).padStart(2, '0');
-        const dd = String(cursor.getDate()).padStart(2, '0');
-        const iso = `${yyyy}-${mm}-${dd}`;
+      const yyyy = cursor.getFullYear();
+      const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+      const dd = String(cursor.getDate()).padStart(2, '0');
+      const iso = `${yyyy}-${mm}-${dd}`;
 
-        result.push({
-          iso,
-          shortLabel: `${dayNamesShort[dayOfWeek]}, ${cursor.getDate()} ${monthsShort[cursor.getMonth()]}`,
-          fullLabel: `${dayNamesFull[dayOfWeek]}, ${cursor.getDate()} ${monthsFull[cursor.getMonth()]}`,
-        });
-      }
+      result.push({
+        iso,
+        shortLabel: `${dayNamesShort[dayOfWeek]}, ${cursor.getDate()} ${monthsShort[cursor.getMonth()]}`,
+        fullLabel: `${dayNamesFull[dayOfWeek]}, ${cursor.getDate()} ${monthsFull[cursor.getMonth()]}`,
+      });
       cursor.setDate(cursor.getDate() + 1);
     }
 

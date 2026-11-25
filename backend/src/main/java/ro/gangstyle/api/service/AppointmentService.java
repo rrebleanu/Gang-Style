@@ -41,7 +41,7 @@ public class AppointmentService {
     private static final DateTimeFormatter RO_DATE_LABEL_FORMATTER =
             DateTimeFormatter.ofPattern("EEEE, d MMMM", RO_LOCALE);
 
-    // Salon business constraints
+    // Salon business constraints (14-day rolling booking window for client reservations)
     private static final int MAX_BOOKING_HORIZON_DAYS = 14;
     private static final int MAX_ALLOWED_NO_SHOWS = 2;
     private static final long CANCELLATION_CUTOFF_HOURS = 3;
@@ -54,32 +54,33 @@ public class AppointmentService {
     private final ServicePackageRepository servicePackageRepository;
     private final UserRepository userRepository;
     private final AvailabilityService availabilityService;
+    private final EmailService emailService;
 
     public AppointmentService(
             AppointmentRepository appointmentRepository,
             BarberRepository barberRepository,
             ServicePackageRepository servicePackageRepository,
             UserRepository userRepository,
-            AvailabilityService availabilityService) {
+            AvailabilityService availabilityService,
+            EmailService emailService) {
         this.appointmentRepository = appointmentRepository;
         this.barberRepository = barberRepository;
         this.servicePackageRepository = servicePackageRepository;
         this.userRepository = userRepository;
         this.availabilityService = availabilityService;
+        this.emailService = emailService;
     }
 
-    /**
-     * Creates and persists a new appointment after executing temporal, anti-overlap,
-     * and anti-no-show business validations.
-     */
+    // Creates and persists a new appointment with validation checks
     public AppointmentResponseDto createAppointment(AppointmentRequestDto request, String authenticatedEmail) {
+        // Step 1: Clean and normalize barber slug
         String barberSlug = request.getBarberSlug().trim().toLowerCase();
 
-        // 1. Resolve target barber profile
+        // Step 2: Fetch barber from database or throw 404 if not found
         Barber barber = barberRepository.findBySlug(barberSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Frizerul selectat nu a fost găsit: " + barberSlug));
 
-        // 2. Resolve service package from MongoDB or fallback to validated request metadata
+        // Step 3: Resolve service details from catalog
         Optional<ServicePackage> serviceOpt = servicePackageRepository.findById(request.getServiceId().trim());
         String serviceName;
         int durationMinutes;
@@ -87,12 +88,14 @@ public class AppointmentService {
         double priceRon;
 
         if (serviceOpt.isPresent()) {
+            // Read duration and pricing from database
             ServicePackage service = serviceOpt.get();
             serviceName = service.getName();
             durationMinutes = service.getDurationMinutes();
             slotMinutes = service.getSlotMinutes() > 0 ? service.getSlotMinutes() : durationMinutes;
             priceRon = service.getPriceRon();
         } else if (request.getServiceName() != null && request.getDurationMinutes() != null && request.getPriceRon() != null) {
+            // Fallback: use values provided in request payload
             serviceName = request.getServiceName().trim();
             durationMinutes = request.getDurationMinutes();
             slotMinutes = durationMinutes;
@@ -101,11 +104,12 @@ public class AppointmentService {
             throw new ResourceNotFoundException("Pachetul de servicii selectat nu există.");
         }
 
+        // Validate reasonable service duration (15 to 240 minutes)
         if (durationMinutes <= 0 || durationMinutes > 240) {
             throw new IllegalArgumentException("Durata serviciului trebuie să fie între 15 și 240 de minute.");
         }
 
-        // 3. Parse LocalDate and LocalTime to compute exact LocalDateTime interval boundaries
+        // Step 4: Parse appointment date (YYYY-MM-DD) and start time (HH:mm)
         LocalDate appointmentDate;
         LocalTime startLocalTime;
         try {
@@ -115,36 +119,41 @@ public class AppointmentService {
             throw new IllegalArgumentException("Formatul datei (YYYY-MM-DD) sau al orei (HH:mm) este invalid.");
         }
 
+        // Step 5: Compute start and end timestamps
         LocalDateTime startDateTime = LocalDateTime.of(appointmentDate, startLocalTime);
         LocalDateTime endDateTime = startDateTime.plusMinutes(durationMinutes);
         LocalTime endLocalTime = endDateTime.toLocalTime();
 
-        // Convert start and end times into minutes from midnight for fast interval intersection math
+        // Convert times to minutes from midnight (00:00 = 0) for fast interval math
         int startMinutes = startLocalTime.getHour() * 60 + startLocalTime.getMinute();
         int endMinutes = startMinutes + durationMinutes;
 
+        // Check if booking was initiated online by client
         String source = normalizeSource(request.getSource());
         boolean isOnlineClientBooking = "ONLINE".equalsIgnoreCase(source);
 
-        // 4. Execute custom temporal and salon schedule validations for online bookings
+        // Step 6: Validate client constraints for online bookings
         if (isOnlineClientBooking) {
+            // Verify date is in future, within 14-day limit, and salon is open
             validateTemporalConstraints(appointmentDate, startLocalTime, endLocalTime, startDateTime);
+            // Block clients with 2+ unexcused missed visits
             validateClientNoShowHistory(request.getClientPhone());
         }
 
-        // 5. Anti-Overlap Validation: ensure no active appointment intersects [startMinutes, endMinutes)
+        // Step 7: Prevent double-booking (ensure slot does not overlap another booking)
         validateNoTimeSlotOverlap(barberSlug, appointmentDate.toString(), startMinutes, endMinutes, barber.getName());
 
-        // 6. Format human-readable Romanian date label if omitted by the caller
+        // Step 8: Prepare date label in Romanian (e.g. "Luni, 25 Noiembrie")
         String dateLabel = (request.getDateLabel() != null && !request.getDateLabel().isBlank())
                 ? request.getDateLabel().trim()
                 : formatRomanianDateLabel(appointmentDate);
 
-        // Determine client email: prefer explicitly provided email, otherwise bind to authenticated user
+        // Step 9: Bind appointment to email (request email or logged-in user email)
         String clientEmail = (request.getClientEmail() != null && !request.getClientEmail().isBlank())
                 ? request.getClientEmail().trim().toLowerCase()
                 : (authenticatedEmail != null ? authenticatedEmail.trim().toLowerCase() : "");
 
+        // Step 10: Instantiate the appointment entity
         Appointment appointment = new Appointment(
                 barber.getSlug(),
                 barber.getName(),
@@ -171,11 +180,22 @@ public class AppointmentService {
         );
         appointment.setStartDateTime(startDateTime);
         appointment.setEndDateTime(endDateTime);
+        if (request.getReferralSource() != null && !request.getReferralSource().isBlank()) {
+            appointment.setReferralSource(request.getReferralSource().trim());
+        }
+        if (request.getReferralCode() != null && !request.getReferralCode().isBlank()) {
+            appointment.setReferralCode(request.getReferralCode().trim());
+        }
 
+        // Step 11: Save record to MongoDB database
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Created appointment [{}] for barber '{}' on {} ({}-{})",
                 saved.getId(), barberSlug, saved.getDateIso(), saved.getStartTime(), saved.getEndTime());
 
+        // Step 12: Send confirmation email in background (does not block client response)
+        emailService.sendAppointmentConfirmationAsync(saved);
+
+        // Step 13: Map saved entity to DTO and return response
         return AppointmentResponseDto.fromEntity(saved);
     }
 
@@ -436,47 +456,49 @@ public class AppointmentService {
         return AppointmentResponseDto.fromEntity(updated);
     }
 
-    /**
-     * Cancels an existing appointment (via PATCH /{id}/cancel or DELETE /{id}).
-     * Enforces Anti-IDOR ownership verification (throws HTTP 403 Forbidden if a client attempts to cancel
-     * another user's booking) and enforces the 3-hour cutoff rule for regular clients.
-     */
+    // Cancels an existing appointment with IDOR security check and 3-hour notice policy
     public AppointmentResponseDto cancelAppointment(String id, String requesterEmail, boolean isStaff) {
+        // Step 1: Look up target appointment or return 404
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea nu a fost găsită."));
 
-        // 1. Anti-IDOR Ownership Verification (throws AccessDeniedException -> 403 Forbidden on mismatch)
+        // Step 2: Enforce anti-IDOR check (prevent client A from cancelling client B's appointment)
         verifyAppointmentOwnership(appointment, requesterEmail, isStaff, "anula");
 
+        // Step 3: Prevent duplicate cancellation
         if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new IllegalArgumentException("Această programare este deja anulată.");
         }
 
-        // 2. If the requester is a regular client, enforce the 3-hour notice cutoff rule
+        // Step 4: Enforce 3-hour cutoff notice for regular clients (phone call required if <3h)
         if (!isStaff) {
             enforceThreeHourCutoff(appointment, "anulări");
         }
 
+        // Step 5: Mark status as CANCELLED and persist to database
         appointment.setStatus("CANCELLED");
         Appointment updated = appointmentRepository.save(appointment);
         log.info("Cancelled appointment [{}] by {} (staff={})", id, requesterEmail, isStaff);
 
+        // Step 6: Return mapped response DTO
         return AppointmentResponseDto.fromEntity(updated);
     }
 
-    /**
-     * Updates the lifecycle status of an appointment (CONFIRMED, COMPLETED, NO_SHOW, CANCELLED).
-     * Restricted to staff roles (BARBER, ADMIN).
-     */
+    // Updates appointment status (CONFIRMED -> COMPLETED / NO_SHOW / CANCELLED) by salon staff
     public AppointmentResponseDto updateStatus(String id, String newStatus) {
+        // Step 1: Retrieve target appointment by ID
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea cu ID-ul specificat nu există."));
 
+        // Step 2: Validate allowed enum status value
         String normalizedStatus = normalizeStatus(newStatus);
+
+        // Step 3: Update lifecycle status and persist to MongoDB
         appointment.setStatus(normalizedStatus);
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Updated appointment [{}] status to {}", id, saved.getStatus());
 
+        // Step 4: Return updated appointment DTO
         return AppointmentResponseDto.fromEntity(saved);
     }
 
@@ -617,8 +639,12 @@ public class AppointmentService {
     }
 
     /**
-     * Checks whether the client phone number has accumulated 2 or more NO_SHOW appointments.
-     * Unreliable clients are blocked from booking online and instructed to call the salon directly.
+     * BUSINESS LOGIC: Enforces the Anti-No-Show policy to protect barbers from lost revenue.
+     * 
+     * HOW IT WORKS:
+     * - Every appointment marked by a barber as 'NO_SHOW' (client did not arrive and did not cancel) is logged.
+     * - If the client's phone number has accumulated 2 or more 'NO_SHOW' records, online self-booking is disabled.
+     * - The client is asked to call the salon directly to confirm their commitment before booking again.
      */
     private void validateClientNoShowHistory(String rawPhone) {
         String normalizedPhone = normalizePhone(rawPhone);

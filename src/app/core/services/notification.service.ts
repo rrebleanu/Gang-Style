@@ -77,6 +77,12 @@ export class NotificationService {
 
   // Dispatches a new appointment event across tabs and to native device notification.
   broadcastNewAppointment(apt: AppointmentRecord): void {
+    // Strictly filter out manual/phone bookings made by the barber or blocked intervals.
+    // Notifications should ONLY trigger for ONLINE reservations made by clients!
+    if (apt.source && apt.source !== 'ONLINE') {
+      return;
+    }
+
     const payload: InAppBookingToast = {
       id: apt.id,
       title: 'Ți-a mai intrat o programare!',
@@ -232,20 +238,45 @@ export class NotificationService {
 
   private showNativeNotification(title: string, body: string): void {
     if (
-      typeof window !== 'undefined' &&
-      'Notification' in window &&
-      Notification.permission === 'granted'
+      typeof window === 'undefined' ||
+      !('Notification' in window) ||
+      Notification.permission !== 'granted'
     ) {
-      try {
-        new Notification(title, {
-          body,
-          icon: '/images/favicon.ico',
-          badge: '/images/favicon.ico',
-          tag: 'gangstyle-booking-' + Date.now(),
+      return;
+    }
+
+    const options: NotificationOptions = {
+      body,
+      icon: '/images/gangstyle.jpg',
+      badge: '/images/favicon.ico',
+      tag: 'gangstyle-booking-' + Date.now(),
+    };
+
+    // 1. Android Chrome / PWA native status bar push (via Service Worker if active)
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready
+        .then((reg) => {
+          if (reg && reg.showNotification) {
+            reg.showNotification(title, options);
+          } else {
+            new Notification(title, options);
+          }
+        })
+        .catch(() => {
+          try {
+            new Notification(title, options);
+          } catch {
+            // Mobile fallback
+          }
         });
-      } catch {
-        // Fallback in case constructor is restricted
-      }
+      return;
+    }
+
+    // 2. Desktop & mobile constructor fallback
+    try {
+      new Notification(title, options);
+    } catch {
+      // Fallback in case constructor is restricted
     }
   }
 

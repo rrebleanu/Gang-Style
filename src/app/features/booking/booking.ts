@@ -140,6 +140,7 @@ export class Booking implements OnInit {
   
   // PWA and Home Screen install state
   readonly showIosGuide = signal(false);
+  readonly showAndroidGuide = signal(false);
   readonly pwaInstalled = signal(false);
   private deferredPrompt: any = null;
 
@@ -170,11 +171,13 @@ export class Booking implements OnInit {
     return aptPhone.startsWith('0') ? aptPhone : `0${aptPhone}`;
   }
 
+  // Detect iOS Safari devices where native beforeinstallprompt is unsupported
   isIosDevice(): boolean {
     if (typeof window === 'undefined') return false;
     return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   }
 
+  // Trigger PWA install prompt or open friendly dark modal instructions
   triggerInstallPrompt(): void {
     if (this.isIosDevice()) {
       this.showIosGuide.set(true);
@@ -187,12 +190,17 @@ export class Booking implements OnInit {
         this.deferredPrompt = null;
       });
     } else {
-      alert('Pentru a salva aplicația pe ecran: apasă pe meniul browserului tău (cele 3 puncte de sus) și alege „Adaugă pe ecranul de pornire”.');
+      // Open in-app guide modal instead of intrusive browser alert
+      this.showAndroidGuide.set(true);
     }
   }
 
   closeIosGuide(): void {
     this.showIosGuide.set(false);
+  }
+
+  closeAndroidGuide(): void {
+    this.showAndroidGuide.set(false);
   }
 
   ngOnInit(): void {

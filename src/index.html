@@ -109,5 +109,15 @@
 </head>
 <body>
   <app-root></app-root>
+  <!-- Register Service Worker for PWA home screen installation and instant network updates -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+          console.warn('Service worker registration note:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

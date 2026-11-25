@@ -596,9 +596,9 @@
             <div class="pwa-install-banner">
               <div class="pwa-install-banner__icon" aria-hidden="true">&#128242;</div>
               <div class="pwa-install-banner__content">
-                <h3 class="pwa-install-banner__title">Acces rapid pe ecranul telefonului</h3>
+                <h3 class="pwa-install-banner__title">Programări viitoare rapide</h3>
                 <p class="pwa-install-banner__desc">
-                  Salveaz&#259; Gang Style pe ecranul principal pentru a te programa data viitoare &#238;n c&#226;teva secunde.
+                  Adaugă Gang Style direct pe ecranul de pornire pentru a rezerva următorul tuns dintr-o singură atingere.
                 </p>
               </div>
               <button
@@ -606,32 +606,59 @@
                 class="pwa-install-banner__btn"
                 (click)="triggerInstallPrompt()"
               >
-                {{ isIosDevice() ? 'Vezi cum se adaug&#259; pe iPhone' : '+ Adaug&#259; pe ecran' }}
+                {{ isIosDevice() ? 'Salvează pe ecran (iPhone)' : '+ Salvează pe ecran' }}
               </button>
             </div>
           }
 
+          <!-- iOS Safari Add to Home Screen Instructions -->
           @if (showIosGuide()) {
             <div class="ios-install-guide" role="dialog" aria-modal="true" (click)="closeIosGuide()">
               <div class="ios-install-guide__card" (click)="$event.stopPropagation()">
                 <div class="ios-install-guide__header">
-                  <h4>Ad&#259;ugare pe ecranul iPhone</h4>
+                  <h4>Salvează Gang Style pe iPhone</h4>
                   <button type="button" class="ios-install-guide__close" (click)="closeIosGuide()">&times;</button>
                 </div>
                 <ol class="ios-install-guide__steps">
                   <li>
-                    Apas&#259; pe butonul de <strong>Distribuie (Share)</strong> din Safari
-                    (p&#259;tratul cu s&#259;geat&#259; &#238;n sus din bara de jos).
+                    Apasă pe butonul de <strong>Distribuie (Share)</strong> din Safari
+                    (pătratul cu săgeată în sus din bara de jos).
                   </li>
                   <li>
-                    Deruleaz&#259; &#238;n jos &#537;i alege <strong>&#8222;Adaug&#259; pe ecranul principal&#8221;</strong>.
+                    Derulează în jos și alege <strong>„Adaugă pe ecranul principal”</strong>.
                   </li>
                   <li>
-                    Apas&#259; pe <strong>&#8222;Ad&#259;uga&#538;i&#8221;</strong> &#238;n col&#539;ul dreapta-sus. Gata!
+                    Apasă pe <strong>„Adăugați”</strong> în colțul dreapta-sus. Gata!
                   </li>
                 </ol>
                 <button type="button" class="btn-next btn-next--small" (click)="closeIosGuide()">
-                  Am &#238;n&#539;eles &#10003;
+                  Am înțeles &#10003;
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Android / In-App Browser Add to Home Screen Instructions -->
+          @if (showAndroidGuide()) {
+            <div class="ios-install-guide" role="dialog" aria-modal="true" (click)="closeAndroidGuide()">
+              <div class="ios-install-guide__card" (click)="$event.stopPropagation()">
+                <div class="ios-install-guide__header">
+                  <h4>Salvează pe ecranul de pornire</h4>
+                  <button type="button" class="ios-install-guide__close" (click)="closeAndroidGuide()">&times;</button>
+                </div>
+                <ol class="ios-install-guide__steps">
+                  <li>
+                    Apasă pe meniul browserului (cele <strong>3 puncte &vellip;</strong> din colțul dreapta-sus).
+                  </li>
+                  <li>
+                    Dacă ai deschis din WhatsApp/Instagram, alege <strong>„Deschide în Chrome”</strong>.
+                  </li>
+                  <li>
+                    Apasă pe <strong>„Adaugă pe ecranul de pornire”</strong> și confirmă.
+                  </li>
+                </ol>
+                <button type="button" class="btn-next btn-next--small" (click)="closeAndroidGuide()">
+                  Am înțeles &#10003;
                 </button>
               </div>
             </div>

@@ -58,8 +58,9 @@ export class VerifyTwoFactor implements OnInit {
     this.authService.verifyTwoFactorApi(code).subscribe({
       next: (user) => {
         this.isSubmitting.set(false);
+        const cleanName = this.authService.sanitizeDisplayName(user.displayName);
         this.successMessage.set(
-          `Autentificare în doi pași confirmată! Bine ai revenit, ${user.displayName}!`
+          `Autentificare confirmată! Bine ai revenit, ${cleanName}.`
         );
         setTimeout(() => {
           const target = this.authService.isAdmin(user) ? '/admin' : '/dashboard';

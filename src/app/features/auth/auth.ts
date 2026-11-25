@@ -92,7 +92,8 @@ export class Auth {
           this.router.navigate(['/verify-2fa']);
           return;
         }
-        this.authSuccessMessage.set(`Bine ai revenit, ${user.displayName}!`);
+        const cleanName = this.authService.sanitizeDisplayName(user.displayName);
+        this.authSuccessMessage.set(`Autentificare reușită! Bine ai revenit, ${cleanName}.`);
         this.redirectAfterAuth(user.role);
       },
       error: (err) => {
@@ -165,9 +166,12 @@ export class Auth {
     return control.invalid && (control.touched || this.resetSubmitted());
   }
 
-  private redirectAfterAuth(_role: UserRole): void {
+  private redirectAfterAuth(role: UserRole): void {
     setTimeout(() => {
-      this.router.navigate(['/']);
+      const isBarber = role === 'BARBER' || role === 'ROLE_BARBER';
+      const isAdmin = role === 'ADMIN' || role === 'ROLE_ADMIN';
+      const target = isBarber ? '/dashboard' : isAdmin ? '/admin' : '/';
+      this.router.navigate([target]);
     }, 500);
   }
 }

@@ -52,22 +52,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Disable CSRF since REST APIs use stateless JWT authentication
                 .csrf(AbstractHttpConfigurer::disable)
+                // Enforce CORS whitelist for frontend origins
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Stateless session management: no HTTP sessions stored on server
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Handle 401 Unauthorized and 403 Forbidden with custom JSON error responses
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler())
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // Public authentication and read endpoints
+                        // Level 1: Public authentication and read-only endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/2fa/verify", "/auth/2fa/verify").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/barbers/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/barbers/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/services/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/availability/**", "/availability/**").permitAll()
-                        // Appointments API: personal history, CRUD updates/deletions & status transitions require authentication
+                        // Level 2: Authenticated user operations (appointments CRUD & personal history)
                         .requestMatchers(HttpMethod.GET, "/api/appointments/my").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/appointments/*").hasAnyRole("CLIENT", "BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/appointments/*/status").hasAnyRole("BARBER", "ADMIN")
@@ -77,15 +82,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/appointments/**").permitAll()
                         // 2FA configuration restricted to fully authenticated accounts
                         .requestMatchers("/api/auth/2fa/**", "/auth/2fa/**").hasAnyRole("CLIENT", "BARBER", "ADMIN")
-                        // Service management restricted to staff roles
+                        // Level 3: Staff & Admin elevated endpoints
                         .requestMatchers(HttpMethod.POST, "/api/services/**").hasAnyRole("BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/services/**").hasAnyRole("BARBER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/services/**").hasAnyRole("BARBER", "ADMIN")
-                        // Admin endpoints restricted to ADMIN role
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // All other requests (including logout) require a valid token
+                        // Fallback: any other request requires an authenticated token
                         .anyRequest().authenticated()
                 )
+                // Intercept every incoming HTTP request to extract and validate JWT bearer token
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

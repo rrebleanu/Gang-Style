@@ -74,18 +74,16 @@ public class DataInitializer {
                 log.info("Seeding service packages...");
                 List<ServicePackage> services = List.of(
                         // Filip's services
-                        new ServicePackage("filip", "Tuns Clasic", 45, 45, 60),
-                        new ServicePackage("filip", "Tuns + Barbă", 60, 60, 85),
-                        new ServicePackage("filip", "Skin Fade & Beard Styling", 75, 75, 110),
-                        new ServicePackage("filip", "Aranjat Barbă & Contur", 30, 30, 45),
-                        new ServicePackage("filip", "Pachet VIP GangStyle (Tuns + Barbă + Tratament)", 90, 90, 150),
+                        new ServicePackage("filip", "Tuns", 30, 30, 70),
+                        new ServicePackage("filip", "Tuns + Aranjat Barbă + Spălat + Aranjat", 45, 45, 90),
+                        new ServicePackage("filip", "Aranjat Barbă", 15, 15, 30),
+                        new ServicePackage("filip", "Spălat + Aranjat", 10, 10, 25),
 
                         // Sebi's services
-                        new ServicePackage("sebi", "Tuns Tradițional", 45, 45, 55),
-                        new ServicePackage("sebi", "Bărbierit Tradițional (Hot Towel)", 45, 45, 50),
-                        new ServicePackage("sebi", "Tuns + Bărbierit Tradițional", 75, 75, 95),
-                        new ServicePackage("sebi", "Îngrijire Barbă cu Uleiuri Premium", 30, 30, 40),
-                        new ServicePackage("sebi", "Pachet Clasic Sebi (Tuns + Barba + Mască)", 90, 90, 135)
+                        new ServicePackage("sebi", "Tuns", 30, 30, 70),
+                        new ServicePackage("sebi", "Tuns + Aranjat Barbă + Spălat + Aranjat", 45, 45, 90),
+                        new ServicePackage("sebi", "Aranjat Barbă", 15, 15, 30),
+                        new ServicePackage("sebi", "Spălat + Aranjat", 10, 10, 25)
                 );
                 servicePackageRepository.saveAll(services);
                 log.info("Service packages seeded successfully.");
@@ -106,7 +104,7 @@ public class DataInitializer {
                 User barberFilip = new User(
                         "filip@gangstyle.ro",
                         passwordEncoder.encode("FilipPass123!"),
-                        "Filip Frizer",
+                        "Filip",
                         "+40720000002",
                         "ROLE_BARBER",
                         Instant.now()
@@ -115,7 +113,7 @@ public class DataInitializer {
                 User barberSebi = new User(
                         "sebi@gangstyle.ro",
                         passwordEncoder.encode("SebiPass123!"),
-                        "Sebi Frizer",
+                        "Sebi",
                         "+40720000003",
                         "ROLE_BARBER",
                         Instant.now()

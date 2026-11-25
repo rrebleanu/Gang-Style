@@ -67,6 +67,21 @@ export class AuthService {
     return user !== null && !user.requiresTwoFactor && user.role !== 'ROLE_PRE_AUTH';
   }
 
+  // Dynamically and generically sanitizes ANY barber or user display name (e.g. "Nicu Frizer" -> "Nicu")
+  sanitizeDisplayName(name?: string): string {
+    if (!name || !name.trim()) return '';
+    let clean = name.trim();
+    // Generic regex: automatically strips redundant role/title suffixes or prefixes
+    clean = clean.replace(/(?:^|\s+)[-/|•·]?\s*(?:frizer|barber|hairstylist|stilist)\b/gi, '').trim();
+    if (clean.length > 0) {
+      clean = clean
+        .split(/\s+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+    return clean || name.trim();
+  }
+
   // Checks if the user is in the intermediate 2FA pre-authentication state.
   isPreAuth(): boolean {
     return this.pendingTwoFactorUser() !== null;
@@ -339,7 +354,7 @@ export class AuthService {
   private mapAndSaveAuthResponse(res: AuthResponsePayload): AuthUser {
     const user: AuthUser = {
       email: res.email,
-      displayName: res.displayName,
+      displayName: this.sanitizeDisplayName(res.displayName),
       role: res.role,
       token: res.token,
       phone: res.phone,
@@ -410,7 +425,12 @@ export class AuthService {
     }
     try {
       const raw = window.localStorage.getItem(this.storageKey);
-      return raw ? (JSON.parse(raw) as AuthUser) : null;
+      if (!raw) return null;
+      const user = JSON.parse(raw) as AuthUser;
+      if (user && user.displayName) {
+        user.displayName = this.sanitizeDisplayName(user.displayName);
+      }
+      return user;
     } catch {
       return null;
     }

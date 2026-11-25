@@ -26,7 +26,7 @@ public class JwtUtil {
 
     public JwtUtil(
             @Value("${gangstyle.jwt.secret}") String secret,
-            @Value("${gangstyle.jwt.expiration-ms:604800000}") long expirationMs) {
+            @Value("${gangstyle.jwt.expiration-ms:2592000000}") long expirationMs) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
@@ -34,7 +34,12 @@ public class JwtUtil {
     // Creates a full signed JWT containing user email as subject and role as claim.
     public String generateToken(User user) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expirationMs);
+        long tokenDuration = expirationMs;
+        // Specifically keep barber and admin sessions active for at least 30 days (1 month)
+        if (user.getRole() != null && (user.getRole().toUpperCase().contains("BARBER") || user.getRole().toUpperCase().contains("ADMIN"))) {
+            tokenDuration = Math.max(tokenDuration, 30L * 24 * 60 * 60 * 1000L); // 2,592,000,000 ms (30 days)
+        }
+        Date expiryDate = new Date(now.getTime() + tokenDuration);
 
         return Jwts.builder()
                 .subject(user.getEmail())

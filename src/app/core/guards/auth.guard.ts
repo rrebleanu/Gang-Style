@@ -35,5 +35,10 @@ export const adminGuard: CanActivateFn = () => {
     return true;
   }
 
-  return router.createUrlTree(['/dashboard']);
+  // Redirect barbers to their chair dashboard; redirect regular clients to home page
+  if (authService.isBarber()) {
+    return router.createUrlTree(['/dashboard']);
+  }
+
+  return router.createUrlTree(['/']);
 };

@@ -68,14 +68,409 @@
           <span class="kpi-box__label">Programări Online &amp; Manuale</span>
         </div>
         <div class="kpi-box">
+          <span class="kpi-box__val kpi-box__val--highlight">{{ totalRevenueRon() }} RON</span>
+          <span class="kpi-box__label">Valoare Servicii Programate</span>
+        </div>
+        <div class="kpi-box">
           <span class="kpi-box__val kpi-box__val--danger">{{ blacklist().length }}</span>
           <span class="kpi-box__label">Clienți în Blacklist</span>
         </div>
       </div>
     </header>
 
-    <!-- Salon schedule & appointments section -->
-    <section class="admin-section" aria-labelledby="salon-schedule-heading">
+    <!-- Admin Top Navigation Tabs -->
+    <nav class="admin-main-nav" role="tablist" aria-label="Navigare Panou Administrator">
+      <button
+        type="button"
+        class="admin-nav-btn"
+        [class.admin-nav-btn--active]="activeAdminSection() === 'STATS'"
+        (click)="setActiveAdminSection('STATS')"
+      >
+        <span class="nav-btn-icon">📊</span>
+        <span>Statistici IT &amp; Frizeri</span>
+      </button>
+
+      <button
+        type="button"
+        class="admin-nav-btn"
+        [class.admin-nav-btn--active]="activeAdminSection() === 'CRM'"
+        (click)="setActiveAdminSection('CRM')"
+      >
+        <span class="nav-btn-icon">👥</span>
+        <span>CRM Clienți &amp; Recomandări</span>
+        <span class="admin-nav-badge">{{ crmClients().length }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="admin-nav-btn"
+        [class.admin-nav-btn--active]="activeAdminSection() === 'SCHEDULE'"
+        (click)="setActiveAdminSection('SCHEDULE')"
+      >
+        <span class="nav-btn-icon">📅</span>
+        <span>Agenda Salonului</span>
+        <span class="admin-nav-badge">{{ totalActiveAppointments() }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="admin-nav-btn"
+        [class.admin-nav-btn--active]="activeAdminSection() === 'SERVICES'"
+        (click)="setActiveAdminSection('SERVICES')"
+      >
+        <span class="nav-btn-icon">✂️</span>
+        <span>Pachete &amp; Prețuri</span>
+      </button>
+
+      <button
+        type="button"
+        class="admin-nav-btn"
+        [class.admin-nav-btn--active]="activeAdminSection() === 'BLACKLIST'"
+        (click)="setActiveAdminSection('BLACKLIST')"
+      >
+        <span class="nav-btn-icon">🛡️</span>
+        <span>Blacklist</span>
+        @if (blacklist().length > 0) {
+          <span class="admin-nav-badge admin-nav-badge--danger">{{ blacklist().length }}</span>
+        }
+      </button>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: STATISTICI IT & PERFORMANTA     -->
+    <!-- ========================================== -->
+    @if (activeAdminSection() === 'STATS') {
+      <section class="admin-section" aria-labelledby="stats-heading">
+        <div class="admin-section__head">
+          <div>
+            <h2 id="stats-heading" class="admin-section__title">
+              Statistici IT &amp; Performanță Frizeri
+            </h2>
+            <p class="admin-section__subtitle">
+              Monitorizare în timp real: programări pe săptămână, clienți noi vs. fideli și surse de recomandare.
+            </p>
+          </div>
+          <div class="stats-live-tag">
+            <span class="live-dot"></span> Date Reale &middot; Live
+          </div>
+        </div>
+
+        <!-- Global Summary Grid -->
+        <div class="stats-summary-grid">
+          <div class="summary-card">
+            <span class="summary-card__icon">💰</span>
+            <div class="summary-card__data">
+              <span class="summary-card__val">{{ totalRevenueRon() }} RON</span>
+              <span class="summary-card__label">Valoare Servicii Salon</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-card__icon">📅</span>
+            <div class="summary-card__data">
+              <span class="summary-card__val">{{ validAppointments().length }}</span>
+              <span class="summary-card__label">Total Programări Active</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-card__icon">👥</span>
+            <div class="summary-card__data">
+              <span class="summary-card__val">{{ crmClients().length }}</span>
+              <span class="summary-card__label">Clienți Înregistrați</span>
+              <span class="summary-card__sub">{{ totalNewClients() }} Noi &middot; {{ totalReturningClients() }} Fideli</span>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <span class="summary-card__icon">🚀</span>
+            <div class="summary-card__data">
+              <span class="summary-card__val">{{ totalReferralsCount() }}</span>
+              <span class="summary-card__label">Clienți din Recomandări</span>
+              <span class="summary-card__sub">{{ totalDirectCount() }} Venit Direct / Google</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per Barber Comparison (Filip vs Sebi) -->
+        <div class="stats-sub-header">
+          <h3 class="stats-subheading">💈 Performanță Individuală Frizeri</h3>
+          <span class="stats-sub-note">Programări săptămânale, lunare și retenție clienți</span>
+        </div>
+
+        <div class="barbers-comparison-grid">
+          @for (b of barberStatsList(); track b.slug) {
+            <div class="barber-stat-card">
+              <div class="barber-stat-card__header">
+                <div class="barber-avatar-badge" aria-hidden="true">{{ b.name.charAt(0) }}</div>
+                <div class="barber-stat-card__info">
+                  <h4 class="barber-stat-card__name">{{ b.name }}</h4>
+                  <span class="barber-stat-card__share">Cotă Salon: <strong>{{ b.sharePercent }}%</strong></span>
+                </div>
+              </div>
+
+              <div class="barber-stat-card__metrics">
+                <div class="metric-row">
+                  <span class="metric-row__label">📅 Săptămâna Aceasta:</span>
+                  <strong class="metric-row__val metric-row__val--highlight">{{ b.weeklyCount }} programări</strong>
+                </div>
+
+                <div class="metric-row">
+                  <span class="metric-row__label">🗓️ Luna Aceasta:</span>
+                  <strong class="metric-row__val">{{ b.monthlyCount }} programări</strong>
+                </div>
+
+                <div class="metric-row">
+                  <span class="metric-row__label">👤 Clienți Noi (Prima vizită):</span>
+                  <span class="badge-new-count">{{ b.newClientsCount }} clienți</span>
+                </div>
+
+                <div class="metric-row">
+                  <span class="metric-row__label">🔄 Clienți Fideli (2+ vizite):</span>
+                  <span class="badge-returning-count">{{ b.returningClientsCount }} fideli</span>
+                </div>
+
+                <div class="metric-row metric-row--revenue">
+                  <span class="metric-row__label">💈 Valoare Servicii:</span>
+                  <strong class="metric-row__revenue">{{ b.totalRevenueRon }} RON</strong>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Referral & Traffic Origin Breakdown -->
+        <div class="referrals-analysis-container">
+          <div class="referrals-head">
+            <div>
+              <h3 class="stats-subheading" style="margin: 0;">
+                🌐 Surse Recomandări &amp; Achiziție Clienți
+              </h3>
+              <p class="stats-sub-note" style="margin-top: 4px;">
+                Clienți veniți prin WhatsApp, Instagram, prieteni vs. căutare directă
+              </p>
+            </div>
+            <span class="referrals-ratio-badge">
+              Rată Recomandare: {{ Math.round((totalReferralsCount() / (validAppointments().length || 1)) * 100) }}%
+            </span>
+          </div>
+
+          <div class="referral-bars-list">
+            @for (m of referralSourceMetrics(); track m.key) {
+              <div class="referral-bar-item">
+                <div class="referral-bar-item__info">
+                  <span class="ref-icon">{{ m.icon }}</span>
+                  <span class="ref-label">{{ m.label }}</span>
+                  <span class="ref-count">{{ m.count }} clienți ({{ m.percent }}%)</span>
+                </div>
+                <div class="ref-progress-track">
+                  <div class="ref-progress-fill" [style.width.%]="m.percent"></div>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Marketing Referral Links Generator -->
+          <div class="referral-links-box">
+            <div class="referral-links-box__header">
+              <h4 class="referral-links-box__title">
+                🔗 Generator Link-uri Inteligente de Recomandare
+              </h4>
+              <p class="referral-links-box__desc">
+                Copiază link-ul potrivit pentru fiecare canal. Când un client intră pe site cu acest link, este atribuit automat canalului respectiv!
+              </p>
+            </div>
+
+            <div class="share-links-grid">
+              @for (link of shareableLinks(); track link.key) {
+                <div class="share-link-card">
+                  <div class="share-link-card__top">
+                    <span class="share-icon">{{ link.icon }}</span>
+                    <div class="share-info">
+                      <strong class="share-title">{{ link.label }}</strong>
+                      <p class="share-desc">{{ link.description }}</p>
+                    </div>
+                  </div>
+                  <div class="share-link-card__input-group">
+                    <input type="text" [value]="link.url" readonly class="share-input" />
+                    <button
+                      type="button"
+                      class="btn-copy-mini"
+                      [class.btn-copy-mini--copied]="copiedLinkKey() === link.key"
+                      (click)="copyShareLink(link.url, link.label, link.key)"
+                      [title]="copiedLinkKey() === link.key ? 'Copiat!' : 'Copiază link-ul'"
+                      [attr.aria-label]="copiedLinkKey() === link.key ? 'Copiat!' : 'Copiază link-ul'"
+                    >
+                      @if (copiedLinkKey() === link.key) {
+                        <svg class="copy-svg check-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      } @else {
+                        <svg class="copy-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                      }
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: CRM CLIENTI & RECOMANDARI       -->
+    <!-- ========================================== -->
+    @if (activeAdminSection() === 'CRM') {
+      <section class="admin-section" aria-labelledby="crm-heading">
+        <div class="admin-section__head">
+          <div>
+            <h2 id="crm-heading" class="admin-section__title">
+              CRM Clienți &amp; Baza de Date Utilizatori
+            </h2>
+            <p class="admin-section__subtitle">
+              Toți clienții înregistrați, istoricul lor de tuns, frizerul preferat și sursa din care au venit.
+            </p>
+          </div>
+          <div class="crm-count-badge">
+            {{ filteredCrmClients().length }} clienți afișați
+          </div>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="crm-controls-bar">
+          <div class="crm-search-box">
+            <input
+              type="search"
+              placeholder="Caută după nume, telefon, email sau frizer..."
+              [value]="crmSearchQuery()"
+              (input)="onCrmSearchInput($event)"
+              class="crm-search-input"
+            />
+          </div>
+
+          <div class="crm-filter-tabs" role="tablist">
+            <button
+              type="button"
+              class="crm-filter-btn"
+              [class.crm-filter-btn--active]="crmFilter() === 'ALL'"
+              (click)="setCrmFilter('ALL')"
+            >
+              Toți ({{ crmClients().length }})
+            </button>
+            <button
+              type="button"
+              class="crm-filter-btn"
+              [class.crm-filter-btn--active]="crmFilter() === 'NEW'"
+              (click)="setCrmFilter('NEW')"
+            >
+              Clienți Noi ({{ totalNewClients() }})
+            </button>
+            <button
+              type="button"
+              class="crm-filter-btn"
+              [class.crm-filter-btn--active]="crmFilter() === 'RETURNING'"
+              (click)="setCrmFilter('RETURNING')"
+            >
+              Clienți Fideli ({{ totalReturningClients() }})
+            </button>
+            <button
+              type="button"
+              class="crm-filter-btn"
+              [class.crm-filter-btn--active]="crmFilter() === 'REFERRAL'"
+              (click)="setCrmFilter('REFERRAL')"
+            >
+              Din Recomandări ({{ totalReferralsCount() }})
+            </button>
+          </div>
+        </div>
+
+        <!-- Clients Table -->
+        @if (filteredCrmClients().length > 0) {
+          <div class="crm-table-container">
+            <table class="crm-table">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Contact</th>
+                  <th>Statut</th>
+                  <th>Frizer Preferat</th>
+                  <th>Sursă Recomandare</th>
+                  <th>Programări</th>
+                  <th>Valoare Totală</th>
+                  <th>Ultima Vizită</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of filteredCrmClients(); track c.phoneKey) {
+                  <tr class="crm-row">
+                    <td class="crm-col-client">
+                      <div class="crm-client-inner">
+                        <div class="client-avatar-badge">
+                          {{ c.clientFirstName.charAt(0) }}{{ c.clientLastName.charAt(0) }}
+                        </div>
+                        <div class="client-name-box">
+                          <strong>{{ c.fullName }}</strong>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="crm-col-contact">
+                      <div class="crm-contact-inner">
+                        <a [href]="'tel:+40' + c.phone" class="client-phone-link">
+                          📞 {{ c.phone }}
+                        </a>
+                        @if (c.email) {
+                          <span class="client-email-text">{{ c.email }}</span>
+                        }
+                      </div>
+                    </td>
+                    <td>
+                      @if (c.isReturning) {
+                        <span class="badge-client-vip">⭐ Client Fidel VIP</span>
+                      } @else {
+                        <span class="badge-client-new">🌱 Client Nou</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge-barber-tag">
+                        💈 {{ c.favoriteBarberName }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge-referral-origin" [class.badge-referral-origin--direct]="c.referralSource === 'DIRECT_ORGANIC'">
+                        {{ c.referralLabel }}
+                      </span>
+                    </td>
+                    <td class="crm-col-bookings">
+                      <strong>{{ c.bookingsCount }}</strong> {{ c.bookingsCount === 1 ? 'vizită' : 'vizite' }}
+                    </td>
+                    <td class="crm-col-spent">
+                      <strong class="spent-val">{{ c.totalSpentRon }} RON</strong>
+                    </td>
+                    <td class="crm-col-date">
+                      {{ c.lastDateLabel || c.lastDateIso }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <div class="crm-empty-state">
+            <p>Niciun client găsit conform filtrelor selectate.</p>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ========================================== -->
+    <!-- SECTION 3: AGENDA SALONULUI                -->
+    <!-- ========================================== -->
+    @if (activeAdminSection() === 'SCHEDULE') {
+      <section class="admin-section" aria-labelledby="salon-schedule-heading">
       <div class="admin-section__head">
         <div>
           <h2 id="salon-schedule-heading" class="admin-section__title">
@@ -207,9 +602,13 @@
         </div>
       }
     </section>
+    }
 
-    <!-- Service packages CRUD section -->
-    <section class="admin-section" aria-labelledby="crud-services-title">
+    <!-- ========================================== -->
+    <!-- SECTION 4: PACHETE & PRETURI               -->
+    <!-- ========================================== -->
+    @if (activeAdminSection() === 'SERVICES') {
+      <section class="admin-section" aria-labelledby="crud-services-title">
       <div class="admin-section__head">
         <div>
           <h2 id="crud-services-title" class="admin-section__title">
@@ -275,11 +674,7 @@
                 <tr>
                   <td data-label="Frizer">
                     <span class="barber-badge">
-                      <img
-                        [src]="getBarberPhoto(srv.barberSlug)"
-                        [alt]="srv.barberSlug"
-                        class="barber-badge__img"
-                      />
+                      <span class="barber-badge__initial" aria-hidden="true">{{ getBarberName(srv.barberSlug).charAt(0) }}</span>
                       <strong>{{ getBarberName(srv.barberSlug) }}</strong>
                     </span>
                   </td>
@@ -319,9 +714,13 @@
         </div>
       }
     </section>
+    }
 
-    <!-- Blacklist management section -->
-    <section class="admin-section" aria-labelledby="blacklist-title">
+    <!-- ========================================== -->
+    <!-- SECTION 5: LISTA BLACKLIST                 -->
+    <!-- ========================================== -->
+    @if (activeAdminSection() === 'BLACKLIST') {
+      <section class="admin-section" aria-labelledby="blacklist-title">
       <div class="admin-section__head">
         <div>
           <h2 id="blacklist-title" class="admin-section__title">
@@ -391,6 +790,7 @@
         </div>
       }
     </section>
+    }
   </div>
 </main>
 

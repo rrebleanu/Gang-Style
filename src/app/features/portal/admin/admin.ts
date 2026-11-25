@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { ReferralTrackingService } from '../../../core/services/referral-tracking.service';
 import { ServiceCatalogService } from '../../../core/services/service-catalog.service';
 import { TwoFactorModal } from '../../../shared/components/two-factor-modal/two-factor-modal';
 import {
@@ -15,6 +16,48 @@ import { ErrorHandlerService } from '../../../core/services/error-handler.servic
 import { Barber } from '../../../shared/models/barber.model';
 
 export type AdminBarberFilter = 'ALL' | string;
+export type AdminSectionTab = 'STATS' | 'CRM' | 'SCHEDULE' | 'SERVICES' | 'BLACKLIST';
+export type CrmFilterOption = 'ALL' | 'NEW' | 'RETURNING' | 'REFERRAL';
+
+export interface CrmClientRecord {
+  phoneKey: string;
+  fullName: string;
+  clientFirstName: string;
+  clientLastName: string;
+  phone: string;
+  email: string;
+  bookingsCount: number;
+  isReturning: boolean;
+  favoriteBarberSlug: string;
+  favoriteBarberName: string;
+  referralSource: string;
+  referralLabel: string;
+  referralCode?: string;
+  totalSpentRon: number;
+  lastDateIso: string;
+  lastDateLabel: string;
+}
+
+export interface BarberMetricSummary {
+  slug: string;
+  name: string;
+  photoUrl: string;
+  weeklyCount: number;
+  monthlyCount: number;
+  totalCount: number;
+  newClientsCount: number;
+  returningClientsCount: number;
+  totalRevenueRon: number;
+  sharePercent: number;
+}
+
+export interface ReferralSourceMetric {
+  key: string;
+  label: string;
+  icon: string;
+  count: number;
+  percent: number;
+}
 
 // Admin Dashboard (/admin):
 // 1. Full CRUD on Service Packages & Prices (Create, Read, Update, Delete for Filip & Sebi)
@@ -35,7 +78,20 @@ export class Admin implements OnInit {
   private readonly catalogService = inject(ServiceCatalogService);
   private readonly barberService = inject(BarberService);
   private readonly errorHandler = inject(ErrorHandlerService);
+  private readonly referralTracking = inject(ReferralTrackingService);
   readonly authService = inject(AuthService);
+
+  // Active admin section tab
+  readonly activeAdminSection = signal<AdminSectionTab>('STATS');
+  readonly Math = Math;
+
+  // CRM Search & Filter state
+  readonly crmFilter = signal<CrmFilterOption>('ALL');
+  readonly crmSearchQuery = signal<string>('');
+  readonly shareableLinks = computed(() => {
+    const barberList = this.barbers().map((b) => ({ name: b.name, slug: b.slug }));
+    return this.referralTracking.getShareableLinks(undefined, barberList.length > 0 ? barberList : undefined);
+  });
 
   // State signals
   readonly barbers = signal<Barber[]>([]);
@@ -143,6 +199,368 @@ export class Admin implements OnInit {
       ).length
   );
 
+  // =========================================================================
+  // COMPUTED BUSINESS METRICS & TIME BOUNDARIES
+  // =========================================================================
+
+  /**
+   * Computes the ISO date string (YYYY-MM-DD) for Monday of the current calendar week.
+   * Used as the lower bound when calculating weekly appointments per barber.
+   */
+  readonly currentWeekStartIso = computed<string>(() => {
+    const d = new Date();
+    const day = d.getDay();
+    // In JavaScript, Sunday is 0; shift Monday to be day 1 (diff = -6 if Sunday, else 1 - day)
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(d);
+    monday.setDate(diff);
+    return this.toIsoDate(monday);
+  });
+
+  /**
+   * Computes the ISO date string (YYYY-MM-DD) for Sunday of the current calendar week.
+   * Used as the upper bound when calculating weekly appointments per barber.
+   */
+  readonly currentWeekEndIso = computed<string>(() => {
+    const d = new Date();
+    const day = d.getDay();
+    // Sunday is day 0; if not Sunday, add days until the upcoming Sunday
+    const diff = d.getDate() - day + (day === 0 ? 0 : 7);
+    const sunday = new Date(d);
+    sunday.setDate(diff);
+    return this.toIsoDate(sunday);
+  });
+
+  /**
+   * Filters out internal blocked intervals and cancelled bookings,
+   * leaving only active, valid client appointments for accurate business metrics.
+   */
+  readonly validAppointments = computed<AppointmentRecord[]>(() =>
+    this.appointments().filter((a) => a.source !== 'BLOCKED' && a.status !== 'CANCELLED')
+  );
+
+  /**
+   * Aggregates total salon revenue in RON across all confirmed or completed appointments.
+   */
+  readonly totalRevenueRon = computed<number>(() =>
+    this.validAppointments().reduce((sum, a) => sum + (Number(a.priceRon) || 0), 0)
+  );
+
+  /**
+   * Computes per-barber performance metrics dynamically for all registered barbers:
+   * - Weekly & monthly appointment count
+   * - Client retention: New clients (1st visit) vs. Returning loyal clients (2+ visits)
+   * - Total revenue generated per barber chair
+   * - Salon market share percentage
+   */
+  readonly barberStatsList = computed<BarberMetricSummary[]>(() => {
+    const all = this.validAppointments();
+    const barbers = this.barbers();
+    const totalSalonCount = all.length || 1;
+    const weekStart = this.currentWeekStartIso();
+    const weekEnd = this.currentWeekEndIso();
+    const month = this.currentMonthPrefix();
+
+    return barbers.map((b) => {
+      const slug = b.slug.toLowerCase();
+      // Match appointments belonging to this barber
+      const bApts = all.filter((a) => (a.barberSlug || '').toLowerCase() === slug);
+
+      // Current week appointment volume (Monday through Sunday)
+      const weeklyCount = bApts.filter(
+        (a) => a.dateIso >= weekStart && a.dateIso <= weekEnd
+      ).length;
+
+      // Current month appointment volume (matching YYYY-MM prefix)
+      const monthlyCount = bApts.filter((a) => a.dateIso.startsWith(month)).length;
+
+      // Accumulated revenue generated by this barber's chair
+      const totalRevenueRon = bApts.reduce((sum, a) => sum + (Number(a.priceRon) || 0), 0);
+
+      // Client retention calculation:
+      // Group appointments by normalized phone number to determine repeat booking frequency
+      const clientMap = new Map<string, number>();
+      for (const a of bApts) {
+        const phone = (a.clientPhone || '').replace(/\s+/g, '');
+        if (phone) {
+          clientMap.set(phone, (clientMap.get(phone) || 0) + 1);
+        }
+      }
+
+      let newCount = 0;
+      let retCount = 0;
+      clientMap.forEach((count) => {
+        if (count >= 2) {
+          retCount++; // Client with 2 or more bookings is classified as returning/loyal
+        } else {
+          newCount++; // Client with exactly 1 booking is classified as new
+        }
+      });
+
+      // Percentage share of total salon appointments
+      const sharePercent = Math.round((bApts.length / totalSalonCount) * 100);
+
+      return {
+        slug: b.slug,
+        name: b.name,
+        photoUrl: b.photoUrl,
+        weeklyCount,
+        monthlyCount,
+        totalCount: bApts.length,
+        newClientsCount: newCount,
+        returningClientsCount: retCount,
+        totalRevenueRon,
+        sharePercent,
+      };
+    });
+  });
+
+  /**
+   * Analyzes marketing and acquisition channels:
+   * Categorizes valid appointments by referral source (WhatsApp, Instagram, Friends, Direct Google, Phone).
+   */
+  readonly referralSourceMetrics = computed<ReferralSourceMetric[]>(() => {
+    const list = this.validAppointments();
+    const total = list.length || 1;
+
+    let whatsapp = 0;
+    let instagram = 0;
+    let maps = 0;
+    let friend = 0;
+    let phone = 0;
+    let direct = 0;
+
+    for (const a of list) {
+      const ref = (a.referralSource || '').toUpperCase();
+      const src = (a.source || '').toUpperCase();
+
+      if (ref === 'WHATSAPP_SHARE' || ref.includes('WHATSAPP')) {
+        whatsapp++;
+      } else if (ref === 'INSTAGRAM_BIO' || ref.includes('INSTAGRAM')) {
+        instagram++;
+      } else if (ref === 'GOOGLE_MAPS' || ref.includes('MAPS')) {
+        maps++;
+      } else if (ref === 'FRIEND_REF' || ref.includes('FRIEND') || ref === 'REF_CODE') {
+        friend++;
+      } else if (ref === 'PHONE_CALL' || src === 'PHONE') {
+        phone++;
+      } else {
+        direct++;
+      }
+    }
+
+    return [
+      {
+        key: 'GOOGLE_MAPS',
+        label: 'Google Maps & Business',
+        icon: '📍',
+        count: maps,
+        percent: Math.round((maps / total) * 100),
+      },
+      {
+        key: 'WHATSAPP_SHARE',
+        label: 'Recomandare WhatsApp',
+        icon: '💬',
+        count: whatsapp,
+        percent: Math.round((whatsapp / total) * 100),
+      },
+      {
+        key: 'INSTAGRAM_BIO',
+        label: 'Instagram Bio / Story',
+        icon: '📸',
+        count: instagram,
+        percent: Math.round((instagram / total) * 100),
+      },
+      {
+        key: 'FRIEND_REF',
+        label: 'Recomandare Prieteni / Cod',
+        icon: '🤝',
+        count: friend,
+        percent: Math.round((friend / total) * 100),
+      },
+      {
+        key: 'PHONE_CALL',
+        label: 'Programare Telefonică',
+        icon: '📞',
+        count: phone,
+        percent: Math.round((phone / total) * 100),
+      },
+      {
+        key: 'DIRECT_ORGANIC',
+        label: 'Direct / Căutare Google',
+        icon: '🌐',
+        count: direct,
+        percent: Math.round((direct / total) * 100),
+      },
+    ];
+  });
+
+  readonly totalReferralsCount = computed<number>(() => {
+    const metrics = this.referralSourceMetrics();
+    return metrics
+      .filter((m) => m.key !== 'DIRECT_ORGANIC')
+      .reduce((sum, m) => sum + m.count, 0);
+  });
+
+  readonly totalDirectCount = computed<number>(() => {
+    const directMetric = this.referralSourceMetrics().find((m) => m.key === 'DIRECT_ORGANIC');
+    return directMetric ? directMetric.count : 0;
+  });
+
+  /**
+   * Builds the comprehensive Client CRM dataset:
+   * 1. Groups all appointment records by unique client phone number or email.
+   * 2. Sorts each client's history descending by date to identify their latest visit.
+   * 3. Calculates Customer Lifetime Value (total spent in RON).
+   * 4. Identifies preferred barber by tallying appointment counts.
+   * 5. Preserves original referral attribution from the client's first visit.
+   */
+  readonly crmClients = computed<CrmClientRecord[]>(() => {
+    const apts = this.validAppointments();
+    const clientMap = new Map<string, AppointmentRecord[]>();
+
+    for (const a of apts) {
+      const key = (a.clientPhone || a.clientEmail || `${a.clientLastName}_${a.clientFirstName}`)
+        .replace(/\s+/g, '')
+        .toLowerCase();
+      if (!key) continue;
+      const existing = clientMap.get(key) || [];
+      existing.push(a);
+      clientMap.set(key, existing);
+    }
+
+    const records: CrmClientRecord[] = [];
+
+    clientMap.forEach((userApts, phoneKey) => {
+      // Sort appointments descending by date to extract latest visit metadata
+      const sorted = [...userApts].sort((a, b) => b.dateIso.localeCompare(a.dateIso));
+      const latest = sorted[0];
+
+      const count = userApts.length;
+      const totalSpent = userApts.reduce((sum, a) => sum + (Number(a.priceRon) || 0), 0);
+
+      // Determine the client's favorite barber based on appointment frequency
+      const barberTally: Record<string, number> = {};
+      userApts.forEach((a) => {
+        const slug = (a.barberSlug || 'filip').toLowerCase();
+        barberTally[slug] = (barberTally[slug] || 0) + 1;
+      });
+
+      let favSlug = 'filip';
+      let maxB = 0;
+      Object.entries(barberTally).forEach(([slug, c]) => {
+        if (c > maxB) {
+          maxB = c;
+          favSlug = slug;
+        }
+      });
+
+      // Find first known referral source for accurate historical attribution
+      const withRef = userApts.find(
+        (a) => a.referralSource && a.referralSource !== 'DIRECT_ORGANIC'
+      );
+      const referralSource = withRef?.referralSource || latest?.referralSource || 'DIRECT_ORGANIC';
+      const referralLabel = withRef?.referralLabel || latest?.referralLabel || 'Direct / Căutare Google';
+
+      records.push({
+        phoneKey,
+        fullName: `${latest.clientLastName} ${latest.clientFirstName}`.trim(),
+        clientFirstName: latest.clientFirstName,
+        clientLastName: latest.clientLastName,
+        phone: latest.clientPhone,
+        email: latest.clientEmail,
+        bookingsCount: count,
+        isReturning: count >= 2,
+        favoriteBarberSlug: favSlug,
+        favoriteBarberName: this.getBarberName(favSlug),
+        referralSource,
+        referralLabel,
+        referralCode: withRef?.referralCode || latest?.referralCode,
+        totalSpentRon: totalSpent,
+        lastDateIso: latest.dateIso,
+        lastDateLabel: latest.dateLabel,
+      });
+    });
+
+    // Sort CRM client list by most recent booking date
+    return records.sort((a, b) => b.lastDateIso.localeCompare(a.lastDateIso));
+  });
+
+  /**
+   * Applies active CRM filter tabs (All, New, Returning, Referral) and text search.
+   */
+  readonly filteredCrmClients = computed<CrmClientRecord[]>(() => {
+    const list = this.crmClients();
+    const filter = this.crmFilter();
+    const query = this.crmSearchQuery().trim().toLowerCase();
+
+    return list.filter((c) => {
+      // Filter by client type / referral status
+      if (filter === 'NEW' && c.isReturning) return false;
+      if (filter === 'RETURNING' && !c.isReturning) return false;
+      if (filter === 'REFERRAL' && c.referralSource === 'DIRECT_ORGANIC') return false;
+
+      // Multi-field text search matching name, phone, email, barber, or referral label
+      if (query) {
+        const matchName = c.fullName.toLowerCase().includes(query);
+        const matchPhone = c.phone.toLowerCase().includes(query);
+        const matchEmail = c.email.toLowerCase().includes(query);
+        const matchBarber = c.favoriteBarberName.toLowerCase().includes(query);
+        const matchRef = c.referralLabel.toLowerCase().includes(query);
+        if (!matchName && !matchPhone && !matchEmail && !matchBarber && !matchRef) {
+          return false;
+        }
+      }
+      return true;
+    });
+  });
+
+  readonly totalNewClients = computed<number>(() =>
+    this.crmClients().filter((c) => !c.isReturning).length
+  );
+
+  readonly totalReturningClients = computed<number>(() =>
+    this.crmClients().filter((c) => c.isReturning).length
+  );
+
+  setActiveAdminSection(section: AdminSectionTab): void {
+    this.activeAdminSection.set(section);
+  }
+
+  setCrmFilter(filter: CrmFilterOption): void {
+    this.crmFilter.set(filter);
+  }
+
+  onCrmSearchInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.crmSearchQuery.set(val);
+  }
+
+  readonly copiedLinkKey = signal<string | null>(null);
+
+  copyShareLink(url: string, label: string, key?: string): void {
+    if (key) {
+      this.copiedLinkKey.set(key);
+      setTimeout(() => {
+        if (this.copiedLinkKey() === key) {
+          this.copiedLinkKey.set(null);
+        }
+      }, 2000);
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(
+        () => {
+          this.showFeedback(`✓ Linkul pentru ${label} a fost copiat în clipboard!`);
+        },
+        () => {
+          this.showFeedback(`Link copiat: ${url}`);
+        }
+      );
+    } else {
+      this.showFeedback(`Link: ${url}`);
+    }
+  }
+
   // Reactive form for Service Package CRUD
   readonly serviceForm = this.fb.nonNullable.group({
     barberTarget: ['both', [Validators.required]],
@@ -175,13 +593,21 @@ export class Admin implements OnInit {
   ngOnInit(): void {
     const user = this.authService.currentUser();
     if (typeof window !== 'undefined') {
+      // Security Layer 2 (Component-level defense-in-depth):
+      // Even if route guard passes, verify session authenticity before initializing any admin data.
       if (!user) {
         this.router.navigate(['/login']);
         return;
       }
-      // Restrict /admin strictly to ADMIN role
+      // Strict role enforcement: Only ROLE_ADMIN may view salon-wide metrics, CRM, or revenue.
+      // Barbers (Filip & Sebi) are redirected to their chair /dashboard.
+      // Regular clients who stumble onto /admin are safely redirected to the homepage (/).
       if (!this.authService.isAdmin(user)) {
-        this.router.navigate(['/dashboard']);
+        if (this.authService.isBarber(user)) {
+          this.router.navigate(['/dashboard']);
+        } else {
+          this.router.navigate(['/']);
+        }
         return;
       }
     }

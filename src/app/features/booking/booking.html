@@ -526,7 +526,7 @@
 
               <div class="summary-row">
                 <span class="summary-row__label">Telefon</span>
-                <span class="summary-row__value">+40 {{ clientForm.controls.phone.value }}</span>
+                <span class="summary-row__value">{{ displaySummaryPhone() }}</span>
               </div>
 
               @if (clientForm.controls.notes.value) {

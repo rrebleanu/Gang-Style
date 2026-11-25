@@ -167,7 +167,7 @@ public class AppointmentService {
                 request.getClientFirstName().trim(),
                 request.getClientLastName().trim(),
                 clientEmail,
-                request.getClientPhone().trim(),
+                normalizePhone(request.getClientPhone()),
                 request.getNotes() != null ? request.getNotes().trim() : "",
                 source,
                 "CONFIRMED",
@@ -433,7 +433,7 @@ public class AppointmentService {
             appointment.setClientLastName(request.getClientLastName().trim());
         }
         if (request.getClientPhone() != null && !request.getClientPhone().isBlank()) {
-            appointment.setClientPhone(request.getClientPhone().trim());
+            appointment.setClientPhone(normalizePhone(request.getClientPhone()));
         }
         if (request.getNotes() != null) {
             appointment.setNotes(request.getNotes().trim());
@@ -662,22 +662,25 @@ public class AppointmentService {
     /**
      * Normalizes Romanian phone numbers by stripping formatting characters and converting
      * +40 / 0040 / 40 prefixes into the canonical 10-digit '07xxxxxxxx' representation.
+     * Handles redundant leading zeros (e.g. '+40 0770 426 308' -> '0770426308').
      */
     private String normalizePhone(String phone) {
         if (phone == null || phone.isBlank()) {
             return "";
         }
         String digits = phone.replaceAll("\\D", "");
-        if (digits.startsWith("0040") && digits.length() == 13) {
-            return "0" + digits.substring(4);
+        if (digits.startsWith("0040")) {
+            digits = digits.substring(4);
+        } else if (digits.startsWith("40") && digits.length() >= 11) {
+            digits = digits.substring(2);
         }
-        if (digits.startsWith("40") && digits.length() == 11) {
-            return "0" + digits.substring(2);
+        while (digits.startsWith("0")) {
+            digits = digits.substring(1);
         }
-        if (digits.startsWith("7") && digits.length() == 9) {
+        if (digits.length() == 9) {
             return "0" + digits;
         }
-        return digits;
+        return digits.isEmpty() ? "" : (digits.startsWith("0") ? digits : "0" + digits);
     }
 
     private String normalizeSource(String source) {

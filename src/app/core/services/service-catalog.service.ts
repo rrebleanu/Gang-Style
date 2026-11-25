@@ -15,17 +15,33 @@ import {
   TimeSlot,
 } from '../../shared/models/service-item.model';
 
-// Normalizes Romanian phone numbers to 10 digits starting with 0 (e.g. +40 770 426 308 -> 0770426308)
+// Normalizes Romanian phone numbers to canonical 10 digits starting with 0 (e.g. +40 0770 426 308 -> 0770426308)
 export function normalizePhoneNumber(phone: string): string {
   if (!phone) return '';
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('40') && digits.length === 11) {
-    return '0' + digits.slice(2);
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0040')) {
+    digits = digits.slice(4);
+  } else if (digits.startsWith('40') && digits.length >= 11) {
+    digits = digits.slice(2);
   }
-  if (digits.length === 9 && !digits.startsWith('0')) {
+  while (digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  if (digits.length === 9) {
     return '0' + digits;
   }
-  return digits;
+  return digits ? (digits.startsWith('0') ? digits : '0' + digits) : '';
+}
+
+// Formats Romanian phone numbers into standard readable representation: 07xx xxx xxx or +40 7xx xxx xxx
+export function formatRomanianPhone(phone: string, withPrefix = false): string {
+  const norm = normalizePhoneNumber(phone);
+  if (norm.length === 10 && norm.startsWith('0')) {
+    const raw9 = norm.slice(1);
+    const spaced = `${raw9.slice(0, 3)} ${raw9.slice(3, 6)} ${raw9.slice(6)}`;
+    return withPrefix ? `+40 ${spaced}` : `0${spaced}`;
+  }
+  return phone;
 }
 
 export interface ServicePackageApiPayload {

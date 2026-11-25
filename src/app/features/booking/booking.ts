@@ -144,20 +144,28 @@ export class Booking implements OnInit {
   readonly pwaInstalled = signal(false);
   private deferredPrompt: any = null;
 
+  // Normalizes any input into standard 9 Romanian mobile digits (stripping prefixes and redundant leading zeros)
   normalizeRawPhone(raw: string): string {
     let digits = (raw || '').replace(/\D/g, '');
-    if (digits.startsWith('0040')) digits = digits.substring(4);
-    else if (digits.startsWith('40') && digits.length >= 11) digits = digits.substring(2);
-    if (digits.startsWith('0')) digits = digits.substring(1);
+    if (digits.startsWith('0040')) digits = digits.slice(4);
+    else if (digits.startsWith('40') && digits.length >= 11) digits = digits.slice(2);
+    while (digits.startsWith('0')) digits = digits.slice(1);
     return digits;
   }
 
+  // Live input formatter: cleans redundant zeros, strips +40, and formats progressively as 7xx xxx xxx
   formatPhoneInput(): void {
     const raw = this.clientForm.controls.phone.value;
     if (!raw) return;
     const digits = this.normalizeRawPhone(raw);
-    if (digits.length === 9) {
-      const formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    const capped = digits.slice(0, 9);
+    let formatted = capped;
+    if (capped.length > 6) {
+      formatted = `${capped.slice(0, 3)} ${capped.slice(3, 6)} ${capped.slice(6)}`;
+    } else if (capped.length > 3) {
+      formatted = `${capped.slice(0, 3)} ${capped.slice(3)}`;
+    }
+    if (raw !== formatted) {
       this.clientForm.controls.phone.setValue(formatted, { emitEvent: false });
     }
   }
@@ -169,6 +177,16 @@ export class Booking implements OnInit {
       return `0${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
     }
     return aptPhone.startsWith('0') ? aptPhone : `0${aptPhone}`;
+  }
+
+  // Formats phone cleanly for the Step 4 summary without duplicating +40 or adding leading zeros
+  displaySummaryPhone(): string {
+    const raw = this.clientForm.controls.phone.value;
+    const digits = this.normalizeRawPhone(raw);
+    if (digits.length === 9) {
+      return `+40 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    return `+40 ${digits || raw}`;
   }
 
   // Detect iOS Safari devices where native beforeinstallprompt is unsupported
@@ -224,8 +242,15 @@ export class Booking implements OnInit {
         this.clientForm.controls.email.setValue(returningClient.email);
       }
       if (returningClient.phone && !this.clientForm.controls.phone.value) {
-        const cleanPhone = returningClient.phone.replace(/^\+?40\s?/, '');
-        this.clientForm.controls.phone.setValue(cleanPhone);
+        // Strip country code and leading zeros, format nicely as 7xx xxx xxx next to +40 badge
+        const rawDigits = this.normalizeRawPhone(returningClient.phone);
+        if (rawDigits.length === 9) {
+          this.clientForm.controls.phone.setValue(
+            `${rawDigits.slice(0, 3)} ${rawDigits.slice(3, 6)} ${rawDigits.slice(6)}`
+          );
+        } else {
+          this.clientForm.controls.phone.setValue(rawDigits);
+        }
       }
       this.isReturningClient.set(true);
     }
@@ -237,8 +262,15 @@ export class Booking implements OnInit {
         this.clientForm.controls.email.setValue(loggedUser.email);
       }
       if (loggedUser.phone) {
-        const cleanPhone = loggedUser.phone.replace(/^\+?40\s?/, '');
-        this.clientForm.controls.phone.setValue(cleanPhone);
+        // Format account phone cleanly as 7xx xxx xxx
+        const rawDigits = this.normalizeRawPhone(loggedUser.phone);
+        if (rawDigits.length === 9) {
+          this.clientForm.controls.phone.setValue(
+            `${rawDigits.slice(0, 3)} ${rawDigits.slice(3, 6)} ${rawDigits.slice(6)}`
+          );
+        } else {
+          this.clientForm.controls.phone.setValue(rawDigits);
+        }
       }
       if (loggedUser.displayName) {
         const parts = loggedUser.displayName.trim().split(/\s+/);

@@ -37,6 +37,8 @@ public class AppointmentResponseDto {
     private String notes;
 
     private String source;
+    private String referralSource;
+    private String referralCode;
     private String status;
     private Instant createdAt;
 
@@ -72,6 +74,8 @@ public class AppointmentResponseDto {
         dto.setClientPhone(appointment.getClientPhone());
         dto.setNotes(appointment.getNotes());
         dto.setSource(appointment.getSource());
+        dto.setReferralSource(appointment.getReferralSource());
+        dto.setReferralCode(appointment.getReferralCode());
         dto.setStatus(appointment.getStatus());
         dto.setCreatedAt(appointment.getCreatedAt());
         return dto;
@@ -145,6 +149,12 @@ public class AppointmentResponseDto {
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }
+
+    public String getReferralSource() { return referralSource; }
+    public void setReferralSource(String referralSource) { this.referralSource = referralSource; }
+
+    public String getReferralCode() { return referralCode; }
+    public void setReferralCode(String referralCode) { this.referralCode = referralCode; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

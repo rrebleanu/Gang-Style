@@ -53,7 +53,7 @@ export class ServiceCatalogService {
         : 'localhost';
     return `http://${host}:8080${path}`;
   }
-  private readonly servicesStorageKey = 'gangstyle_services_v2';
+  private readonly servicesStorageKey = 'gangstyle_services_v3';
   private readonly blacklistStorageKey = 'gangstyle_blacklist_v1';
   private readonly scheduleStorageKey = 'gangstyle_barber_schedules_v2';
   private readonly extraAvailabilityStorageKey = 'gangstyle_barber_extra_availability_v1';
@@ -957,6 +957,9 @@ export class ServiceCatalogService {
       clientPhone: payload.clientPhone.trim(),
       notes: payload.notes?.trim() || undefined,
       source: bookingSource,
+      referralSource: payload.referralSource || 'DIRECT_ORGANIC',
+      referralCode: payload.referralCode,
+      referralLabel: payload.referralLabel || 'Direct / Căutare Google',
     };
 
     return this.http.post<any>(this.appointmentsApiUrl, requestBody).pipe(
@@ -1028,6 +1031,9 @@ export class ServiceCatalogService {
       clientPhone: apiRes?.clientPhone || fallbackPayload.clientPhone,
       notes: apiRes?.notes || fallbackPayload.notes,
       source: apiRes?.source || fallbackPayload.source || 'ONLINE',
+      referralSource: apiRes?.referralSource || fallbackPayload.referralSource || 'DIRECT_ORGANIC',
+      referralCode: apiRes?.referralCode || fallbackPayload.referralCode,
+      referralLabel: fallbackPayload.referralLabel || (apiRes?.referralSource ? apiRes.referralSource : 'Direct / Căutare Google'),
       status: apiRes?.status || 'CONFIRMED',
       createdAt:
         typeof apiRes?.createdAt === 'string' ? apiRes.createdAt : new Date().toISOString(),
@@ -1118,6 +1124,8 @@ export class ServiceCatalogService {
       barberSlug: payload.barberSlug.toLowerCase(),
       clientEmail: payload.clientEmail.trim().toLowerCase(),
       source: bookingSource,
+      referralSource: payload.referralSource || (bookingSource === 'PHONE' ? 'PHONE_CALL' : 'DIRECT_ORGANIC'),
+      referralLabel: payload.referralLabel || (bookingSource === 'PHONE' ? 'Programare Telefonică' : 'Direct / Căutare Google'),
       startMinutes,
       endMinutes,
       status: 'CONFIRMED',
@@ -1501,11 +1509,13 @@ export class ServiceCatalogService {
 
   // Checks if an appointment is in the past
   isPastAppointment(apt: AppointmentRecord): boolean {
-    const aptDate = this.buildAppointmentDate(apt.dateIso, apt.endTime);
-    return aptDate.getTime() < Date.now();
+    if (!apt || !apt.dateIso) return false;
+    const time = apt.endTime || apt.startTime || '23:59';
+    const aptDate = this.buildAppointmentDate(apt.dateIso, time);
+    return !isNaN(aptDate.getTime()) && aptDate.getTime() < Date.now();
   }
 
-  private getOccupiedForDay(barberSlug: string, dateIso: string): AppointmentRecord[] {
+  getOccupiedForDay(barberSlug: string, dateIso: string): AppointmentRecord[] {
     return this.getAllAppointments().filter(
       (b) =>
         b.barberSlug === barberSlug &&
@@ -1526,7 +1536,7 @@ export class ServiceCatalogService {
     return new Date(yyyy, mm - 1, dd, hh, min, 0);
   }
 
-  private formatMinutes(totalMinutes: number): string {
+  formatMinutes(totalMinutes: number): string {
     const hours = Math.floor(totalMinutes / 60)
       .toString()
       .padStart(2, '0');
@@ -1534,7 +1544,7 @@ export class ServiceCatalogService {
     return `${hours}:${mins}`;
   }
 
-  private parseMinutes(time: string): number {
+  parseMinutes(time: string): number {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   }
@@ -1580,6 +1590,8 @@ export class ServiceCatalogService {
         clientPhone: '770 426 308',
         notes: 'Skin fade mediu + contur barbă cu briciul',
         source: 'ONLINE',
+        referralSource: 'WHATSAPP_SHARE',
+        referralLabel: 'Recomandare WhatsApp',
         status: 'CONFIRMED',
         createdAt: new Date().toISOString(),
       },
@@ -1629,6 +1641,8 @@ export class ServiceCatalogService {
         clientEmail: 'cristi@gmail.com',
         clientPhone: '731 550 812',
         source: 'ONLINE',
+        referralSource: 'INSTAGRAM_BIO',
+        referralLabel: 'Instagram Bio / Story',
         status: 'CONFIRMED',
         createdAt: new Date().toISOString(),
       },
@@ -1653,6 +1667,8 @@ export class ServiceCatalogService {
         clientEmail: 'radu@yahoo.com',
         clientPhone: '765 409 118',
         source: 'ONLINE',
+        referralSource: 'INSTAGRAM_BIO',
+        referralLabel: 'Instagram Bio / Story',
         status: 'CONFIRMED',
         createdAt: new Date().toISOString(),
       },
@@ -1678,6 +1694,8 @@ export class ServiceCatalogService {
         clientPhone: '745 112 309',
         notes: 'Low taper fade',
         source: 'ONLINE',
+        referralSource: 'INSTAGRAM_BIO',
+        referralLabel: 'Instagram Bio / Story',
         status: 'CONFIRMED',
         createdAt: new Date().toISOString(),
       },

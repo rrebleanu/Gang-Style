@@ -11,10 +11,12 @@ html {
   min-height: 100%;
   background-color: #121212;
   font-family: 'Helvetica Neue', Arial, sans-serif;
-  overflow-x: clip;
+  overflow-x: hidden;
+  position: relative;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   overscroll-behavior-y: none;
+  touch-action: pan-x pan-y;
 }
 
 body {
@@ -22,7 +24,21 @@ body {
   max-width: 100%;
   min-height: 100%;
   background-color: transparent;
-  overflow-x: clip;
+  overflow-x: hidden;
+  position: relative;
+}
+
+// Global iOS Safari auto-zoom prevention: iOS forcibly zooms the page on tap
+// whenever an input/select/textarea has font-size < 16px. Setting 16px on mobile stops this.
+@media screen and (max-width: 768px) {
+  input,
+  select,
+  textarea,
+  .modal-field__input,
+  .barber-search-input,
+  .form-control {
+    font-size: 16px !important;
+  }
 }
 
 img,

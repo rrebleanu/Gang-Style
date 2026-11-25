@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { BarberService } from '../../core/services/barber.service';
 import { ClientStorageService } from '../../core/services/client-storage.service';
@@ -12,6 +13,7 @@ import { Barber } from '../../shared/models/barber.model';
   styleUrl: './public.scss',
 })
 export class Public implements OnInit {
+  private readonly router = inject(Router);
   private readonly barberService = inject(BarberService);
   private readonly clientStorage = inject(ClientStorageService);
   readonly authService = inject(AuthService);

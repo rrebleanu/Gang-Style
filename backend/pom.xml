@@ -44,6 +44,12 @@
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 
+		<!-- Spring Boot Mail for appointment confirmations -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- JJWT (Java JWT) for token authentication -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>

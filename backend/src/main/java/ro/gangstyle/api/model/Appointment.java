@@ -42,6 +42,8 @@ public class Appointment {
     private String notes;
 
     private String source = "ONLINE";     // ONLINE, PHONE, MANUAL, BLOCKED
+    private String referralSource = "DIRECT_ORGANIC"; // WHATSAPP_SHARE, INSTAGRAM_BIO, FRIEND_REF, DIRECT_ORGANIC
+    private String referralCode;          // e.g. "alex", "prieten", "filip"
     private String status = "CONFIRMED";  // CONFIRMED, CANCELLED, COMPLETED, NO_SHOW
     private Instant createdAt = Instant.now();
 
@@ -170,6 +172,12 @@ public class Appointment {
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }
+
+    public String getReferralSource() { return referralSource; }
+    public void setReferralSource(String referralSource) { this.referralSource = referralSource; }
+
+    public String getReferralCode() { return referralCode; }
+    public void setReferralCode(String referralCode) { this.referralCode = referralCode; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

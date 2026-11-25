@@ -17,7 +17,7 @@ $error-color: #e5484d;
   color: $color-text;
 
   @include mobile {
-    padding: calc(#{$header-height} + 1.25rem) 0.9rem 2.75rem;
+    padding: calc(#{$header-height} + env(safe-area-inset-top, 0px) + 1.25rem) 0.9rem 2.75rem;
   }
 }
 
@@ -156,16 +156,19 @@ $error-color: #e5484d;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.25rem 0.25rem;
+  padding: 0.25rem 0.1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stepper__item {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: clamp(0.22rem, 1.1vw, 0.45rem);
   color: $color-muted;
-  font-size: 0.8rem;
+  font-size: clamp(0.62rem, 2.2vw, 0.8rem);
   font-weight: 600;
+  white-space: nowrap;
 
   &--active {
     color: $color-accent;
@@ -189,36 +192,31 @@ $error-color: #e5484d;
 }
 
 .stepper__circle {
-  width: 26px;
-  height: 26px;
+  width: clamp(20px, 5.5vw, 26px);
+  height: clamp(20px, 5.5vw, 26px);
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: clamp(0.62rem, 1.9vw, 0.75rem);
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .stepper__label {
-  @include mobile {
-    font-size: 0.72rem;
-  }
+  white-space: nowrap;
 }
 
 .stepper__line {
   flex: 1;
+  min-width: 4px;
   height: 1px;
-  margin: 0 0.5rem;
+  margin: 0 clamp(0.15rem, 1vw, 0.5rem);
   background: rgba(255, 255, 255, 0.14);
 
   &--done {
     background: $color-accent;
-  }
-
-  @include mobile {
-    margin: 0 0.25rem;
   }
 }
 
@@ -332,38 +330,71 @@ $error-color: #e5484d;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .service-item__duration {
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: $color-muted;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
 
   strong {
     color: $color-text;
     font-weight: 700;
+    white-space: nowrap;
+  }
+
+  @include mobile {
+    font-size: 0.74rem;
   }
 }
 
 .service-item__price-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .service-item__price-label {
-  font-size: 0.85rem;
+  font-size: 0.76rem;
   color: $color-muted;
+
+  @include mobile {
+    font-size: 0.7rem;
+  }
 }
 
 .service-item__price-badge {
-  padding: 0.35rem 0.75rem;
+  padding: 0.18rem 0.5rem;
+  background: rgba($color-accent, 0.15);
+  border: 1px solid rgba($color-accent, 0.45);
+  color: $color-accent;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: all $transition-fast;
+
+  @include mobile {
+    padding: 0.16rem 0.44rem;
+    font-size: 0.7rem;
+  }
+}
+
+.service-item--selected .service-item__price-badge {
   background: $color-accent;
-  color: $color-bg;
-  font-size: 0.85rem;
-  font-weight: 800;
-  border-radius: $radius;
-  letter-spacing: 0.04em;
+  color: #121212;
+  border-color: $color-accent;
+  box-shadow: 0 2px 8px rgba($color-accent, 0.35);
 }
 
 // STEP 2: Calendar & Continuous Time Slots
@@ -1284,4 +1315,165 @@ $error-color: #e5484d;
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+// SMS confirmation highlighted box
+.confirmed-card__subtext--sms {
+  background: rgba($color-accent, 0.08);
+  border: 1px solid rgba($color-accent, 0.3);
+  border-radius: $radius;
+  padding: 0.85rem 1.15rem;
+  max-width: 520px;
+  line-height: 1.55;
+  color: $color-text;
+  margin: 0.75rem 0;
+
+  strong {
+    color: $color-accent;
+  }
+}
+
+// PWA Install Banner on Confirmed screen
+.pwa-install-banner {
+  margin: 1.25rem 0 0.75rem 0;
+  width: 100%;
+  max-width: 520px;
+  background: linear-gradient(145deg, rgba(30, 26, 22, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%);
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: 1.15rem 1.35rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  text-align: left;
+
+  @include mobile {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.15rem 1rem;
+  }
+
+  &__icon {
+    font-size: 1.8rem;
+    flex-shrink: 0;
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: $color-text;
+    margin: 0 0 0.25rem 0;
+  }
+
+  &__desc {
+    font-size: 0.82rem;
+    color: $color-muted;
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  &__btn {
+    flex-shrink: 0;
+    background: rgba($color-accent, 0.15);
+    border: 1px solid $color-accent;
+    color: $color-accent;
+    font-weight: 700;
+    font-size: 0.84rem;
+    padding: 0.65rem 1rem;
+    border-radius: $radius;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: $color-accent;
+      color: $color-bg;
+      transform: translateY(-1px);
+    }
+
+    @include mobile {
+      width: 100%;
+    }
+  }
+}
+
+// iOS Guide Modal
+.ios-install-guide {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+
+  &__card {
+    background: #1c1c1e;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    text-align: left;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.75rem;
+
+    h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+    }
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    color: $color-muted;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  &__steps {
+    margin: 0 0 1.25rem 0;
+    padding-left: 1.25rem;
+    font-size: 0.88rem;
+    color: #e5e5e7;
+    line-height: 1.6;
+
+    li {
+      margin-bottom: 0.75rem;
+
+      strong {
+        color: $color-accent;
+      }
+    }
+  }
+
+  .btn-next--small {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 0.88rem;
+  }
 }

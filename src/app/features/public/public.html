@@ -3,20 +3,25 @@
   <section class="hero">
     <img src="/images/gangstyle.jpg" alt="Gang Style Logo" class="brand-logo" />
 
-    <h1>Barber Shop Giurgiu | <span class="highlight">Gang Style</span></h1>
+    <h1>
+      <span class="hero-title__city">Barber Shop Giurgiu</span>
+      <span class="hero-title__sep" aria-hidden="true">|</span>
+      <span class="hero-title__brand highlight">Gang Style</span>
+    </h1>
 
     <p class="subtitle">EXPERIENTA SI CALITATE IN STYLING</p>
-
-    @if (!isStaff()) {
-      <button type="button" class="cta-button" (click)="team.scrollIntoView({ behavior: 'smooth' })">
-        PROGRAMEAZA-TE ACUM
-      </button>
-    }
   </section>
 
   <section class="salon-photo">
     <img src="/images/salon3.jpg" alt="Salon interior" class="salon-image" />
     <p class="photo-caption">Atmosferă modernă și confortabilă</p>
+
+    @if (!isStaff()) {
+      <button type="button" class="cta-button" (click)="team.scrollIntoView({ behavior: 'smooth' })">
+        <span>PROGRAMEAZĂ-TE ACUM</span>
+        <span class="cta-button__arrow" aria-hidden="true">&darr;</span>
+      </button>
+    }
   </section>
 
   <!-- Delimitare vizuală între marketing și echipa noastră -->
@@ -130,7 +135,7 @@
           Strada Negru-Vodă, Bl. 120G, Parter,<br />
           Giurgiu, România
         </p>
-        <a href="tel:+40770426308" class="info-block__phone">0770 426 308</a>
+        <a href="tel:+40736409449" class="info-block__phone">0736 409 449</a>
         <a href="mailto:contact@gangstyle.ro" class="info-block__email">contact&#64;gangstyle.ro</a>
       </div>
     </div>
@@ -145,6 +150,34 @@
           referrerpolicy="no-referrer-when-downgrade"
           allowfullscreen
         ></iframe>
+      </div>
+
+      <!-- Google Review Invitation Card -->
+      <div class="review-invite-card">
+        <div class="review-invite-card__content">
+          <div class="review-invite-card__stars" aria-hidden="true">
+            <span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span><span>&#9733;</span>
+          </div>
+          <h3 class="review-invite-card__title">Îți place atmosfera de la noi?</h3>
+          <p class="review-invite-card__text">Părerea ta contează enorm.</p>
+        </div>
+        <a
+          href="https://search.google.com/local/writereview?placeid=ChIJvU2eEQBnrkARDxJ2-Nj0sbc"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="review-invite-card__btn"
+          title="Deschide Google Maps pentru a lăsa o recenzie"
+        >
+          <svg class="google-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+            <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9c-.2-.7-.4-1.5-.4-2.3z"/>
+            <path fill="#34A853" d="M12 23.5c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16.5C3.7 20.2 7.5 23.5 12 23.5z"/>
+          </svg>
+          <span class="review-btn-full">Lasă-ne o recenzie pe Google</span>
+          <span class="review-btn-short">Recenzie Google</span>
+          <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
   </section>

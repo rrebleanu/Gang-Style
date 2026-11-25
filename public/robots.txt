@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /verify-2fa
+
+Sitemap: https://gangstyle.ro/sitemap.xml

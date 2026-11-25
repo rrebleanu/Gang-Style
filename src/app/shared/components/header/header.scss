@@ -3,7 +3,7 @@
 
 $hamburger-delay: 150ms;
 
-// hamburger bars slide in one after another (idea from Tackle Hub, brand colors)
+// hamburger bars slide in one after another
 // uses `translate`/`scale` instead of `transform`, so it doesn't block the X animation below
 @keyframes barIntro {
   from {
@@ -18,21 +18,34 @@ $hamburger-delay: 150ms;
   }
 }
 
+:host {
+  display: block;
+  width: 100%;
+}
+
 // fixed overlay header: stays visible while scrolling
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
-  height: $header-height;
-  padding: 0 clamp(1rem, 4vw, 3rem);
+  width: 100%;
+  z-index: 1000;
+  height: calc(#{$header-height} + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) clamp(1rem, 4vw, 3rem) 0;
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(10, 10, 10, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba($color-accent, 0.15);
+  // GPU composite layer promotion to prevent iOS Safari jumping or decoupling on scroll/zoom
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .logo {
@@ -204,57 +217,93 @@ $bp-header-mobile: 900px;
 @media screen and (max-width: $bp-header-mobile) {
   .navbar {
     justify-content: space-between;
-    padding: 0 clamp(1rem, 3vw, 2rem);
+    padding: env(safe-area-inset-top, 0px) clamp(0.45rem, 2.2vw, 0.85rem) 0;
+    gap: clamp(0.25rem, 1.2vw, 0.5rem);
+  }
+
+  .logo {
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .logo-title {
+    font-size: clamp(0.85rem, 3.8vw, 1.05rem);
+    letter-spacing: clamp(0.05em, 0.8vw, 0.1em);
+  }
+
+  .logo-subtitle {
+    font-size: clamp(0.36rem, 1.6vw, 0.45rem);
+    letter-spacing: clamp(0.14em, 1.5vw, 0.22em);
+    margin-top: 2px;
   }
 
   .mobile-bar-controls {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: clamp(0.5rem, 2vw, 0.75rem);
+    flex-shrink: 0;
   }
 
-  // Refined, sleek, delicate pill button for account / agenda
+  // Refined, elegant pill button for account / agenda with proper proportions
   .mobile-account-pill {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.3rem;
-    padding: 0.24rem 0.6rem;
+    padding: 0.38rem 0.85rem;
     border-radius: 999px;
-    border: 1px solid rgba($color-accent, 0.45);
-    background: rgba($color-accent, 0.08);
+    border: 1px solid rgba($color-accent, 0.5);
+    background: rgba($color-accent, 0.1);
     color: $color-accent;
     text-decoration: none;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex-shrink: 0;
+    min-height: 32px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     -webkit-tap-highlight-color: transparent;
     transition: all $transition-fast;
+
+    .pill-short {
+      display: none;
+    }
+
+    @media screen and (max-width: 360px) {
+      padding: 0.32rem 0.65rem;
+      font-size: 0.72rem;
+      min-height: 28px;
+
+      .pill-long {
+        display: none;
+      }
+      .pill-short {
+        display: inline;
+      }
+    }
 
     &:hover,
     &:active {
       background: $color-accent;
       border-color: $color-accent;
       color: $color-bg;
-      box-shadow: 0 2px 10px rgba($color-accent, 0.4);
+      box-shadow: 0 3px 12px rgba($color-accent, 0.45);
+      transform: translateY(-1px);
     }
 
     &--logged {
-      background: rgba($color-accent, 0.12);
-      border-color: rgba($color-accent, 0.55);
+      background: rgba($color-accent, 0.15);
+      border-color: rgba($color-accent, 0.65);
       color: $color-accent;
-      font-weight: 600;
+      font-weight: 700;
 
       &:hover,
       &:active {
-        background: rgba($color-accent, 0.22);
+        background: $color-accent;
         border-color: $color-accent;
-        color: #ffffff;
+        color: #121212;
       }
     }
   }
@@ -263,12 +312,13 @@ $bp-header-mobile: 900px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    width: 28px;
-    height: 20px;
+    width: clamp(24px, 7vw, 28px);
+    height: clamp(17px, 5vw, 20px);
     padding: 0;
     background: none;
     border: none;
     cursor: pointer;
+    flex-shrink: 0 !important;
 
     .bar {
       display: block;
@@ -279,7 +329,7 @@ $bp-header-mobile: 900px;
       opacity: 0;
       transition: transform $transition-fast, opacity $transition-fast;
 
-      // different delay for every bar (SCSS @for, like in Tackle Hub)
+      // different delay for every bar (SCSS @for)
       @for $i from 1 through 3 {
         &:nth-child(#{$i}) {
           animation: barIntro 0.5s ease-out forwards;
@@ -312,7 +362,7 @@ $bp-header-mobile: 900px;
     flex-direction: column;
     align-items: stretch;
     padding: 1rem clamp(1rem, 4vw, 3rem) 1.5rem;
-    background: rgba(12, 12, 12, 0.97);
+    background: #0f0f10;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid $color-border;
@@ -330,6 +380,10 @@ $bp-header-mobile: 900px;
     transform: scaleY(1);
     opacity: 1;
     visibility: visible;
+  }
+
+  .desktop-only {
+    display: none !important;
   }
 
   .nav-links {

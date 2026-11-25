@@ -39,6 +39,12 @@ export class HeaderComponent {
     return 'Contul Meu';
   }
 
+  getShortAccountLabel(role?: string): string {
+    if (role === 'ADMIN' || role === 'ROLE_ADMIN') return 'Admin';
+    if (role === 'BARBER' || role === 'ROLE_BARBER') return 'Agendă';
+    return 'Cont';
+  }
+
   logout(): void {
     this.authService.logout();
     this.closeMenu();

@@ -8,6 +8,7 @@ import { ClientStorageService } from '../../core/services/client-storage.service
 import { ErrorHandlerService } from '../../core/services/error-handler.service';
 import { ServiceCatalogService } from '../../core/services/service-catalog.service';
 import { AppError } from '../../core/errors/app-error.model';
+import { ReferralTrackingService } from '../../core/services/referral-tracking.service';
 import { Barber } from '../../shared/models/barber.model';
 import { AppointmentRecord, ServiceItem, TimeSlot } from '../../shared/models/service-item.model';
 
@@ -37,6 +38,7 @@ export class Booking implements OnInit {
   private readonly barberService = inject(BarberService);
   private readonly catalogService = inject(ServiceCatalogService);
   private readonly clientStorage = inject(ClientStorageService);
+  private readonly referralTracking = inject(ReferralTrackingService);
   private readonly errorHandler = inject(ErrorHandlerService);
   readonly authService = inject(AuthService);
 
@@ -130,12 +132,77 @@ export class Booking implements OnInit {
     lastName: ['', [Validators.required, Validators.minLength(2)]],
     firstName: ['', [Validators.required, Validators.minLength(2)]],
     email: ['', [Validators.required, Validators.email]],
-    phone: ['', [Validators.required, Validators.pattern(/^[0-9\s]{9,12}$/)]],
+    phone: ['', [Validators.required, Validators.pattern(/^(\+?40|0)?[0-9\s-]{8,15}$/)]],
     notes: [''],
     gdprConsent: [false, [Validators.requiredTrue]],
   });
 
+  
+  // PWA and Home Screen install state
+  readonly showIosGuide = signal(false);
+  readonly pwaInstalled = signal(false);
+  private deferredPrompt: any = null;
+
+  normalizeRawPhone(raw: string): string {
+    let digits = (raw || '').replace(/\D/g, '');
+    if (digits.startsWith('0040')) digits = digits.substring(4);
+    else if (digits.startsWith('40') && digits.length >= 11) digits = digits.substring(2);
+    if (digits.startsWith('0')) digits = digits.substring(1);
+    return digits;
+  }
+
+  formatPhoneInput(): void {
+    const raw = this.clientForm.controls.phone.value;
+    if (!raw) return;
+    const digits = this.normalizeRawPhone(raw);
+    if (digits.length === 9) {
+      const formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+      this.clientForm.controls.phone.setValue(formatted, { emitEvent: false });
+    }
+  }
+
+  displayConfirmedPhone(): string {
+    const aptPhone = this.confirmedAppointment()?.clientPhone || this.clientForm.controls.phone.value || '';
+    const digits = this.normalizeRawPhone(aptPhone);
+    if (digits.length === 9) {
+      return `0${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    }
+    return aptPhone.startsWith('0') ? aptPhone : `0${aptPhone}`;
+  }
+
+  isIosDevice(): boolean {
+    if (typeof window === 'undefined') return false;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  }
+
+  triggerInstallPrompt(): void {
+    if (this.isIosDevice()) {
+      this.showIosGuide.set(true);
+    } else if (this.deferredPrompt) {
+      this.deferredPrompt.prompt();
+      this.deferredPrompt.userChoice.then((choice: any) => {
+        if (choice.outcome === 'accepted') {
+          this.pwaInstalled.set(true);
+        }
+        this.deferredPrompt = null;
+      });
+    } else {
+      alert('Pentru a salva aplicația pe ecran: apasă pe meniul browserului tău (cele 3 puncte de sus) și alege „Adaugă pe ecranul de pornire”.');
+    }
+  }
+
+  closeIosGuide(): void {
+    this.showIosGuide.set(false);
+  }
+
   ngOnInit(): void {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        this.deferredPrompt = e;
+      });
+    }
+
     // 1. Check for returning client profile saved safely in localStorage
     const returningClient = this.clientStorage.getClientProfile();
     if (returningClient) {
@@ -454,6 +521,10 @@ export class Booking implements OnInit {
 
     this.isSubmittingBooking.set(true);
 
+    // Retrieve active referral attribution captured on landing (WhatsApp, Instagram, Friend referral, etc.)
+    // If no promo/share tag was used, defaults to DIRECT_ORGANIC for accurate channel tracking.
+    const activeRef = this.referralTracking.getActiveReferral();
+
     this.catalogService
       .createAppointmentApi({
         barberSlug: currentBarber.slug,
@@ -471,8 +542,14 @@ export class Booking implements OnInit {
         clientFirstName: formVal.firstName.trim(),
         clientLastName: formVal.lastName.trim(),
         clientEmail: formVal.email.trim(),
-        clientPhone: formVal.phone.trim(),
+        clientPhone: (() => {
+          const rawDigits = this.normalizeRawPhone(formVal.phone);
+          return rawDigits.length === 9 ? `0${rawDigits}` : (rawDigits.startsWith('0') ? rawDigits : `0${rawDigits}`);
+        })(),
         notes: formVal.notes.trim() || undefined,
+        referralSource: activeRef.source,
+        referralCode: activeRef.code,
+        referralLabel: activeRef.label,
       })
       .subscribe({
         next: (createdRecord) => {
@@ -483,7 +560,10 @@ export class Booking implements OnInit {
           this.clientStorage.saveClientProfile({
             lastName: formVal.lastName,
             firstName: formVal.firstName,
-            phone: formVal.phone,
+            phone: (() => {
+            const rawDigits = this.normalizeRawPhone(formVal.phone);
+            return rawDigits.length === 9 ? `0${rawDigits}` : (rawDigits.startsWith('0') ? rawDigits : `0${rawDigits}`);
+          })(),
             email: formVal.email,
             barberId: currentBarber.id,
             barberSlug: currentBarber.slug,

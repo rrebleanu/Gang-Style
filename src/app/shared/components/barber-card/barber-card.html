@@ -4,88 +4,101 @@
   [class.card--no-shrink]="!showBooking()"
   tabindex="0"
 >
-  <div class="card__photo">
-    <img
-      [src]="barber().photoUrl"
-      [alt]="'Frizerul ' + barber().name"
-      decoding="async"
-      (error)="onPhotoError($event)"
-    />
-  </div>
-
-  <div class="card__body">
-    <div class="card__content">
-      <div class="card__title-row">
-        <h3 class="card__name">{{ barber().name }}</h3>
-        @if (isLastVisit()) {
-          <span class="card__badge">
-            <svg class="card__badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="6" cy="6" r="3"></circle>
-              <circle cx="6" cy="18" r="3"></circle>
-              <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
-              <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
-              <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
-            </svg>
-            Ultima vizită
-          </span>
-        }
-      </div>
-
-      <div class="card__phone-row">
-        <a
-          [href]="'tel:+40' + barberPhone()"
-          class="card__phone-link"
-          (click)="$event.stopPropagation()"
-          title="Apelează frizerul"
-        >
-          <span class="phone-icon">&#9742;</span> {{ barberPhone() }}
-        </a>
-
-        @if (barber().portfolio.length > 0) {
-          <button type="button" class="card__gallery-btn" (click)="openGallery(0, $event)">
-            Vezi galeria
-          </button>
-        }
-      </div>
-
-      @if (barber().portfolio.length > 0) {
-        <div class="card__portfolio" aria-label="Portofoliu">
-          @for (image of barber().portfolio.slice(0, 3); track $index) {
-            <button
-              type="button"
-              class="card__thumb"
-              [attr.aria-label]="'Mărește poza ' + ($index + 1) + ' din portofoliul lui ' + barber().name"
-              (click)="openGallery($index, $event)"
-            >
-              @if (barber().specialties[$index]; as title) {
-                <span class="card__thumb-title">{{ title }}</span>
-              }
-              <img
-                [src]="image"
-                [alt]="'Tunsoare realizată de ' + barber().name"
-                decoding="async"
-                loading="lazy"
-                (error)="onThumbError($event)"
-              />
-            </button>
-          }
-        </div>
+  <!-- 1. Header: Top row (Name + Corner Badge) & Sub-row (Phone + Vezi Galeria on the same line) -->
+  <header class="card__header">
+    <div class="card__top-row">
+      <h3 class="card__name">{{ barber().name }}</h3>
+      @if (isLastVisit()) {
+        <span class="card__badge" title="Frizerul ultimei tale vizite">
+          <svg class="card__badge-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <line x1="20" y1="4" x2="8.12" y2="15.88"></line>
+            <line x1="14.47" y1="14.48" x2="20" y2="20"></line>
+            <line x1="8.12" y1="8.12" x2="12" y2="12"></line>
+          </svg>
+          <span>Ultima vizită</span>
+        </span>
       }
     </div>
 
-    @if (showBooking()) {
-      <div class="card__cta-wrap">
-        <a class="card__cta" [routerLink]="['/', barber().slug]">
-          Programează-te
-        </a>
-      </div>
-    }
-  </div>
+    <div class="card__sub-row">
+      <a
+        [href]="'tel:+40' + barberPhone()"
+        class="card__phone-link"
+        (click)="$event.stopPropagation()"
+        title="Apelează frizerul"
+      >
+        <span class="phone-icon">&#9742;</span> {{ barberPhone() }}
+      </a>
+
+      @if (portfolioPhotos().length > 0) {
+        <button
+          type="button"
+          class="card__gallery-link"
+          (click)="openGallery(0, $event)"
+          title="Deschide galeria completă de frizuri"
+        >
+          <span>Vezi galeria</span> &rsaquo;
+        </button>
+      } @else if (canEditGallery()) {
+        <button
+          type="button"
+          class="card__gallery-link card__gallery-link--edit"
+          (click)="openGallery(0, $event)"
+          title="Adaugă poze în galeria ta"
+        >
+          <span>+ Adaugă poze</span> &rsaquo;
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- 2. Haircut Showcase (Pristine 3-Column Portfolio Gallery without intrusive badges) -->
+  @if (portfolioPhotos().length > 0) {
+    <div class="card__portfolio" aria-label="Portofoliu frizuri">
+      @for (image of portfolioPhotos().slice(0, 3); track $index) {
+        <button
+          type="button"
+          class="card__thumb"
+          [attr.aria-label]="'Mărește poza ' + ($index + 1) + ' din portofoliul lui ' + barber().name"
+          (click)="openGallery($index, $event)"
+        >
+          <img
+            [src]="image"
+            [alt]="'Tunsoare realizată de ' + barber().name"
+            decoding="async"
+            loading="lazy"
+            (error)="onThumbError($event)"
+          />
+        </button>
+      }
+    </div>
+  } @else if (canEditGallery()) {
+    <button
+      type="button"
+      class="card__empty-gallery-btn"
+      (click)="openGallery(0, $event)"
+    >
+      + Adaugă poze în galeria ta
+    </button>
+  }
+
+  <!-- 3. Primary Booking CTA (Only shown to clients and visitors without account) -->
+  @if (!isStaffUser() && showBooking()) {
+    <div class="card__cta-wrap">
+      <a class="card__cta" [routerLink]="['/', barber().slug]">
+        <span>Programează-te</span>
+        <span class="card__cta-arrow" aria-hidden="true">&rarr;</span>
+      </a>
+    </div>
+  }
 </article>
 
-<!-- Portfolio lightbox modal -->
+<!-- Portfolio lightbox & Barber Gallery Studio modal -->
 @if (activePhotoIndex() !== null) {
   @let currentIndex = activePhotoIndex()!;
+  @let photos = portfolioPhotos();
   <div
     class="lightbox"
     role="dialog"
@@ -93,74 +106,222 @@
     [attr.aria-label]="'Galeria de tunsori - ' + barber().name"
     (click)="closeGallery()"
   >
-    <div class="lightbox__dialog" (click)="$event.stopPropagation()">
+    <div
+      class="lightbox__dialog"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Hidden file inputs for phone gallery / camera upload -->
+      <input
+        #addPhotosInput
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        (change)="onAddPhotosSelected($event)"
+      />
+      <input
+        #replacePhotoInput
+        type="file"
+        accept="image/*"
+        hidden
+        (change)="onReplacePhotoSelected($event)"
+      />
+
       <header class="lightbox__header">
         <span class="lightbox__title">
-          <strong>{{ barber().name }}</strong> &middot; Galerie Tunsori
+          <strong>{{ barber().name }}</strong>
+          @if (photos.length > 0) {
+            <span class="lightbox__counter-tag">&middot; {{ currentIndex + 1 }} / {{ photos.length }}</span>
+          }
         </span>
-        <span class="lightbox__counter">
-          {{ currentIndex + 1 }} / {{ barber().portfolio.length }}
-        </span>
-        <button
-          type="button"
-          class="lightbox__close"
-          aria-label="Închide galeria"
-          (click)="closeGallery()"
-        >
-          &times;
-        </button>
-      </header>
 
-      <div class="lightbox__stage">
-        <button
-          type="button"
-          class="lightbox__nav lightbox__nav--prev"
-          aria-label="Poza anterioară"
-          (click)="stepPhoto(-1)"
-        >
-          &#8249;
-        </button>
-
-        <img
-          class="lightbox__image"
-          [src]="barber().portfolio[currentIndex]"
-          [alt]="'Tunsoare ' + (currentIndex + 1) + ' - ' + barber().name"
-          (error)="onThumbError($event)"
-        />
-
-        <button
-          type="button"
-          class="lightbox__nav lightbox__nav--next"
-          aria-label="Poza următoare"
-          (click)="stepPhoto(1)"
-        >
-          &#8250;
-        </button>
-      </div>
-
-      <div class="lightbox__thumbs">
-        @for (thumb of barber().portfolio; track $index) {
+        <div class="lightbox__header-right">
+          @if (canEditGallery()) {
+            <button
+              type="button"
+              class="lightbox__add-header-btn"
+              [disabled]="isUploading()"
+              (click)="addPhotosInput.click()"
+              title="Adaugă poze noi din telefon"
+            >
+              {{ isUploading() ? 'Se încarcă...' : '+ Adaugă poze' }}
+            </button>
+          }
           <button
             type="button"
-            class="lightbox__thumb"
-            [class.lightbox__thumb--active]="$index === currentIndex"
-            (click)="openGallery($index, $event)"
-          >
-            <img [src]="thumb" [alt]="'Miniatură ' + ($index + 1)" />
-          </button>
-        }
-      </div>
-
-      @if (showBooking()) {
-        <footer class="lightbox__footer">
-          <a
-            class="card__cta lightbox__cta"
-            [routerLink]="['/', barber().slug]"
+            class="lightbox__close"
+            aria-label="Închide galeria"
             (click)="closeGallery()"
           >
-            Programează-te
-          </a>
-        </footer>
+            &#10005;
+          </button>
+        </div>
+      </header>
+
+      @if (galleryFeedback(); as msg) {
+        <div class="lightbox__feedback" role="status">
+          {{ msg }}
+        </div>
+      }
+
+      @if (photos.length > 0) {
+        <!-- Main Image Stage: Identical fixed dimensions & cover framing in normal and edit mode -->
+        <div
+          class="lightbox__stage"
+          (touchstart)="onTouchStart($event)"
+          (touchend)="onTouchEnd($event)"
+        >
+          @if (photos.length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--prev"
+              aria-label="Poza anterioară"
+              (click)="$event.stopPropagation(); stepPhoto(-1)"
+            >
+              &#8249;
+            </button>
+          }
+
+          <img
+            class="lightbox__image"
+            [src]="photos[currentIndex]"
+            [alt]="'Tunsoare ' + (currentIndex + 1) + ' - ' + barber().name"
+            (error)="onThumbError($event)"
+          />
+
+          @if (photos.length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--next"
+              aria-label="Poza următoare"
+              (click)="$event.stopPropagation(); stepPhoto(1)"
+            >
+              &#8250;
+            </button>
+          }
+        </div>
+
+        @if (canEditGallery() && isEditingGallery()) {
+          <!-- Sleek, refined action panel in edit mode -->
+          <div class="lightbox__barber-actions">
+            @if (currentIndex >= 3) {
+              <div class="gallery-status-row">
+                <button
+                  type="button"
+                  class="gallery-action-pill gallery-action-pill--set-main"
+                  (click)="setAsMainImage()"
+                  title="Stabilește această poză ca imagine principală pe card"
+                >
+                  <span class="pill-star" aria-hidden="true">&#9733;</span>
+                  <span class="pill-text">Stabile&#537;te ca imagine principal&#259;</span>
+                </button>
+              </div>
+            }
+
+            <div class="gallery-action-pill-row">
+              <button
+                type="button"
+                class="gallery-action-pill gallery-action-pill--sub gallery-action-pill--danger"
+                (click)="deleteActivePhoto()"
+                title="Șterge definitiv această poză"
+              >
+                Șterge
+              </button>
+              <button
+                type="button"
+                class="gallery-action-pill gallery-action-pill--sub"
+                (click)="replacePhotoInput.click()"
+                title="Înlocuiește poza cu alta din telefon"
+              >
+                Înlocuiește
+              </button>
+              <button
+                type="button"
+                class="gallery-action-pill gallery-action-pill--sub"
+                (click)="rotateActivePhoto()"
+                [disabled]="isUploading()"
+                title="Rotește poza la 90 de grade"
+              >
+                Rotește
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Thumbnails strip: Single scrollable row with desktop navigation arrows and mobile touch swipe -->
+        <div class="lightbox__thumbs-container">
+          @if (photos.length > 5) {
+            <button
+              type="button"
+              class="lightbox__thumbs-arrow lightbox__thumbs-arrow--prev"
+              aria-label="Derulează miniaturi la stânga"
+              (click)="$event.stopPropagation(); scrollThumbsTrack(-1)"
+            >
+              &#8249;
+            </button>
+          }
+
+          <div
+            #thumbsTrack
+            class="lightbox__thumbs"
+            [class.lightbox__thumbs--center]="photos.length <= 5"
+            (touchstart)="$event.stopPropagation()"
+            (touchmove)="$event.stopPropagation()"
+          >
+            @for (thumb of photos; track $index) {
+              <button
+                type="button"
+                class="lightbox__thumb"
+                [class.lightbox__thumb--active]="$index === currentIndex"
+                [class.lightbox__thumb--featured]="canEditGallery() && $index < 3"
+                (click)="onThumbClick($index)"
+                [attr.aria-label]="'Alege poza ' + ($index + 1)"
+              >
+                <img [src]="thumb" [alt]="'Miniatură ' + ($index + 1)" (error)="onThumbError($event)" />
+                @if (canEditGallery() && $index < 3) {
+                  <span class="lightbox__thumb-badge" [class.lightbox__thumb-badge--card]="$index === 0">
+                    #{{ $index + 1 }}
+                  </span>
+                }
+              </button>
+            }
+          </div>
+
+          @if (photos.length > 5) {
+            <button
+              type="button"
+              class="lightbox__thumbs-arrow lightbox__thumbs-arrow--next"
+              aria-label="Derulează miniaturi la dreapta"
+              (click)="$event.stopPropagation(); scrollThumbsTrack(1)"
+            >
+              &#8250;
+            </button>
+          }
+        </div>
+
+        @if (!isStaffUser() && !isEditingGallery()) {
+          <footer class="lightbox__footer">
+            <a
+              class="card__cta lightbox__cta"
+              [routerLink]="['/', barber().slug]"
+              (click)="closeGallery()"
+            >
+              Programează-te
+            </a>
+          </footer>
+        }
+      } @else {
+        <!-- Empty gallery state for barber -->
+        <div class="lightbox__empty">
+          <p>Nu ai nicio poză în galerie în acest moment.</p>
+          <button
+            type="button"
+            class="lightbox__add-btn"
+            (click)="addPhotosInput.click()"
+          >
+            + Încarcă poze din telefon
+          </button>
+        </div>
       }
     </div>
   </div>

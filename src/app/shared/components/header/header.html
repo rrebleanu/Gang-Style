@@ -14,7 +14,8 @@
         routerLinkActive="active"
         (click)="closeMenu()"
       >
-        {{ getAccountLabel(user.role) }}
+        <span class="pill-long">{{ getAccountLabel(user.role) }}</span>
+        <span class="pill-short">{{ getShortAccountLabel(user.role) }}</span>
       </a>
     } @else {
       <a
@@ -23,7 +24,8 @@
         routerLinkActive="active"
         (click)="closeMenu()"
       >
-        Contul Meu
+        <span class="pill-long">Contul Meu</span>
+        <span class="pill-short">Cont</span>
       </a>
     }
 
@@ -72,7 +74,7 @@
       @if (authService.currentUser(); as user) {
         <a
           [routerLink]="authService.isAdmin(user) ? '/admin' : '/dashboard'"
-          class="nav-login nav-user-link"
+          class="nav-login nav-user-link desktop-only"
           routerLinkActive="active"
           (click)="closeMenu()"
         >

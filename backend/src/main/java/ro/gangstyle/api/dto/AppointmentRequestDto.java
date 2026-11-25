@@ -52,6 +52,10 @@ public class AppointmentRequestDto {
     // Booking origin: ONLINE (default), PHONE, MANUAL, BLOCKED
     private String source;
 
+    // Referral tracking: WHATSAPP_SHARE, INSTAGRAM_BIO, FRIEND_REF, DIRECT_ORGANIC
+    private String referralSource;
+    private String referralCode;
+
     public AppointmentRequestDto() {}
 
     public String getBarberSlug() { return barberSlug; }
@@ -95,4 +99,10 @@ public class AppointmentRequestDto {
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }
+
+    public String getReferralSource() { return referralSource; }
+    public void setReferralSource(String referralSource) { this.referralSource = referralSource; }
+
+    public String getReferralCode() { return referralCode; }
+    public void setReferralCode(String referralCode) { this.referralCode = referralCode; }
 }

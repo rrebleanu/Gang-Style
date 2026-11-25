@@ -37,11 +37,6 @@
 
       <!-- Barber identity banner -->
       <header class="barber-banner">
-        <img
-          [src]="currentBarber.photoUrl"
-          [alt]="'Frizerul ' + currentBarber.name"
-          class="barber-banner__avatar"
-        />
         <div class="barber-banner__info">
           <span class="barber-banner__tag">Programare Online</span>
           <h1 class="barber-banner__name">{{ currentBarber.name }} | Barber</h1>
@@ -360,6 +355,8 @@
                     formControlName="phone"
                     placeholder="770 426 308"
                     class="phone-group__input"
+                    (blur)="formatPhoneInput()"
+                    (input)="formatPhoneInput()"
                   />
                 </div>
                 @if (hasError('phone')) {
@@ -590,10 +587,55 @@
               }}
             </strong>.
           </p>
-          <p class="confirmed-card__subtext">
-            Un e-mail de confirmare a fost trimis la
-            <strong>{{ confirmedAppointment()?.clientEmail || clientForm.controls.email.value }}</strong>.
+          <p class="confirmed-card__subtext confirmed-card__subtext--sms">
+            &#128241; Un <strong>SMS de confirmare</strong> a fost trimis la <strong>{{ displayConfirmedPhone() }}</strong>, iar detaliile program&#259;rii au fost transmise &#537;i pe e-mail la <strong>{{ confirmedAppointment()?.clientEmail || clientForm.controls.email.value }}</strong>.
           </p>
+
+          <!-- PWA Add to Home Screen Banner -->
+          @if (!pwaInstalled()) {
+            <div class="pwa-install-banner">
+              <div class="pwa-install-banner__icon" aria-hidden="true">&#128242;</div>
+              <div class="pwa-install-banner__content">
+                <h3 class="pwa-install-banner__title">Acces rapid pe ecranul telefonului</h3>
+                <p class="pwa-install-banner__desc">
+                  Salveaz&#259; Gang Style pe ecranul principal pentru a te programa data viitoare &#238;n c&#226;teva secunde.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="pwa-install-banner__btn"
+                (click)="triggerInstallPrompt()"
+              >
+                {{ isIosDevice() ? 'Vezi cum se adaug&#259; pe iPhone' : '+ Adaug&#259; pe ecran' }}
+              </button>
+            </div>
+          }
+
+          @if (showIosGuide()) {
+            <div class="ios-install-guide" role="dialog" aria-modal="true" (click)="closeIosGuide()">
+              <div class="ios-install-guide__card" (click)="$event.stopPropagation()">
+                <div class="ios-install-guide__header">
+                  <h4>Ad&#259;ugare pe ecranul iPhone</h4>
+                  <button type="button" class="ios-install-guide__close" (click)="closeIosGuide()">&times;</button>
+                </div>
+                <ol class="ios-install-guide__steps">
+                  <li>
+                    Apas&#259; pe butonul de <strong>Distribuie (Share)</strong> din Safari
+                    (p&#259;tratul cu s&#259;geat&#259; &#238;n sus din bara de jos).
+                  </li>
+                  <li>
+                    Deruleaz&#259; &#238;n jos &#537;i alege <strong>&#8222;Adaug&#259; pe ecranul principal&#8221;</strong>.
+                  </li>
+                  <li>
+                    Apas&#259; pe <strong>&#8222;Ad&#259;uga&#538;i&#8221;</strong> &#238;n col&#539;ul dreapta-sus. Gata!
+                  </li>
+                </ol>
+                <button type="button" class="btn-next btn-next--small" (click)="closeIosGuide()">
+                  Am &#238;n&#539;eles &#10003;
+                </button>
+              </div>
+            </div>
+          }
 
           <div class="confirmed-card__actions">
             @if (authService.currentUser()) {

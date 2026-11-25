@@ -458,47 +458,47 @@ public class AppointmentService {
 
     // Cancels an existing appointment with IDOR security check and 3-hour notice policy
     public AppointmentResponseDto cancelAppointment(String id, String requesterEmail, boolean isStaff) {
-        // Step 1: Look up target appointment or return 404
+        // Find target appointment in MongoDB by ID
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea nu a fost găsită."));
 
-        // Step 2: Enforce anti-IDOR check (prevent client A from cancelling client B's appointment)
+        // Anti-IDOR security check: regular clients can only cancel their own appointment
         verifyAppointmentOwnership(appointment, requesterEmail, isStaff, "anula");
 
-        // Step 3: Prevent duplicate cancellation
+        // Reject redundant cancellation request if already cancelled
         if ("CANCELLED".equalsIgnoreCase(appointment.getStatus())) {
             throw new IllegalArgumentException("Această programare este deja anulată.");
         }
 
-        // Step 4: Enforce 3-hour cutoff notice for regular clients (phone call required if <3h)
+        // Apply 3-hour advance notice rule for regular clients
         if (!isStaff) {
             enforceThreeHourCutoff(appointment, "anulări");
         }
 
-        // Step 5: Mark status as CANCELLED and persist to database
+        // Update status to CANCELLED and persist record
         appointment.setStatus("CANCELLED");
         Appointment updated = appointmentRepository.save(appointment);
         log.info("Cancelled appointment [{}] by {} (staff={})", id, requesterEmail, isStaff);
 
-        // Step 6: Return mapped response DTO
+        // Map updated entity to response DTO
         return AppointmentResponseDto.fromEntity(updated);
     }
 
     // Updates appointment status (CONFIRMED -> COMPLETED / NO_SHOW / CANCELLED) by salon staff
     public AppointmentResponseDto updateStatus(String id, String newStatus) {
-        // Step 1: Retrieve target appointment by ID
+        // Retrieve appointment record by ID
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Programarea cu ID-ul specificat nu există."));
 
-        // Step 2: Validate allowed enum status value
+        // Validate and normalize incoming status enum string
         String normalizedStatus = normalizeStatus(newStatus);
 
-        // Step 3: Update lifecycle status and persist to MongoDB
+        // Apply new status and persist to MongoDB
         appointment.setStatus(normalizedStatus);
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Updated appointment [{}] status to {}", id, saved.getStatus());
 
-        // Step 4: Return updated appointment DTO
+        // Return updated appointment entity as DTO
         return AppointmentResponseDto.fromEntity(saved);
     }
 

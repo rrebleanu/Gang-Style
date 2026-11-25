@@ -73,14 +73,14 @@ public class AppointmentService {
 
     // Creates and persists a new appointment with validation checks
     public AppointmentResponseDto createAppointment(AppointmentRequestDto request, String authenticatedEmail) {
-        // Step 1: Clean and normalize barber slug
+        // Clean and normalize barber slug identifier
         String barberSlug = request.getBarberSlug().trim().toLowerCase();
 
-        // Step 2: Fetch barber from database or throw 404 if not found
+        // Fetch barber entity or throw 404 if not found
         Barber barber = barberRepository.findBySlug(barberSlug)
                 .orElseThrow(() -> new ResourceNotFoundException("Frizerul selectat nu a fost găsit: " + barberSlug));
 
-        // Step 3: Resolve service details from catalog
+        // Resolve service details and pricing from database or request payload
         Optional<ServicePackage> serviceOpt = servicePackageRepository.findById(request.getServiceId().trim());
         String serviceName;
         int durationMinutes;
@@ -88,14 +88,12 @@ public class AppointmentService {
         double priceRon;
 
         if (serviceOpt.isPresent()) {
-            // Read duration and pricing from database
             ServicePackage service = serviceOpt.get();
             serviceName = service.getName();
             durationMinutes = service.getDurationMinutes();
             slotMinutes = service.getSlotMinutes() > 0 ? service.getSlotMinutes() : durationMinutes;
             priceRon = service.getPriceRon();
         } else if (request.getServiceName() != null && request.getDurationMinutes() != null && request.getPriceRon() != null) {
-            // Fallback: use values provided in request payload
             serviceName = request.getServiceName().trim();
             durationMinutes = request.getDurationMinutes();
             slotMinutes = durationMinutes;
@@ -104,12 +102,12 @@ public class AppointmentService {
             throw new ResourceNotFoundException("Pachetul de servicii selectat nu există.");
         }
 
-        // Validate reasonable service duration (15 to 240 minutes)
+        // Validate service duration range
         if (durationMinutes <= 0 || durationMinutes > 240) {
             throw new IllegalArgumentException("Durata serviciului trebuie să fie între 15 și 240 de minute.");
         }
 
-        // Step 4: Parse appointment date (YYYY-MM-DD) and start time (HH:mm)
+        // Parse appointment date and start time
         LocalDate appointmentDate;
         LocalTime startLocalTime;
         try {
@@ -119,41 +117,38 @@ public class AppointmentService {
             throw new IllegalArgumentException("Formatul datei (YYYY-MM-DD) sau al orei (HH:mm) este invalid.");
         }
 
-        // Step 5: Compute start and end timestamps
+        // Compute start and end timestamps
         LocalDateTime startDateTime = LocalDateTime.of(appointmentDate, startLocalTime);
         LocalDateTime endDateTime = startDateTime.plusMinutes(durationMinutes);
         LocalTime endLocalTime = endDateTime.toLocalTime();
 
-        // Convert times to minutes from midnight (00:00 = 0) for fast interval math
+        // Convert times to minutes from midnight for fast interval intersection math
         int startMinutes = startLocalTime.getHour() * 60 + startLocalTime.getMinute();
         int endMinutes = startMinutes + durationMinutes;
 
-        // Check if booking was initiated online by client
         String source = normalizeSource(request.getSource());
         boolean isOnlineClientBooking = "ONLINE".equalsIgnoreCase(source);
 
-        // Step 6: Validate client constraints for online bookings
+        // Apply client constraints for online bookings (horizon, working hours, and no-show checks)
         if (isOnlineClientBooking) {
-            // Verify date is in future, within 14-day limit, and salon is open
             validateTemporalConstraints(appointmentDate, startLocalTime, endLocalTime, startDateTime);
-            // Block clients with 2+ unexcused missed visits
             validateClientNoShowHistory(request.getClientPhone());
         }
 
-        // Step 7: Prevent double-booking (ensure slot does not overlap another booking)
+        // Anti-overlap validation: ensure slot does not intersect another booking
         validateNoTimeSlotOverlap(barberSlug, appointmentDate.toString(), startMinutes, endMinutes, barber.getName());
 
-        // Step 8: Prepare date label in Romanian (e.g. "Luni, 25 Noiembrie")
+        // Prepare human-readable Romanian date label
         String dateLabel = (request.getDateLabel() != null && !request.getDateLabel().isBlank())
                 ? request.getDateLabel().trim()
                 : formatRomanianDateLabel(appointmentDate);
 
-        // Step 9: Bind appointment to email (request email or logged-in user email)
+        // Associate client email from request or authenticated security context
         String clientEmail = (request.getClientEmail() != null && !request.getClientEmail().isBlank())
                 ? request.getClientEmail().trim().toLowerCase()
                 : (authenticatedEmail != null ? authenticatedEmail.trim().toLowerCase() : "");
 
-        // Step 10: Instantiate the appointment entity
+        // Instantiate persistent appointment entity
         Appointment appointment = new Appointment(
                 barber.getSlug(),
                 barber.getName(),
@@ -187,15 +182,15 @@ public class AppointmentService {
             appointment.setReferralCode(request.getReferralCode().trim());
         }
 
-        // Step 11: Save record to MongoDB database
+        // Save appointment record to MongoDB
         Appointment saved = appointmentRepository.save(appointment);
         log.info("Created appointment [{}] for barber '{}' on {} ({}-{})",
                 saved.getId(), barberSlug, saved.getDateIso(), saved.getStartTime(), saved.getEndTime());
 
-        // Step 12: Send confirmation email in background (does not block client response)
+        // Dispatch email confirmation asynchronously without blocking the HTTP thread
         emailService.sendAppointmentConfirmationAsync(saved);
 
-        // Step 13: Map saved entity to DTO and return response
+        // Return mapped response DTO
         return AppointmentResponseDto.fromEntity(saved);
     }
 

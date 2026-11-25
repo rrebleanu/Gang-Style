@@ -146,16 +146,15 @@ public class AvailabilityService {
 
         List<TimeSlotDto> slots = new ArrayList<>();
         Set<String> emittedOccupiedIds = new HashSet<>();
+        // Start pointer at salon opening time (in minutes from midnight)
         int cursor = openMinutes;
 
-        // Dynamic interval packing loop:
-        // Packs slots of length `duration` across [openMinutes, closeMinutes].
-        // Whenever an existing appointment or blocked break is encountered, the cursor jumps
-        // directly to the end of that obstacle so zero dead time is wasted between appointments.
+        // Loop forward while candidate slot fits before closing time
         while (cursor + duration <= closeMinutes) {
             int candidateEnd = cursor + duration;
             final int candidateStart = cursor;
 
+            // Step 1: Check if candidate slot overlaps any existing appointment or break
             Optional<Appointment> overlappingOpt = occupied.stream()
                     .filter(apt -> intervalsOverlap(
                             candidateStart,
@@ -170,8 +169,7 @@ public class AvailabilityService {
                 int obsStart = resolveStartMinutes(overlapping);
                 int obsEnd = resolveEndMinutes(overlapping);
 
-                // Emit existing client appointments as unavailable slots (available = false)
-                // while keeping personal barber breaks/blocks (source == BLOCKED) completely hidden.
+                // Step 2: If occupied by a client booking, show it as unavailable (greyed out)
                 if (!"BLOCKED".equalsIgnoreCase(overlapping.getSource())
                         && overlapping.getId() != null
                         && !emittedOccupiedIds.contains(overlapping.getId())
@@ -186,15 +184,16 @@ public class AvailabilityService {
                             eTime,
                             sTime + " - " + eTime,
                             obsEnd - obsStart,
-                            false
+                            false // Slot is taken
                     ));
                 }
 
-                // Advance cursor directly to the end of the overlapping appointment or blocked break
+                // Step 3: Jump cursor past the obstacle to eliminate dead wait times
                 cursor = Math.max(cursor + 5, obsEnd);
                 continue;
             }
 
+            // Step 4: No collision found -> emit this time window as an available booking slot
             String startStr = formatMinutes(cursor);
             String endStr = formatMinutes(candidateEnd);
             slots.add(new TimeSlotDto(
@@ -202,8 +201,10 @@ public class AvailabilityService {
                     endStr,
                     startStr + " - " + endStr,
                     duration,
-                    true
+                    true // Slot is available
             ));
+
+            // Advance cursor by the service duration for the next slot
             cursor += duration;
         }
 

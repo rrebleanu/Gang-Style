@@ -29,4 +29,12 @@ public class BarberController {
                 .orElseThrow(() -> new ResourceNotFoundException("Frizerul selectat nu a fost găsit."));
         return ResponseEntity.ok(barber);
     }
+
+    @PutMapping("/{slug}/portfolio")
+    public ResponseEntity<BarberResponseDto> updateBarberPortfolio(
+            @PathVariable String slug,
+            @RequestBody List<String> portfolio
+    ) {
+        return ResponseEntity.ok(barberService.updatePortfolio(slug, portfolio));
+    }
 }
